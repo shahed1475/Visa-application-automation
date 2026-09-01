@@ -58,7 +58,7 @@ export function createPortal(db: DatabaseSync, input: PortalInput): VisaPortal {
 
 export function listPortals(db: DatabaseSync): VisaPortal[] {
   return db
-    .prepare('SELECT * FROM visa_portals ORDER BY created_at DESC, id DESC')
+    .prepare('SELECT * FROM visa_portals ORDER BY created_at DESC, rowid DESC')
     .all()
     .map((r) => rowToPortal(r as unknown as PortalRow));
 }

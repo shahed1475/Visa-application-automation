@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": { "node": ">=24" },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,green npm:dev:server npm:dev:web",
     "dev:server": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx watch src/server/index.ts",

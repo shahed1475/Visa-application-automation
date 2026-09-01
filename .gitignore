@@ -4,3 +4,6 @@ data/
 dist/
 coverage/
 *.log
+
+# SDD execution scratch
+.superpowers/

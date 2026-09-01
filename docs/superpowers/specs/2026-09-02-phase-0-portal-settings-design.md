@@ -4,6 +4,14 @@
 **Status:** Approved (design + acceptance checklist)
 **Project:** Visa Application Autofill (local-first)
 
+**Related documents:**
+- Implementation plan: `docs/superpowers/plans/2026-09-02-phase-0-portal-settings.md`
+- Portal-agnostic research framework: `docs/visa-form-analysis.md` (field-analysis
+  method, data-source taxonomy, passport reference, discovery methodology)
+- Portal-agnostic risk register: `docs/automation-risks.md`
+- Per-portal discovery output (created later, one per configured portal):
+  `docs/portals/<slug>.md`
+
 ---
 
 ## 1. Purpose & Scope

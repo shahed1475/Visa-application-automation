@@ -1,11 +1,14 @@
 import Fastify, {
   type FastifyBaseLogger,
+  type FastifyError,
   type FastifyInstance,
 } from 'fastify';
 import { logger } from './logger.js';
 import { openDatabase } from './db/connection.js';
 import { runMigrations } from './db/migrations.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerPortalRoutes } from './routes/portals.js';
+import { errorBody } from './routes/errors.js';
 
 export interface BuildServerOptions {
   dbPath: string;
@@ -25,5 +28,14 @@ export async function buildServer(
     db.close();
   });
   await registerHealthRoutes(app);
+  await registerPortalRoutes(app);
+
+  app.setErrorHandler((err: FastifyError, req, reply) => {
+    req.log.error({ err }, 'unhandled route error');
+    const status = err.statusCode && err.statusCode >= 400 ? err.statusCode : 500;
+    // Never leak internal detail to the client.
+    reply.code(status).send(errorBody('INTERNAL', 'Internal server error'));
+  });
+
   return app;
 }

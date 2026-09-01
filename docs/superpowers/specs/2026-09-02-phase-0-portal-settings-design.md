@@ -288,6 +288,27 @@ Written to `docs/architecture/` as short ADRs during implementation:
 - ADR-0004: Test Connection is navigate-only / report-only by design;
   security challenges are detected and delegated to the user.
 
+## 9a. Portal URL Single-Source-of-Truth Audit (mandatory verification)
+
+The configured portal URL (the `url` column of the active `visa_portals`
+row) is the **only** runtime source of truth for what Playwright navigates to.
+
+- No hidden or default portal URL anywhere: not in backend code, frontend
+  code, Playwright helpers, constants, `.env` / `.env.example` defaults,
+  test code, or fixtures used as the runtime target.
+- Any example URL in documentation or seed data must be explicitly labelled
+  as example data and must never silently become the runtime target. Phase 0
+  ships **no seed data**; the portal list starts empty.
+- `testConnection` receives the URL only as a parameter sourced from the DB
+  row. It has no fallback, no `||`-default, no hard-coded constant.
+- **Test required:** a test that saves a portal, changes its `url` to two
+  different values, runs Test Connection each time (against local fixture
+  servers on different ports/paths), and asserts the navigation target
+  matched the saved value each time — with zero code changes between runs.
+- **Static audit:** implementation includes a grep/check step confirming no
+  government-portal hostname appears as a runtime constant. Documented in the
+  end-of-phase report.
+
 ## 10. Testing Strategy
 
 | Area | Tool | What |
@@ -342,6 +363,7 @@ Phase is complete only when all are true:
 - [ ] Test Connection never submits a visa application.
 - [ ] CAPTCHA/OTP/MFA/security challenges are not bypassed.
 - [ ] Portal-specific selectors/configuration are separated from the shared browser engine.
+- [ ] Portal URL single-source-of-truth audit passes (§9a): no default/hidden portal URL anywhere; test proves changing the saved URL changes the Test Connection target with no code change.
 - [ ] Restarting the application does not lose saved portal settings.
 - [ ] Typecheck/lint/tests/build pass, or any failures are clearly documented.
 - [ ] Git diff has been reviewed for unintended changes.

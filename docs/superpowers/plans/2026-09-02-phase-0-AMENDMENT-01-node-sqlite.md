@@ -155,6 +155,15 @@ explicit `: Promise<FastifyInstance>` annotation) and keep
 `loggerInstance: logger as unknown as FastifyBaseLogger` with a one-line comment
 is acceptable. Runtime behaviour is identical either way.
 
+### `DatabaseSync.close()` throws on double-close (Tasks 4, 7 — any test that reopens)
+
+Unlike `better-sqlite3` (idempotent `close()`), `node:sqlite` `DatabaseSync.close()`
+throws if the handle is already closed. Any test that closes a db mid-test and
+reopens (e.g. portalService "persists across a reopen") must ensure the
+`afterEach` closes each live handle exactly once — reassign the shared handle
+variable to the reopened db, or close explicitly in the test and guard
+`afterEach`. Route-level tests that reassign `app` via `buildServer` are unaffected.
+
 ### Tests that type the db (Tasks 1, 3, 4, 5, 7, 10)
 
 Replace `let db: BetterSqlite3.Database;` with `let db: DatabaseSync;` and the

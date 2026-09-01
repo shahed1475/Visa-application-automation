@@ -34,6 +34,11 @@ exist on `DatabaseSync` and behave equivalently for this project's usage.
 
 ### `package.json` (Task 1)
 
+- **`engines`:** change `{ "node": ">=22" }` → `{ "node": ">=24" }`. Unflagged
+  `node:sqlite` `DatabaseSync` requires Node ≥22.13 / ≥23.4, and the scripts pass
+  only `--disable-warning=ExperimentalWarning` (not `--experimental-sqlite`); the
+  target runtime is Node 24 and no other version is tested. Apply this in Task 3
+  (amendment-compliance step) if not already done.
 - **dependencies:** remove `better-sqlite3`. Keep everything else.
 - **devDependencies:** remove `@types/better-sqlite3`. Bump `@types/node` to `^24.0.0`
   (so `node:sqlite` types resolve). Bump `vitest` to `^3.0.0` (**ratified** — vitest 2.x

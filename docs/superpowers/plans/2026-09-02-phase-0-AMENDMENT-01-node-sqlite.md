@@ -36,7 +36,11 @@ exist on `DatabaseSync` and behave equivalently for this project's usage.
 
 - **dependencies:** remove `better-sqlite3`. Keep everything else.
 - **devDependencies:** remove `@types/better-sqlite3`. Bump `@types/node` to `^24.0.0`
-  (so `node:sqlite` types resolve).
+  (so `node:sqlite` types resolve). Bump `vitest` to `^3.0.0` (**ratified** — vitest 2.x
+  strips the `node:` specifier prefix and cannot resolve `node:sqlite`, collecting 0
+  tests with `Failed to load url sqlite`; fixed in vitest 3, which runs fine on the
+  still-pinned `vite@^5.4` / `@vitejs/plugin-react@^4.3`). If `@vitest/coverage-*` is
+  ever added it must match `^3`.
 - **scripts:** `node:sqlite` emits an `ExperimentalWarning` on import in Node 24.
   Prefix the node-invoking scripts with
   `cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning` so output stays

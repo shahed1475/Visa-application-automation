@@ -4,6 +4,8 @@ data/
 dist/
 coverage/
 *.log
+*.db
+playwright-report/
 
 # SDD execution scratch
 .superpowers/

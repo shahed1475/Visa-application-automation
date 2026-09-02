@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../../src/server/app.js';
 import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
+import { startFixtureServer } from '../helpers/fixtureServer.js';
 
 let app: FastifyInstance;
 let dbPath: string;
@@ -96,4 +97,22 @@ it('active-portal survives a server restart on the same db file', async () => {
   app = await buildServer({ dbPath });
   const get = await app.inject({ method: 'GET', url: '/api/settings/active-portal' });
   expect(get.json().activePortalId).toBe(p.id);
+});
+
+it('test-connection targets whatever URL is saved for the portal (spec §9a)', async () => {
+  const site = await startFixtureServer({
+    html: '<!doctype html><title>Saved Target</title><body>ok</body>',
+  });
+  try {
+    const p = await create({ url: site.url });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/portals/${p.id}/test-connection`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().result.pageTitle).toBe('Saved Target');
+    expect(res.json().result.finalUrl).toBe(site.url);
+  } finally {
+    await site.close();
+  }
 });

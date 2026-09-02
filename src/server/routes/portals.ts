@@ -3,6 +3,7 @@ import { activePortalSchema, portalInputSchema } from '../../shared/schemas.js';
 import * as svc from '../services/portalService.js';
 import { PortalDisabledError, PortalNotFoundError } from '../services/errors.js';
 import { errorBody, notFoundError, validationError } from './errors.js';
+import { runConnectionTest } from '../automation/discovery/testConnection.js';
 
 export async function registerPortalRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/portals', async () => ({ portals: svc.listPortals(app.db) }));
@@ -60,12 +61,13 @@ export async function registerPortalRoutes(app: FastifyInstance): Promise<void> 
     };
   });
 
-  // Wired for real in Task 7.
   app.post<{ Params: { id: string } }>(
     '/api/portals/:id/test-connection',
-    async (_req, reply) =>
-      reply
-        .code(501)
-        .send(errorBody('NOT_IMPLEMENTED', 'Test Connection lands in Task 7')),
+    async (req, reply) => {
+      const portal = svc.getPortal(app.db, req.params.id);
+      if (!portal) return reply.code(404).send(notFoundError('portal'));
+      const result = await runConnectionTest(portal.url); // URL sourced only from the DB row
+      return { result };
+    },
   );
 }

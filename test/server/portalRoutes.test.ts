@@ -116,3 +116,45 @@ it('test-connection targets whatever URL is saved for the portal (spec §9a)', a
     await site.close();
   }
 });
+
+it('a body-less POST carrying content-type: application/json is accepted (no FST_ERR_CTP_EMPTY_JSON_BODY)', async () => {
+  const site = await startFixtureServer({
+    html: '<!doctype html><title>Empty Body OK</title><body>ok</body>',
+  });
+  try {
+    const p = await create({ url: site.url });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/portals/${p.id}/test-connection`,
+      headers: { 'content-type': 'application/json' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().result.pageTitle).toBe('Empty Body OK');
+  } finally {
+    await site.close();
+  }
+});
+
+it('an empty JSON body is treated as no body — sanitized VALIDATION_ERROR, not a raw parser error', async () => {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/portals',
+    headers: { 'content-type': 'application/json' },
+  });
+  expect(res.statusCode).toBe(400);
+  expect(res.json().error.code).toBe('VALIDATION_ERROR');
+  expect(res.json()).not.toHaveProperty('code'); // no leaked Fastify error envelope
+});
+
+it('malformed JSON is rejected through the sanitized error envelope (no raw parser error)', async () => {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/portals',
+    headers: { 'content-type': 'application/json' },
+    payload: '{ not json',
+  });
+  expect(res.statusCode).toBe(400);
+  expect(res.json().error.code).toBe('VALIDATION_ERROR');
+  expect(res.json()).not.toHaveProperty('code');
+  expect(JSON.stringify(res.json())).not.toMatch(/FST_ERR|SyntaxError|Bad Request|at Object/);
+});

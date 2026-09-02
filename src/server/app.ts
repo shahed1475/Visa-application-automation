@@ -25,6 +25,30 @@ export async function buildServer(
   // narrows the server's logger generic and no longer matches `FastifyBaseLogger`
   // (pino's `BaseLogger` requires `msgPrefix`). Runtime behaviour is unchanged.
   const app = Fastify({ loggerInstance: logger as unknown as FastifyBaseLogger });
+
+  // JSON body parser that never throws a raw framework error at the client.
+  // The stock parser throws FST_ERR_CTP_EMPTY_JSON_BODY / _INVALID_JSON_BODY,
+  // which bypass the sanitizer below and leak Fastify internals. A missing or
+  // unparseable payload becomes "no body" here, so route-level Zod validation
+  // produces the normal sanitized VALIDATION_ERROR envelope. (A body-less
+  // POST /portals/:id/test-connection is legitimate and must succeed.)
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      const text = typeof body === 'string' ? body.trim() : '';
+      if (text.length === 0) {
+        done(null, undefined);
+        return;
+      }
+      try {
+        done(null, JSON.parse(text));
+      } catch {
+        done(null, undefined);
+      }
+    },
+  );
+
   const db = openDatabase(opts.dbPath);
   runMigrations(db);
   app.decorate('db', db);

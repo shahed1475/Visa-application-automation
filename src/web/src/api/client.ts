@@ -1,11 +1,15 @@
 import type { PortalInput } from '../../../shared/schemas';
 import type { ConnectionTestResult, VisaPortal } from '../../../shared/types';
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    headers: { 'content-type': 'application/json' },
-    ...init,
-  });
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  // Only declare a JSON body when we actually send one. A body-less POST/DELETE
+  // that still carries `content-type: application/json` trips Fastify's
+  // empty-JSON-body guard (FST_ERR_CTP_EMPTY_JSON_BODY) — e.g. test-connection.
+  if (init.body != null && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+  const res = await fetch(`/api${path}`, { ...init, headers });
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
   if (!res.ok) {

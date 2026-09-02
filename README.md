@@ -90,6 +90,7 @@ and spec §9a.
 
 ## Docs
 
+- `docs/ARCHITECTURE.md` — application-foundation architecture (layout, layering, the 13 foundation requirements → code, config, security posture, known issues)
 - `docs/superpowers/specs/2026-09-02-phase-0-portal-settings-design.md` — Phase 0 spec
 - `docs/superpowers/plans/2026-09-02-phase-0-portal-settings.md` — implementation plan
 - `docs/superpowers/plans/2026-09-02-phase-0-AMENDMENT-01-node-sqlite.md` — the `node:sqlite` amendment

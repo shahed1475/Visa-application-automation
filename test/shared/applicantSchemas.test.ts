@@ -12,6 +12,7 @@ import {
   travelSchema, referenceSchema, fieldMetaInputSchema,
   applicantCreateSchema, applicantPutSchema,
 } from '../../src/shared/applicant/schemas.js';
+import { SECTION_TABLES } from '../../src/server/services/applicantColumns.js';
 
 describe('field sources', () => {
   it('includes the Phase 2 sources and the Phase 3 OCR sources', () => {
@@ -45,6 +46,32 @@ describe('isValidFieldPath', () => {
     expect(isValidFieldPath('identity.')).toBe(false);
     expect(isValidFieldPath('.identity')).toBe(false);
     expect(isValidFieldPath('a.'.repeat(120))).toBe(false);
+  });
+
+  it('accepts every real `<section>.<field>` path the producers emit', () => {
+    // SectionCard / applicantCompleteness / the updateApplicant reconciliation all
+    // build `${sectionKey}.${camelCaseColumnKey}` — every one must validate.
+    const seen: string[] = [];
+    for (const [section, def] of Object.entries(SECTION_TABLES)) {
+      for (const field of Object.keys(def.cols)) {
+        const path = `${section}.${field}`;
+        seen.push(path);
+        expect(isValidFieldPath(path), `${path} should be a valid field path`).toBe(true);
+      }
+    }
+    // Guards against the map silently shrinking: 8 + 7 + 3 + 6 columns.
+    expect(seen).toHaveLength(24);
+    expect(seen).toContain('identity.givenNames');
+    expect(seen).toContain('passport.expiryDate');
+    expect(seen).toContain('address.postalCode');
+  });
+
+  it('accepts child-row paths for both snake_case and camelCase leaf fields', () => {
+    const uuid = '3f1c2b7a-9d4e-4a1b-8c2d-0e1f2a3b4c5d';
+    expect(isValidFieldPath(`travel.${uuid}.arrival_date`)).toBe(true);
+    expect(isValidFieldPath(`travel.${uuid}.arrivalDate`)).toBe(true);
+    expect(isValidFieldPath(`references.${uuid}.organization`)).toBe(true);
+    expect(isValidFieldPath(`references.${uuid}.emailAddress`)).toBe(true);
   });
 });
 

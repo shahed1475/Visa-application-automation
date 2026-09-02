@@ -19,10 +19,16 @@ export function isOcrSource(v: string): boolean {
   return (OCR_SOURCES as readonly string[]).includes(v);
 }
 
-const SEGMENT = /^[a-z0-9_]+$/;
+// Segments must start lowercase (so `Identity.Surname` is still rejected) but may
+// carry camelCase after that — every producer emits camelCase keys straight from
+// SECTION_TABLES (`identity.givenNames`, `passport.expiryDate`, …).
+const SEGMENT = /^[a-z][a-zA-Z0-9_]*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Dot-separated; each segment is [a-z0-9_]+ or a UUID (list-item id). Max 200 chars. */
+/**
+ * Dot-separated; each segment is a lowercase-initial identifier
+ * (`[a-z][a-zA-Z0-9_]*`) or a UUID (list-item id). Max 200 chars.
+ */
 export function isValidFieldPath(p: string): boolean {
   if (p.length === 0 || p.length > 200) return false;
   const segs = p.split('.');

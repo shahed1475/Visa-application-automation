@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { TravelRecord } from '../../../../shared/applicant/types';
+import type { TravelPatchInput } from '../../../../shared/applicant/schemas';
 import { api } from '../../api/client';
 import { TravelRecordForm } from './TravelRecordForm';
 
@@ -12,13 +13,13 @@ interface Props {
 export function TravelSection({ applicantId, records, onChange }: Props) {
   const [mode, setMode] = useState<{ kind: 'add' } | { kind: 'edit'; id: string } | null>(null);
 
-  async function add(values: Record<string, string | null>) {
-    await api.addTravel(applicantId, values as never);
+  async function add(values: TravelPatchInput) {
+    await api.addTravel(applicantId, values);
     setMode(null);
     await onChange();
   }
-  async function edit(id: string, values: Record<string, string | null>) {
-    await api.updateTravel(applicantId, id, values as never);
+  async function edit(id: string, values: TravelPatchInput) {
+    await api.updateTravel(applicantId, id, values);
     setMode(null);
     await onChange();
   }

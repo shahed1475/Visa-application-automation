@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { TravelRecord } from '../../../../shared/applicant/types';
+import type { TravelPatchInput } from '../../../../shared/applicant/schemas';
 import { TRIP_TYPE_OPTIONS } from '../../lib/applicantOptions';
 
-const FIELDS: { key: keyof TravelRecord & string; label: string; type?: 'date' | 'select' | 'textarea' }[] = [
+const FIELDS: { key: keyof TravelPatchInput & string; label: string; type?: 'date' | 'select' | 'textarea' }[] = [
   { key: 'tripType', label: 'Trip type', type: 'select' },
   { key: 'purpose', label: 'Purpose' },
   { key: 'destinationCountry', label: 'Destination country' },
@@ -20,7 +21,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 interface Props {
   initial?: TravelRecord;
   onCancel: () => void;
-  onSubmit: (values: Record<string, string | null>) => Promise<void>;
+  onSubmit: (values: TravelPatchInput) => Promise<void>;
 }
 
 export function TravelRecordForm({ initial, onCancel, onSubmit }: Props) {
@@ -38,7 +39,9 @@ export function TravelRecordForm({ initial, onCancel, onSubmit }: Props) {
         return;
       }
     }
-    const values: Record<string, string | null> = {};
+    // Every FIELDS key is a `string | null | undefined` property of TravelPatchInput,
+    // so the union-keyed write below is well-typed.
+    const values: TravelPatchInput = {};
     for (const f of FIELDS) {
       const v = (draft[f.key] ?? '').trim();
       values[f.key] = v.length > 0 ? v : null;

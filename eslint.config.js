@@ -17,9 +17,13 @@ export default tseslint.config(
     },
   },
   {
-    // Test fixtures build partial section objects and cast them; `as any` is the
-    // agreed shorthand across the Phase 2 task briefs.
-    files: ['test/**/*.{ts,tsx}'],
+    // Narrowed from `test/**` once the applicant schemas started exporting their
+    // `z.input` shapes: every section / travel / reference / field-meta fixture is
+    // now assignable without a cast, so the service and route tests carry no `any`.
+    // This one file still needs it — it calls the pure completeness/verification
+    // helpers with deliberately partial `ApplicantDetail` slices (`{} as any`,
+    // `[] as any[]`) that no exported type describes.
+    files: ['test/server/applicantCompleteness.test.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },

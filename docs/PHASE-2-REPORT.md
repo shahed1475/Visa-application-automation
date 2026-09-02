@@ -42,14 +42,25 @@ Pure domain logic over the `DatabaseSync` handle (no HTTP types):
 
 - **CRUD:** `createApplicant`, `getApplicantDetail`, `listApplicants(q?)`,
   `updateApplicant` (partial section patches, single transaction), `deleteApplicant`.
+  "Partial" is literal: the section schemas leave an omitted key `undefined`
+  (only `''` / explicit `null` become `NULL`), and `writeSection` /
+  `updateChild` emit a `SET` clause only for the keys actually sent. A
+  `PUT { identity: { surname: 'X' } }` therefore touches one column and leaves
+  every sibling value — and its `applicant_field_meta` row — alone.
 - **Search:** `listApplicants` filters on display name / passport number /
   nationality / contact email via parameterized `LIKE` (injection-free).
 - **Children:** `addTravel` / `updateTravel` / `deleteTravel` and the reference
   equivalents, with `sort_order` maintained as `MAX(sort_order)+1`.
 - **Provenance:** `upsertFieldMeta` — one row per `(applicant, field_path)`;
   `source` validated in Zod (not a SQL `CHECK`) so Phase 3 OCR sources need no
-  migration; `confidence` forced `null` for non-OCR sources; OCR rows never
-  auto-`verified`.
+  migration; `confidence` forced `null` for non-OCR sources. `source` has no Zod
+  default — an omitted `source` keeps the existing row's provenance (and its
+  `confidence`, while the source is unchanged), so the Confirm button's
+  `{ fieldPath, verified }` write cannot downgrade a `passport_mrz` / 0.97 row to
+  `manual` / `NULL`; `'manual'` is applied in the service for genuinely new rows.
+  OCR rows are never auto-`verified`: `fieldMetaInputSchema` rejects a write that
+  sets an OCR `source` and `verified: true` together (400), so confirming an OCR
+  reading is always a separate, human act.
 - **Reconciliation:** when `updateApplicant` changes a section value, the matching
   `applicant_field_meta` row is reset to `verified = 0`, `verified_at = NULL`
   inside the same transaction.

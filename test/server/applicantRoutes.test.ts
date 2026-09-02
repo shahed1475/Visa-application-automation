@@ -76,6 +76,47 @@ it('PUT patches a section; GET reflects it', async () => {
   expect(put.json().applicant.identity.surname).toBe('Rahman');
 });
 
+it('PUT of one section key leaves sibling values and their verified meta intact', async () => {
+  const { applicant } = (
+    await create({
+      displayName: 'Partial',
+      identity: { surname: 'Khan', givenNames: 'Aisha', dateOfBirth: '2000-01-01' },
+    })
+  ).json();
+  const id = applicant.id as string;
+
+  for (const fieldPath of ['identity.givenNames', 'identity.dateOfBirth']) {
+    const v = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/field-meta`,
+      payload: { fieldPath, verified: true },
+    });
+    expect(v.statusCode).toBe(200);
+    expect(v.json().fieldMeta.verified).toBe(true);
+  }
+
+  const put = await app.inject({
+    method: 'PUT',
+    url: `/api/applicants/${id}`,
+    payload: { identity: { surname: 'New' } },
+  });
+  expect(put.statusCode).toBe(200);
+
+  const after = put.json().applicant;
+  expect(after.identity.surname).toBe('New');
+  expect(after.identity.givenNames).toBe('Aisha'); // untouched sibling
+  expect(after.identity.dateOfBirth).toBe('2000-01-01');
+
+  const metaByPath = Object.fromEntries(
+    (after.fieldMeta as { fieldPath: string; verified: boolean }[]).map((m) => [
+      m.fieldPath,
+      m.verified,
+    ]),
+  );
+  expect(metaByPath['identity.givenNames']).toBe(true); // meta row survives
+  expect(metaByPath['identity.dateOfBirth']).toBe(true);
+});
+
 it('GET / PUT / DELETE unknown id is 404 NOT_FOUND', async () => {
   expect((await app.inject({ method: 'GET', url: '/api/applicants/nope' })).statusCode).toBe(404);
   expect((await app.inject({ method: 'PUT', url: '/api/applicants/nope', payload: {} })).statusCode).toBe(404);
@@ -188,6 +229,58 @@ describe('child records & field meta', () => {
       payload: { fieldPath: 'identity.surname', source: 'manual', confidence: 0.9 },
     });
     expect(bad.statusCode).toBe(400);
+  });
+
+  it('field-meta: PUT accepts every camelCase section field path', async () => {
+    const id = await newApplicant();
+    await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}`,
+      payload: { identity: { givenNames: 'Aisha', dateOfBirth: '2000-01-01' }, address: { postalCode: '1207' } },
+    });
+    for (const fieldPath of ['identity.givenNames', 'identity.dateOfBirth', 'address.postalCode']) {
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/api/applicants/${id}/field-meta`,
+        payload: { fieldPath, verified: true },
+      });
+      expect(res.statusCode, `${fieldPath} should be accepted`).toBe(200);
+      expect(res.json().fieldMeta.verified).toBe(true);
+    }
+  });
+
+  it('field-meta: an OCR write that also claims verified is 400', async () => {
+    const id = await newApplicant();
+    await app.inject({ method: 'PUT', url: `/api/applicants/${id}`, payload: { passport: { number: 'A1' } } });
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/field-meta`,
+      payload: { fieldPath: 'passport.number', source: 'passport_ocr', confidence: 0.9, verified: true },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_ERROR');
+    expect(res.json().error.message).toMatch(/verified/);
+  });
+
+  it('field-meta: confirming an OCR value keeps its source and confidence', async () => {
+    const id = await newApplicant();
+    await app.inject({ method: 'PUT', url: `/api/applicants/${id}`, payload: { passport: { number: 'A1' } } });
+    await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/field-meta`,
+      payload: { fieldPath: 'passport.number', source: 'passport_mrz', confidence: 0.97 },
+    });
+    const confirmed = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/field-meta`,
+      payload: { fieldPath: 'passport.number', verified: true },
+    });
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json().fieldMeta).toMatchObject({
+      source: 'passport_mrz',
+      confidence: 0.97,
+      verified: true,
+    });
   });
 
   it('field-meta: 404 for a missing applicant', async () => {

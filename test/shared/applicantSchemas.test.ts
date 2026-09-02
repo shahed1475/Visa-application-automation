@@ -88,9 +88,17 @@ describe('PROFILE_SECTIONS', () => {
 });
 
 describe('section schemas', () => {
-  it('identity: accepts all-null / omitted', () => {
-    expect(identitySchema.parse({}).surname).toBeNull();
+  it('identity: an omitted key stays absent, an explicit null clears', () => {
+    // A section body is a TRUE partial patch: absent must be distinguishable from
+    // "clear me", or writeSection would null every sibling field.
+    expect(identitySchema.parse({})).toEqual({});
+    expect('surname' in identitySchema.parse({})).toBe(false);
     expect(identitySchema.parse({ surname: null }).surname).toBeNull();
+    expect(identitySchema.parse({ surname: 'Khan' })).toEqual({ surname: 'Khan' });
+    // sex is an enum rather than an nstr — same rule
+    expect(identitySchema.parse({})).not.toHaveProperty('sex');
+    expect(identitySchema.parse({ sex: null }).sex).toBeNull();
+    expect(identitySchema.parse({ sex: 'F' }).sex).toBe('F');
   });
   it('identity: trims blank strings to null', () => {
     expect(identitySchema.parse({ surname: '  ' }).surname).toBeNull();
@@ -110,16 +118,26 @@ describe('section schemas', () => {
     expect(contactSchema.safeParse({ email: 'not-an-email' }).success).toBe(false);
     expect(contactSchema.safeParse({ email: 'a@b.co' }).success).toBe(true);
   });
-  it('address: all optional', () => {
-    expect(addressSchema.parse({ city: 'Dhaka' }).city).toBe('Dhaka');
-    expect(addressSchema.parse({}).line1).toBeNull();
+  it('address: all optional; only the sent key comes back', () => {
+    expect(addressSchema.parse({ city: 'Dhaka' })).toEqual({ city: 'Dhaka' });
+    expect(addressSchema.parse({})).toEqual({});
+  });
+  it('rejects an impossible calendar date that matches the YYYY-MM-DD shape', () => {
+    expect(identitySchema.safeParse({ dateOfBirth: '2026-02-31' }).success).toBe(false);
+    expect(passportSchema.safeParse({ expiryDate: '2026-13-01' }).success).toBe(false);
+    expect(passportSchema.safeParse({ expiryDate: '2026-00-10' }).success).toBe(false);
+    expect(travelSchema.safeParse({ arrivalDate: '2025-02-29' }).success).toBe(false);
+    // real dates, including a genuine leap day, still pass
+    expect(identitySchema.safeParse({ dateOfBirth: '2024-02-29' }).success).toBe(true);
+    expect(passportSchema.safeParse({ expiryDate: '2026-02-28' }).success).toBe(true);
   });
 });
 
 describe('travelSchema / referenceSchema', () => {
-  it('travel: everything optional', () => {
-    expect(travelSchema.parse({}).purpose).toBeNull();
-    expect(travelSchema.parse({ arrivalDate: '2026-05-01' }).arrivalDate).toBe('2026-05-01');
+  it('travel: everything optional; omitted keys stay absent', () => {
+    expect(travelSchema.parse({})).toEqual({});
+    expect(travelSchema.parse({ arrivalDate: '2026-05-01' })).toEqual({ arrivalDate: '2026-05-01' });
+    expect(travelSchema.parse({ purpose: '' }).purpose).toBeNull();
     expect(travelSchema.safeParse({ arrivalDate: 'May' }).success).toBe(false);
   });
   it('reference: kind defaults to other, enum enforced', () => {
@@ -130,18 +148,37 @@ describe('travelSchema / referenceSchema', () => {
 });
 
 describe('fieldMetaInputSchema', () => {
-  it('defaults source to manual, accepts OCR sources', () => {
-    expect(fieldMetaInputSchema.parse({ fieldPath: 'identity.surname' }).source).toBe('manual');
+  it('leaves an omitted source undefined (the service supplies the manual default)', () => {
+    // Deliberately NOT `.default('manual')` — an omitted source must stay absent so
+    // upsertFieldMeta can keep an existing row's provenance on a verify-only write.
+    expect(fieldMetaInputSchema.parse({ fieldPath: 'identity.surname' }).source).toBeUndefined();
+    expect(fieldMetaInputSchema.parse({ fieldPath: 'identity.surname', source: 'manual' }).source).toBe('manual');
     expect(fieldMetaInputSchema.parse({ fieldPath: 'passport.number', source: 'passport_mrz', confidence: 0.98 }).confidence).toBe(0.98);
   });
-  it('rejects unknown source, bad path, and confidence on a non-OCR source', () => {
+  it('rejects unknown source, bad path, and confidence without an explicit OCR source', () => {
     expect(fieldMetaInputSchema.safeParse({ fieldPath: 'identity.surname', source: 'guess' }).success).toBe(false);
     expect(fieldMetaInputSchema.safeParse({ fieldPath: 'Bad Path' }).success).toBe(false);
     expect(fieldMetaInputSchema.safeParse({ fieldPath: 'identity.surname', source: 'manual', confidence: 0.5 }).success).toBe(false);
+    expect(fieldMetaInputSchema.safeParse({ fieldPath: 'identity.surname', confidence: 0.5 }).success).toBe(false);
   });
   it('confidence must be within [0,1] for OCR sources', () => {
     expect(fieldMetaInputSchema.safeParse({ fieldPath: 'x.y', source: 'passport_ocr', confidence: 1.5 }).success).toBe(false);
     expect(fieldMetaInputSchema.safeParse({ fieldPath: 'x.y', source: 'passport_ocr', confidence: null }).success).toBe(true);
+  });
+  it('rejects an OCR write that also claims verified', () => {
+    const bad = fieldMetaInputSchema.safeParse({
+      fieldPath: 'passport.number', source: 'passport_ocr', confidence: 0.9, verified: true,
+    });
+    expect(bad.success).toBe(false);
+    expect(bad.error?.issues.some((i) => i.path.join('.') === 'verified')).toBe(true);
+    // every OCR source, not just passport_ocr
+    for (const source of OCR_SOURCES) {
+      expect(fieldMetaInputSchema.safeParse({ fieldPath: 'x.y', source, verified: true }).success).toBe(false);
+    }
+    // verified:false with an OCR source is fine, and so is confirming separately
+    expect(fieldMetaInputSchema.safeParse({ fieldPath: 'x.y', source: 'passport_ocr', verified: false }).success).toBe(true);
+    expect(fieldMetaInputSchema.safeParse({ fieldPath: 'x.y', verified: true }).success).toBe(true);
+    expect(fieldMetaInputSchema.safeParse({ fieldPath: 'x.y', source: 'manual', verified: true }).success).toBe(true);
   });
 });
 

@@ -257,28 +257,20 @@ export function updateApplicant(
       );
     }
     for (const key of ['identity', 'passport', 'contact', 'address'] as const) {
-      const sectionPatch = patch[key];
+      const sectionPatch = patch[key] as Record<string, unknown> | undefined;
       if (!sectionPatch) continue;
-      const before = readSection<Record<string, unknown>>(
-        db,
-        SECTION_TABLES[key].table,
-        SECTION_TABLES[key].cols,
-        id,
+      const { table, cols } = SECTION_TABLES[key];
+      // Only the keys the caller actually sent take part in the write AND in the
+      // provenance reconciliation below — an absent key must not clear a value or
+      // drop its field-meta row.
+      const patchedFields = Object.keys(sectionPatch).filter(
+        (field) => Object.hasOwn(cols, field) && sectionPatch[field] !== undefined,
       );
-      writeSection(
-        db,
-        SECTION_TABLES[key].table,
-        SECTION_TABLES[key].cols,
-        id,
-        sectionPatch as Record<string, unknown>,
-      );
-      const after = readSection<Record<string, unknown>>(
-        db,
-        SECTION_TABLES[key].table,
-        SECTION_TABLES[key].cols,
-        id,
-      );
-      for (const field of Object.keys(SECTION_TABLES[key].cols)) {
+      if (patchedFields.length === 0) continue;
+      const before = readSection<Record<string, unknown>>(db, table, cols, id);
+      writeSection(db, table, cols, id, sectionPatch);
+      const after = readSection<Record<string, unknown>>(db, table, cols, id);
+      for (const field of patchedFields) {
         if (before[field] === after[field]) continue;
         const fieldPath = `${key}.${field}`;
         if (after[field] == null) {
@@ -319,8 +311,18 @@ export function upsertFieldMeta(
     .prepare('SELECT * FROM applicant_field_meta WHERE applicant_id = ? AND field_path = ?')
     .get(applicantId, input.fieldPath) as Record<string, unknown> | undefined;
 
-  const source = input.source ?? 'manual';
-  const confidence = isOcrSource(source) ? input.confidence : null;
+  // Provenance survives a verify-only upsert. The Confirm button sends just
+  // `{ fieldPath, verified }`, which must not downgrade an existing
+  // `passport_mrz` / 0.97 row to `manual` / NULL — the same way `raw_value` and
+  // `verified_at` are carried over below. `confidence` only rides along while the
+  // source is unchanged, and a non-OCR source never keeps one.
+  const previousSource = existing?.source as string | undefined;
+  const source = input.source ?? previousSource ?? 'manual';
+  const carriedConfidence =
+    input.confidence === undefined && source === previousSource
+      ? ((existing?.confidence as number | null) ?? null)
+      : (input.confidence ?? null);
+  const confidence = isOcrSource(source) ? carriedConfidence : null;
   const verified = input.verified ?? (existing ? existing.verified === 1 : false);
   const verifiedAt = verified ? ((existing?.verified_at as string | null) ?? now) : null;
   const rawValue = input.rawValue ?? (existing?.raw_value as string | null) ?? null;
@@ -488,6 +490,20 @@ function nextSortOrder(db: DatabaseSync, table: string, applicantId: string): nu
   return row.m + 1;
 }
 
+/**
+ * The `[key, value]` pairs of `input` that name a real column and were actually
+ * supplied. An `undefined` value means "absent" (the Zod child schemas leave
+ * omitted keys `undefined`), so it is never written; an explicit `null` is.
+ */
+function providedColumns(
+  cols: Record<string, string>,
+  input: Record<string, unknown>,
+): [string, unknown][] {
+  return Object.entries(input).filter(
+    ([k, v]) => Object.hasOwn(cols, k) && v !== undefined,
+  );
+}
+
 function insertChild(
   db: DatabaseSync,
   table: string,
@@ -498,10 +514,10 @@ function insertChild(
   const id = randomUUID();
   const now = new Date().toISOString();
   const sortOrder = nextSortOrder(db, table, applicantId);
-  const provided = Object.entries(input).filter(([k]) => k in cols);
+  const provided = providedColumns(cols, input);
   const columns = ['id', 'applicant_id', 'sort_order', 'created_at', 'updated_at', ...provided.map(([k]) => cols[k])];
   const placeholders = columns.map(() => '?').join(', ');
-  const values = [id, applicantId, sortOrder, now, now, ...provided.map(([, v]) => v ?? null)] as SQLInputValue[];
+  const values = [id, applicantId, sortOrder, now, now, ...provided.map(([, v]) => v)] as SQLInputValue[];
   db.prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`).run(...values);
   return id;
 }
@@ -518,11 +534,13 @@ function updateChild(
     .prepare(`SELECT 1 FROM ${table} WHERE id = ? AND applicant_id = ?`)
     .get(childId, applicantId);
   if (!owned) return false;
-  const provided = Object.entries(input).filter(([k]) => k in cols);
+  const provided = providedColumns(cols, input);
   const now = new Date().toISOString();
   const setSql = [...provided.map(([k]) => `${cols[k]} = ?`), 'updated_at = ?'].join(', ');
-  const values = [...provided.map(([, v]) => v ?? null), now, childId] as SQLInputValue[];
-  db.prepare(`UPDATE ${table} SET ${setSql} WHERE id = ?`).run(...values);
+  const values = [...provided.map(([, v]) => v), now, childId, applicantId] as SQLInputValue[];
+  // `applicant_id` is re-asserted in the WHERE clause (not just in the ownership
+  // SELECT above) so the UPDATE itself can never touch another applicant's row.
+  db.prepare(`UPDATE ${table} SET ${setSql} WHERE id = ? AND applicant_id = ?`).run(...values);
   return true;
 }
 

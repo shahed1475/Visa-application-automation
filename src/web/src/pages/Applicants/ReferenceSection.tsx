@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Reference } from '../../../../shared/applicant/types';
+import type { ReferencePatchInput } from '../../../../shared/applicant/schemas';
 import { api } from '../../api/client';
 import { REFERENCE_KIND_OPTIONS } from '../../lib/applicantOptions';
 import { ReferenceForm } from './ReferenceForm';
@@ -15,13 +16,13 @@ const kindLabel = (k: string) => REFERENCE_KIND_OPTIONS.find((o) => o.value === 
 export function ReferenceSection({ applicantId, records, onChange }: Props) {
   const [mode, setMode] = useState<{ kind: 'add' } | { kind: 'edit'; id: string } | null>(null);
 
-  async function add(values: Record<string, string | null>) {
-    await api.addReference(applicantId, values as never);
+  async function add(values: ReferencePatchInput) {
+    await api.addReference(applicantId, values);
     setMode(null);
     await onChange();
   }
-  async function edit(id: string, values: Record<string, string | null>) {
-    await api.updateReference(applicantId, id, values as never);
+  async function edit(id: string, values: ReferencePatchInput) {
+    await api.updateReference(applicantId, id, values);
     setMode(null);
     await onChange();
   }

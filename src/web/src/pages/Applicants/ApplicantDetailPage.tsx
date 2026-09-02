@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { ApplicantDetail } from '../../../../shared/applicant/types';
-import type { ApplicantPut, FieldMetaInput } from '../../../../shared/applicant/schemas';
 import { api } from '../../api/client';
 import { SEX_OPTIONS } from '../../lib/applicantOptions';
 import { CompletenessHeader } from './CompletenessHeader';
@@ -73,12 +72,12 @@ export function ApplicantDetailPage() {
 
   const saveSection = (key: 'identity' | 'passport' | 'contact' | 'address') =>
     async (patch: Record<string, string | null>) => {
-      await api.updateApplicant(id, { [key]: patch } as unknown as ApplicantPut);
+      await api.updateApplicant(id, { [key]: patch });
       await reload();
     };
 
   const verifyField = async (fieldPath: string, verified: boolean) => {
-    await api.setFieldMeta(id, { fieldPath, verified } as unknown as FieldMetaInput);
+    await api.setFieldMeta(id, { fieldPath, verified });
     await reload();
   };
 

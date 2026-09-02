@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import type { Reference } from '../../../../shared/applicant/types';
+import type { Reference, ReferenceKind } from '../../../../shared/applicant/types';
+import type { ReferencePatchInput } from '../../../../shared/applicant/schemas';
 import { REFERENCE_KIND_OPTIONS } from '../../lib/applicantOptions';
 
-const FIELDS: { key: keyof Reference & string; label: string }[] = [
+// `kind` is handled separately (it is the one enum-typed key); the rest are all
+// `string | null | undefined`, which keeps the union-keyed write in `submit` typed.
+const FIELDS: { key: Exclude<keyof ReferencePatchInput, 'kind'> & string; label: string }[] = [
   { key: 'name', label: 'Name' },
   { key: 'relationship', label: 'Relationship' },
   { key: 'organization', label: 'Organization' },
@@ -15,11 +18,11 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 interface Props {
   initial?: Reference;
   onCancel: () => void;
-  onSubmit: (values: Record<string, string | null>) => Promise<void>;
+  onSubmit: (values: ReferencePatchInput) => Promise<void>;
 }
 
 export function ReferenceForm({ initial, onCancel, onSubmit }: Props) {
-  const [kind, setKind] = useState<string>(initial?.kind ?? 'other');
+  const [kind, setKind] = useState<ReferenceKind>(initial?.kind ?? 'other');
   const [draft, setDraft] = useState<Record<string, string>>(
     Object.fromEntries(FIELDS.map((f) => [f.key, (initial?.[f.key] as string | null) ?? ''])),
   );
@@ -32,7 +35,7 @@ export function ReferenceForm({ initial, onCancel, onSubmit }: Props) {
       setError('Email must be a valid email address');
       return;
     }
-    const values: Record<string, string | null> = { kind };
+    const values: ReferencePatchInput = { kind };
     for (const f of FIELDS) {
       const v = (draft[f.key] ?? '').trim();
       values[f.key] = v.length > 0 ? v : null;
@@ -52,7 +55,7 @@ export function ReferenceForm({ initial, onCancel, onSubmit }: Props) {
       {error && <p className="error" role="alert">{error}</p>}
       <label>
         Kind
-        <select value={kind} onChange={(e) => setKind(e.target.value)}>
+        <select value={kind} onChange={(e) => setKind(e.target.value as ReferenceKind)}>
           {REFERENCE_KIND_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}

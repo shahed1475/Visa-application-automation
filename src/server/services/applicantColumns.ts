@@ -66,8 +66,16 @@ export function readSection<T>(
   return out as T;
 }
 
-/** UPDATE only the keys present in `patch`. Table names/columns come from the
- *  in-code SECTION_TABLES map (never user input) so interpolation is safe. */
+/**
+ * UPDATE only the keys actually present in `patch`. A key whose value is
+ * `undefined` counts as absent (the section schemas leave omitted keys
+ * `undefined`), so a `PUT { identity: { surname: 'X' } }` touches exactly one
+ * column and every sibling value — and its `applicant_field_meta` row — survives.
+ * An explicit `null` still writes NULL, i.e. clears the field.
+ *
+ * Table names/columns come from the in-code SECTION_TABLES map (never user input)
+ * so interpolation is safe.
+ */
 export function writeSection(
   db: DatabaseSync,
   table: string,
@@ -75,10 +83,12 @@ export function writeSection(
   applicantId: string,
   patch: Record<string, unknown>,
 ): void {
-  const entries = Object.entries(patch).filter(([key]) => key in cols);
+  const entries = Object.entries(patch).filter(
+    ([key, value]) => Object.hasOwn(cols, key) && value !== undefined,
+  );
   if (entries.length === 0) return;
   const setSql = entries.map(([key]) => `${cols[key]} = ?`).join(', ');
-  const values = entries.map(([, v]) => (v === undefined ? null : v)) as SQLInputValue[];
+  const values = entries.map(([, v]) => v) as SQLInputValue[];
   db.prepare(`UPDATE ${table} SET ${setSql} WHERE applicant_id = ?`).run(
     ...values,
     applicantId,

@@ -7,12 +7,15 @@ import type {
   TravelRecord,
   FieldMeta,
 } from '../../../shared/applicant/types';
+// Request bodies use the schemas' *input* shapes (what a caller may send) rather
+// than the parsed output shapes — pre-parse, every section key is genuinely
+// optional, so callers need no casts.
 import type {
-  ApplicantCreate,
-  ApplicantPut,
-  TravelInput,
-  ReferenceInput,
-  FieldMetaInput,
+  ApplicantCreateInput,
+  ApplicantPutInput,
+  TravelPatchInput,
+  ReferencePatchInput,
+  FieldMetaPatchInput,
 } from '../../../shared/applicant/schemas';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -63,14 +66,14 @@ export const api = {
     request<{ applicants: ApplicantSummary[] }>(
       `/applicants${q ? `?q=${encodeURIComponent(q)}` : ''}`,
     ),
-  createApplicant: (input: ApplicantCreate) =>
+  createApplicant: (input: ApplicantCreateInput) =>
     request<{ applicant: ApplicantDetail }>('/applicants', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
   getApplicant: (id: string) =>
     request<{ applicant: ApplicantDetail }>(`/applicants/${id}`),
-  updateApplicant: (id: string, patch: ApplicantPut) =>
+  updateApplicant: (id: string, patch: ApplicantPutInput) =>
     request<{ applicant: ApplicantDetail }>(`/applicants/${id}`, {
       method: 'PUT',
       body: JSON.stringify(patch),
@@ -79,31 +82,31 @@ export const api = {
     request<{ deleted: true }>(`/applicants/${id}`, { method: 'DELETE' }),
   duplicateApplicant: (id: string) =>
     request<{ applicant: ApplicantDetail }>(`/applicants/${id}/duplicate`, { method: 'POST' }),
-  addTravel: (id: string, input: TravelInput) =>
+  addTravel: (id: string, input: TravelPatchInput) =>
     request<{ travel: TravelRecord }>(`/applicants/${id}/travel`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateTravel: (id: string, travelId: string, input: TravelInput) =>
+  updateTravel: (id: string, travelId: string, input: TravelPatchInput) =>
     request<{ travel: TravelRecord }>(`/applicants/${id}/travel/${travelId}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
   deleteTravel: (id: string, travelId: string) =>
     request<{ deleted: true }>(`/applicants/${id}/travel/${travelId}`, { method: 'DELETE' }),
-  addReference: (id: string, input: ReferenceInput) =>
+  addReference: (id: string, input: ReferencePatchInput) =>
     request<{ reference: Reference }>(`/applicants/${id}/references`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateReference: (id: string, refId: string, input: ReferenceInput) =>
+  updateReference: (id: string, refId: string, input: ReferencePatchInput) =>
     request<{ reference: Reference }>(`/applicants/${id}/references/${refId}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
   deleteReference: (id: string, refId: string) =>
     request<{ deleted: true }>(`/applicants/${id}/references/${refId}`, { method: 'DELETE' }),
-  setFieldMeta: (id: string, input: FieldMetaInput) =>
+  setFieldMeta: (id: string, input: FieldMetaPatchInput) =>
     request<{ fieldMeta: FieldMeta }>(`/applicants/${id}/field-meta`, {
       method: 'PUT',
       body: JSON.stringify(input),

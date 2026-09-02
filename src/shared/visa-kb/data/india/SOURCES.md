@@ -1,7 +1,7 @@
 # India visa knowledge base — sources & update procedure
 
 Destination: India (`IND`). Applicant nationality in scope for this KB version: Bangladesh (`BGD`).
-KB version: `2026-09-02` (see `meta.json`).
+KB version: `2026-09-03` (see `meta.json`) — matches the `retrievedAt` / `lastVerified` date on every seeded entry.
 
 ## Sources used
 

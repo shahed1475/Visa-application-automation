@@ -73,7 +73,7 @@ commit). Excludes the spec/plan docs, which are process artefacts:
 - `src/shared/visa-kb/index.ts` (3) — public barrel (`export *` of schema + loader + queries)
 
 **Created — data (`src/shared/visa-kb/data/india/`)**
-- `meta.json` (7) — schemaVersion 1, kbVersion `2026-09-02`, destination `IND`
+- `meta.json` (7) — schemaVersion 1, kbVersion `2026-09-03`, destination `IND`
 - `evisa-categories.json` (515) — 11 e-Visa categories
 - `regular-categories.json` (386) — 9 Regular/Paper categories
 - `eligibility.bgd.json` (309) — 20 explicit Bangladesh eligibility records
@@ -319,10 +319,11 @@ India–Bangladesh tourist-visa channel was suspended Aug 2024 and reopened
 28 June 2026; standard tourist processing resumed then. Rules drift — the
 design's whole point is that keeping up is a data edit.
 
-**`meta.kbVersion` / entry-date skew.** `meta.kbVersion` and `meta.revisionDate`
-are `2026-09-02` (set when the module was scaffolded), but every entry's
-`source.retrievedAt` and `lastVerified` are `2026-09-03`. Cosmetic; to be
-reconciled in the whole-branch review.
+**`meta.kbVersion` / entry-date skew — resolved.** `meta.kbVersion` and
+`meta.revisionDate` were `2026-09-02` (set when the module was scaffolded) while
+every entry's `source.retrievedAt` and `lastVerified` are `2026-09-03`. The
+whole-branch review ruled that seeding all 40 entries is a material change under
+`SOURCES.md` → "How to update a rule", so both `meta` fields are now `2026-09-03`.
 
 **Only Bangladesh → India.** `nationality` is `BGD` on all 20 records;
 `meta.destination` is `IND` and the loader enforces it. Other corridors are later

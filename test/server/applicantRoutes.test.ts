@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../../src/server/app.js';
 import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
@@ -105,4 +105,97 @@ it('applicant data survives a server restart on the same db file', async () => {
   app = await buildServer({ dbPath });
   const get = await app.inject({ method: 'GET', url: `/api/applicants/${applicant.id}` });
   expect(get.json().applicant.identity.surname).toBe('Z');
+});
+
+describe('child records & field meta', () => {
+  async function newApplicant() {
+    return (await create({ displayName: 'Child Owner' })).json().applicant.id as string;
+  }
+
+  it('travel: POST / PUT / DELETE', async () => {
+    const id = await newApplicant();
+    const add = await app.inject({
+      method: 'POST',
+      url: `/api/applicants/${id}/travel`,
+      payload: { purpose: 'Tourism', arrivalDate: '2026-05-01' },
+    });
+    expect(add.statusCode).toBe(201);
+    const travelId = add.json().travel.id;
+
+    const edit = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/travel/${travelId}`,
+      payload: { purpose: 'Business' },
+    });
+    expect(edit.json().travel.purpose).toBe('Business');
+
+    const del = await app.inject({ method: 'DELETE', url: `/api/applicants/${id}/travel/${travelId}` });
+    expect(del.statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: `/api/applicants/${id}` })).json().applicant.travel).toEqual([]);
+  });
+
+  it('travel: bad body 400, unknown applicant/record 404', async () => {
+    const id = await newApplicant();
+    expect(
+      (await app.inject({ method: 'POST', url: `/api/applicants/${id}/travel`, payload: { arrivalDate: 'nope' } })).statusCode,
+    ).toBe(400);
+    expect(
+      (await app.inject({ method: 'POST', url: `/api/applicants/missing/travel`, payload: {} })).statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: 'PUT', url: `/api/applicants/${id}/travel/missing`, payload: {} })).statusCode,
+    ).toBe(404);
+  });
+
+  it('references: POST / PUT / DELETE with kind', async () => {
+    const id = await newApplicant();
+    const add = await app.inject({
+      method: 'POST',
+      url: `/api/applicants/${id}/references`,
+      payload: { kind: 'employer', name: 'ACME' },
+    });
+    expect(add.statusCode).toBe(201);
+    expect(add.json().reference.kind).toBe('employer');
+    const refId = add.json().reference.id;
+    const edit = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/references/${refId}`,
+      payload: { kind: 'sponsor', name: 'ACME' },
+    });
+    expect(edit.json().reference.kind).toBe('sponsor');
+    expect((await app.inject({ method: 'DELETE', url: `/api/applicants/${id}/references/${refId}` })).statusCode).toBe(200);
+  });
+
+  it('field-meta: PUT upserts and toggles verification', async () => {
+    const id = await newApplicant();
+    await app.inject({ method: 'PUT', url: `/api/applicants/${id}`, payload: { identity: { surname: 'K' } } });
+
+    const v = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/field-meta`,
+      payload: { fieldPath: 'identity.surname', verified: true },
+    });
+    expect(v.statusCode).toBe(200);
+    expect(v.json().fieldMeta.verified).toBe(true);
+    expect(v.json().fieldMeta.verifiedAt).not.toBeNull();
+
+    const detail = (await app.inject({ method: 'GET', url: `/api/applicants/${id}` })).json().applicant;
+    expect(detail.verification.bySection.identity).toEqual({ verified: 1, total: 1 });
+
+    const bad = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/${id}/field-meta`,
+      payload: { fieldPath: 'identity.surname', source: 'manual', confidence: 0.9 },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it('field-meta: 404 for a missing applicant', async () => {
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/applicants/missing/field-meta`,
+      payload: { fieldPath: 'identity.surname' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
 });

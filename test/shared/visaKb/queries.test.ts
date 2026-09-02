@@ -155,13 +155,22 @@ describe('invalid category combinations', () => {
     expect(validateCombination({ nationality: 'BGD', applicationMode: 'evisa', categoryId: 'evisa.journalist' }, KB2))
       .toMatchObject({ valid: false, code: 'NOT_OFFERED' });
   });
-  it('valid combo → { valid: true, categoryId }', () => {
+  it('valid combo with a nationality → eligibilityChecked: true', () => {
     expect(validateCombination({ nationality: 'BGD', applicationMode: 'evisa', categoryId: 'evisa.tourist.30d' }, KB2))
-      .toEqual({ valid: true, categoryId: 'evisa.tourist.30d' });
+      .toEqual({ valid: true, categoryId: 'evisa.tourist.30d', eligibilityChecked: true });
   });
-  it('valid without a nationality skips the eligibility checks', () => {
+  it('valid without a nationality skips the eligibility checks and says so', () => {
     expect(validateCombination({ applicationMode: 'evisa', categoryId: 'evisa.journalist' }, KB2))
-      .toEqual({ valid: true, categoryId: 'evisa.journalist' });
+      .toEqual({ valid: true, categoryId: 'evisa.journalist', eligibilityChecked: false });
+  });
+  it('a skipped eligibility check is distinguishable from a passed one', () => {
+    // evisa.journalist is not_offered to BGD: with a nationality it fails outright,
+    // without one it passes — so `valid` alone cannot be branched on.
+    const withNat = validateCombination({ nationality: 'BGD', applicationMode: 'evisa', categoryId: 'evisa.journalist' }, KB2);
+    const withoutNat = validateCombination({ applicationMode: 'evisa', categoryId: 'evisa.journalist' }, KB2);
+    expect(withNat.valid).toBe(false);
+    expect(withoutNat.valid).toBe(true);
+    expect(withoutNat.valid === true && withoutNat.eligibilityChecked).toBe(false);
   });
 });
 

@@ -110,7 +110,16 @@ export function getDocumentRequirements(
 }
 
 export type ValidationResult =
-  | { valid: true; categoryId: string }
+  | {
+      valid: true;
+      categoryId: string;
+      /**
+       * `true` when a nationality was supplied AND an eligibility record was found and is
+       * `eligible` / `conditional`. `false` when no nationality was supplied, so eligibility
+       * was never checked — callers must not read that as "passed".
+       */
+      eligibilityChecked: boolean;
+    }
   | {
       valid: false;
       code: 'UNKNOWN_MODE' | 'UNKNOWN_CATEGORY' | 'MODE_MISMATCH' | 'NO_ELIGIBILITY_RULE' | 'INELIGIBLE' | 'NOT_OFFERED';
@@ -139,6 +148,8 @@ export function validateCombination(
     };
   }
 
+  let eligibilityChecked = false;
+
   if (nationality !== undefined) {
     const elig = checkEligibility(nationality, applicationMode, categoryId, kb);
     if (elig.status === 'unknown') {
@@ -150,7 +161,9 @@ export function validateCombination(
     if (elig.status === 'not_offered') {
       return { valid: false, code: 'NOT_OFFERED', message: `"${categoryId}" is not offered to ${nationality}` };
     }
+    // Reached only for an `eligible` / `conditional` record — a real check that passed.
+    eligibilityChecked = true;
   }
 
-  return { valid: true, categoryId };
+  return { valid: true, categoryId, eligibilityChecked };
 }

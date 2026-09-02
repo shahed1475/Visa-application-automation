@@ -88,6 +88,29 @@ The configured `visa_portals.url` of the active row is the **only** thing Test
 Connection navigates to. See `docs/architecture/ADR-0002-portal-config-in-db.md`
 and spec §9a.
 
+### Applicants (Phase 2)
+
+In **Applicants**:
+
+1. **New applicant** — a display name is all that is required; it appears in the
+   list with a completeness bar and an `unverified` badge.
+2. Open it and fill the **Identity**, **Passport**, **Contact**, and **Address**
+   sections. Every field is optional — a half-filled profile saves and reloads
+   intact, and the completeness figure (overall + per section) rises as you go.
+3. Add any number of **Travel Records** and **References** (each reference has a
+   kind — emergency contact, employer, in-country host, sponsor, other); edit or
+   delete them individually.
+4. Click **Confirm** on a section field to mark it verified (records the time);
+   editing that value later clears the mark automatically.
+5. **Duplicate** an applicant to reuse the data — the copy is named `… (copy)`
+   with all verified marks cleared and does not affect the original — or
+   **Delete** an applicant, which removes all of its sections, travel, references,
+   and provenance in one cascade.
+
+Applicant data (passport number, date of birth, address, email) is stored only in
+the local SQLite database, is never written to logs, and the list view exposes
+just the last four digits of the passport number.
+
 ## Docs
 
 - `docs/ARCHITECTURE.md` — application-foundation architecture (layout, layering, the 13 foundation requirements → code, config, security posture, known issues)
@@ -97,4 +120,6 @@ and spec §9a.
 - `docs/architecture/ADR-0001..0004` — architecture decisions
 - `docs/visa-form-analysis.md` — portal-agnostic field-analysis / discovery framework
 - `docs/automation-risks.md` — portal-agnostic automation risk register
-- `docs/PHASE-0-REPORT.md` — end-of-phase verification report
+- `docs/PHASE-0-REPORT.md` — Phase 0 end-of-phase verification report
+- `docs/superpowers/specs/2026-09-02-phase-2-applicant-profile-design.md` — Phase 2 spec
+- `docs/PHASE-2-REPORT.md` — Phase 2 (applicant profile system) end-of-phase report

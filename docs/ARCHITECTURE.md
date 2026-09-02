@@ -203,6 +203,14 @@ To add a table or column: append a `{ version: N, up: '…' }` entry to the
 `migrations` array in `db/migrations.ts`. `runMigrations` applies it on next
 start; `LATEST_SCHEMA_VERSION` updates automatically.
 
+**Phase 2:** migration 2 adds the eight normalized applicant tables (`applicants`
++ four 1:1 section tables + `applicant_travel` / `applicant_reference` +
+`applicant_field_meta`, all `ON DELETE CASCADE`); `src/server/services/applicantService.ts`
+and `src/shared/applicant/` hold that domain, and per-field provenance
+(`source` / `confidence` / `raw_value` / `verified`) lives in `applicant_field_meta`,
+keyed by `(applicant_id, field_path)` and kept separate from the canonical data in
+the section tables. See `docs/PHASE-2-REPORT.md`.
+
 ---
 
 ## 7. Configuration reference

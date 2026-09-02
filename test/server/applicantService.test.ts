@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDatabase } from '../../src/server/db/connection.js';
 import { runMigrations } from '../../src/server/db/migrations.js';
@@ -113,4 +113,56 @@ it('persists across a reopen of the same db file', () => {
   db = openDatabase(dbPath);
   runMigrations(db);
   expect(svc.getApplicantDetail(db, a.id)?.identity.surname).toBe('Z');
+});
+
+describe('travel & references', () => {
+  it('adds, orders, edits and deletes travel records', () => {
+    const a = svc.createApplicant(db, { displayName: 'T' });
+    const t1 = svc.addTravel(db, a.id, { purpose: 'Tourism', arrivalDate: '2026-05-01' } as any)!;
+    const t2 = svc.addTravel(db, a.id, { purpose: 'Business' } as any)!;
+    expect(t1.sortOrder).toBe(0);
+    expect(t2.sortOrder).toBe(1);
+
+    const list = svc.getApplicantDetail(db, a.id)!.travel;
+    expect(list.map((t) => t.purpose)).toEqual(['Tourism', 'Business']);
+
+    const edited = svc.updateTravel(db, a.id, t1.id, { purpose: 'Family visit', arrivalDate: '2026-05-01' } as any)!;
+    expect(edited.purpose).toBe('Family visit');
+
+    expect(svc.deleteTravel(db, a.id, t1.id)).toBe(true);
+    expect(svc.deleteTravel(db, a.id, t1.id)).toBe(false);
+    expect(svc.getApplicantDetail(db, a.id)!.travel.map((t) => t.purpose)).toEqual(['Business']);
+  });
+
+  it('travel ops on a missing applicant / wrong applicant return null / false', () => {
+    const a = svc.createApplicant(db, { displayName: 'T2' });
+    const b = svc.createApplicant(db, { displayName: 'T3' });
+    const t = svc.addTravel(db, a.id, { purpose: 'X' } as any)!;
+    expect(svc.addTravel(db, 'missing', {} as any)).toBeNull();
+    expect(svc.updateTravel(db, b.id, t.id, {} as any)).toBeNull(); // t belongs to a, not b
+    expect(svc.deleteTravel(db, b.id, t.id)).toBe(false);
+  });
+
+  it('adds, edits and deletes references with a kind', () => {
+    const a = svc.createApplicant(db, { displayName: 'R' });
+    const r = svc.addReference(db, a.id, { kind: 'employer', name: 'ACME', organization: 'ACME Ltd' } as any)!;
+    expect(r.kind).toBe('employer');
+    const list = svc.getApplicantDetail(db, a.id)!.references;
+    expect(list).toHaveLength(1);
+    const edited = svc.updateReference(db, a.id, r.id, { kind: 'sponsor', name: 'ACME' } as any)!;
+    expect(edited.kind).toBe('sponsor');
+    expect(svc.deleteReference(db, a.id, r.id)).toBe(true);
+    expect(svc.getApplicantDetail(db, a.id)!.references).toEqual([]);
+  });
+
+  it('deleting the applicant removes its travel and references (cascade)', () => {
+    const a = svc.createApplicant(db, { displayName: 'C' });
+    svc.addTravel(db, a.id, { purpose: 'X' } as any);
+    svc.addReference(db, a.id, { name: 'Y' } as any);
+    svc.deleteApplicant(db, a.id);
+    const n = db.prepare('SELECT COUNT(*) AS n FROM applicant_travel').get() as { n: number };
+    const m = db.prepare('SELECT COUNT(*) AS n FROM applicant_reference').get() as { n: number };
+    expect(n.n).toBe(0);
+    expect(m.n).toBe(0);
+  });
 });

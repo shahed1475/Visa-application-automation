@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import type {
   Address,
   Applicant,
@@ -13,13 +13,42 @@ import type {
   Reference,
   TravelRecord,
 } from '../../shared/applicant/types.js';
-import type { ApplicantCreate, ApplicantPut } from '../../shared/applicant/schemas.js';
+import type {
+  ApplicantCreate,
+  ApplicantPut,
+  ReferenceInput,
+  TravelInput,
+} from '../../shared/applicant/schemas.js';
 import { SECTION_TABLES, readSection, writeSection } from './applicantColumns.js';
 import {
   collectWarnings,
   computeCompleteness,
   computeVerification,
 } from './applicantCompleteness.js';
+
+const TRAVEL_COLS: Record<string, string> = {
+  tripType: 'trip_type',
+  purpose: 'purpose',
+  destinationCountry: 'destination_country',
+  cities: 'cities',
+  arrivalDate: 'arrival_date',
+  departureDate: 'departure_date',
+  portOfEntry: 'port_of_entry',
+  portOfExit: 'port_of_exit',
+  accommodation: 'accommodation',
+  previousTravel: 'previous_travel',
+  notes: 'notes',
+};
+
+const REFERENCE_COLS: Record<string, string> = {
+  kind: 'kind',
+  name: 'name',
+  relationship: 'relationship',
+  organization: 'organization',
+  phone: 'phone',
+  email: 'email',
+  address: 'address',
+};
 
 interface ApplicantRow {
   id: string;
@@ -290,4 +319,113 @@ export function listApplicants(db: DatabaseSync, q?: string): ApplicantSummary[]
       verification: { label: detail.verification.label },
     };
   });
+}
+
+function nextSortOrder(db: DatabaseSync, table: string, applicantId: string): number {
+  const row = db
+    .prepare(`SELECT COALESCE(MAX(sort_order), -1) AS m FROM ${table} WHERE applicant_id = ?`)
+    .get(applicantId) as { m: number };
+  return row.m + 1;
+}
+
+function insertChild(
+  db: DatabaseSync,
+  table: string,
+  cols: Record<string, string>,
+  applicantId: string,
+  input: Record<string, unknown>,
+): string {
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const sortOrder = nextSortOrder(db, table, applicantId);
+  const provided = Object.entries(input).filter(([k]) => k in cols);
+  const columns = ['id', 'applicant_id', 'sort_order', 'created_at', 'updated_at', ...provided.map(([k]) => cols[k])];
+  const placeholders = columns.map(() => '?').join(', ');
+  const values = [id, applicantId, sortOrder, now, now, ...provided.map(([, v]) => v ?? null)] as SQLInputValue[];
+  db.prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`).run(...values);
+  return id;
+}
+
+function updateChild(
+  db: DatabaseSync,
+  table: string,
+  cols: Record<string, string>,
+  applicantId: string,
+  childId: string,
+  input: Record<string, unknown>,
+): boolean {
+  const owned = db
+    .prepare(`SELECT 1 FROM ${table} WHERE id = ? AND applicant_id = ?`)
+    .get(childId, applicantId);
+  if (!owned) return false;
+  const provided = Object.entries(input).filter(([k]) => k in cols);
+  const now = new Date().toISOString();
+  const setSql = [...provided.map(([k]) => `${cols[k]} = ?`), 'updated_at = ?'].join(', ');
+  const values = [...provided.map(([, v]) => v ?? null), now, childId] as SQLInputValue[];
+  db.prepare(`UPDATE ${table} SET ${setSql} WHERE id = ?`).run(...values);
+  return true;
+}
+
+function deleteChild(
+  db: DatabaseSync,
+  table: string,
+  applicantId: string,
+  childId: string,
+): boolean {
+  const { changes } = db
+    .prepare(`DELETE FROM ${table} WHERE id = ? AND applicant_id = ?`)
+    .run(childId, applicantId);
+  return Number(changes) > 0;
+}
+
+export function addTravel(db: DatabaseSync, applicantId: string, input: TravelInput): TravelRecord | null {
+  if (!getApplicantRow(db, applicantId)) return null;
+  const id = insertChild(db, 'applicant_travel', TRAVEL_COLS, applicantId, input as Record<string, unknown>);
+  touch(db, applicantId);
+  return listTravel(db, applicantId).find((t) => t.id === id) ?? null;
+}
+
+export function updateTravel(
+  db: DatabaseSync,
+  applicantId: string,
+  travelId: string,
+  input: TravelInput,
+): TravelRecord | null {
+  if (!updateChild(db, 'applicant_travel', TRAVEL_COLS, applicantId, travelId, input as Record<string, unknown>)) {
+    return null;
+  }
+  touch(db, applicantId);
+  return listTravel(db, applicantId).find((t) => t.id === travelId) ?? null;
+}
+
+export function deleteTravel(db: DatabaseSync, applicantId: string, travelId: string): boolean {
+  const ok = deleteChild(db, 'applicant_travel', applicantId, travelId);
+  if (ok) touch(db, applicantId);
+  return ok;
+}
+
+export function addReference(db: DatabaseSync, applicantId: string, input: ReferenceInput): Reference | null {
+  if (!getApplicantRow(db, applicantId)) return null;
+  const id = insertChild(db, 'applicant_reference', REFERENCE_COLS, applicantId, input as Record<string, unknown>);
+  touch(db, applicantId);
+  return listReferences(db, applicantId).find((r) => r.id === id) ?? null;
+}
+
+export function updateReference(
+  db: DatabaseSync,
+  applicantId: string,
+  refId: string,
+  input: ReferenceInput,
+): Reference | null {
+  if (!updateChild(db, 'applicant_reference', REFERENCE_COLS, applicantId, refId, input as Record<string, unknown>)) {
+    return null;
+  }
+  touch(db, applicantId);
+  return listReferences(db, applicantId).find((r) => r.id === refId) ?? null;
+}
+
+export function deleteReference(db: DatabaseSync, applicantId: string, refId: string): boolean {
+  const ok = deleteChild(db, 'applicant_reference', applicantId, refId);
+  if (ok) touch(db, applicantId);
+  return ok;
 }

@@ -17,7 +17,7 @@ new HTTP route, no new dependency, no browser-automation / CAPTCHA / OTP code.
 
 ## 1. Data model
 
-The schema is `src/shared/visa-kb/schema.ts` (Zod, 168 lines; every object schema
+The schema is `src/shared/visa-kb/schema.ts` (Zod, 169 lines; every object schema
 is `.strict()`; TS types are `z.infer` exports). It is described in spec §4. A
 knowledge base is `{ meta, categories[], eligibility[] }`:
 
@@ -100,7 +100,7 @@ commit). Excludes the spec/plan docs, which are process artefacts:
 - `src/web/src/App.tsx` (+1) — nav link
 - `src/web/src/styles.css` (+14) — page styles
 - `test/server/applicantService.test.ts` (+13 / -3), `test/server/migrations.test.ts` (+3 / -3) — pre-existing type errors surfaced by `tsconfig.test.json`, fixed mechanically (`!` assertions, row casts); no assertion or behaviour changed
-- `docs/ARCHITECTURE.md` (+13) — the Phase 1 module paragraph (§3)
+- `docs/ARCHITECTURE.md` (+10) — the Phase 1 module paragraph (§3)
 - `docs/PHASE-1-REPORT.md` — this file
 
 Totals for the range: 26 files, +4913 / -13 (includes the 2 070-line plan and the
@@ -314,12 +314,15 @@ public material and the MHA visa manual. Each such entry carries a `source.notes
 defect** — a correction is a one-JSON-file edit plus a `meta.kbVersion` bump, and
 the data-integrity test catches structural regressions.
 
-**Point-in-time snapshot.** The seed data is a 2026-09-03 snapshot;
-`meta.kbVersion` is `2026-09-02` (set when the module was scaffolded — the
-retrieval date on the entries is `2026-09-03`). The India–Bangladesh tourist-visa
-channel was suspended Aug 2024 and reopened 28 June 2026; standard tourist
-processing resumed then. Rules drift — the design's whole point is that keeping up
-is a data edit.
+**Point-in-time snapshot.** The seed data is a 2026-09-03 snapshot. The
+India–Bangladesh tourist-visa channel was suspended Aug 2024 and reopened
+28 June 2026; standard tourist processing resumed then. Rules drift — the
+design's whole point is that keeping up is a data edit.
+
+**`meta.kbVersion` / entry-date skew.** `meta.kbVersion` and `meta.revisionDate`
+are `2026-09-02` (set when the module was scaffolded), but every entry's
+`source.retrievedAt` and `lastVerified` are `2026-09-03`. Cosmetic; to be
+reconciled in the whole-branch review.
 
 **Only Bangladesh → India.** `nationality` is `BGD` on all 20 records;
 `meta.destination` is `IND` and the loader enforces it. Other corridors are later

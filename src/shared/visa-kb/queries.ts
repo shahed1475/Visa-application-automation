@@ -108,3 +108,49 @@ export function getDocumentRequirements(
   if (!c) return null;
   return { required: [...c.requiredDocuments], optional: [...c.optionalDocuments] };
 }
+
+export type ValidationResult =
+  | { valid: true; categoryId: string }
+  | {
+      valid: false;
+      code: 'UNKNOWN_MODE' | 'UNKNOWN_CATEGORY' | 'MODE_MISMATCH' | 'NO_ELIGIBILITY_RULE' | 'INELIGIBLE' | 'NOT_OFFERED';
+      message: string;
+    };
+
+export function validateCombination(
+  input: { nationality?: string; applicationMode: string; categoryId: string },
+  kb: KnowledgeBase = loadKnowledgeBase(),
+): ValidationResult {
+  const { nationality, applicationMode, categoryId } = input;
+
+  if (applicationMode !== 'evisa' && applicationMode !== 'regular') {
+    return { valid: false, code: 'UNKNOWN_MODE', message: `unknown application mode "${applicationMode}"` };
+  }
+
+  const cat = kb.categories.find((c) => c.id === categoryId);
+  if (!cat) {
+    return { valid: false, code: 'UNKNOWN_CATEGORY', message: `no visa category "${categoryId}"` };
+  }
+  if (cat.applicationMode !== applicationMode) {
+    return {
+      valid: false,
+      code: 'MODE_MISMATCH',
+      message: `category "${categoryId}" is a ${cat.applicationMode} visa, not ${applicationMode}`,
+    };
+  }
+
+  if (nationality !== undefined) {
+    const elig = checkEligibility(nationality, applicationMode, categoryId, kb);
+    if (elig.status === 'unknown') {
+      return { valid: false, code: 'NO_ELIGIBILITY_RULE', message: elig.reason };
+    }
+    if (elig.status === 'ineligible') {
+      return { valid: false, code: 'INELIGIBLE', message: `${nationality} is not eligible for "${categoryId}"` };
+    }
+    if (elig.status === 'not_offered') {
+      return { valid: false, code: 'NOT_OFFERED', message: `"${categoryId}" is not offered to ${nationality}` };
+    }
+  }
+
+  return { valid: true, categoryId };
+}

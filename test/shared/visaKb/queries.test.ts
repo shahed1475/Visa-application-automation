@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseKnowledgeBase, reload } from '../../../src/shared/visa-kb/loader.js';
-import { getVersion, listCategories, getCategory, getCategoriesForMode } from '../../../src/shared/visa-kb/queries.js';
-import { checkEligibility, listEligibleCategories, getDocumentRequirements } from '../../../src/shared/visa-kb/queries.js';
+import {
+  checkEligibility,
+  getCategoriesForMode,
+  getCategory,
+  getDocumentRequirements,
+  getVersion,
+  listCategories,
+  listEligibleCategories,
+  validateCombination,
+} from '../../../src/shared/visa-kb/queries.js';
 
 const src = { officialUrl: 'https://indianvisaonline.gov.in/evisa/', retrievedAt: '2026-09-02' };
 const base = {
@@ -119,4 +127,47 @@ describe('document requirements', () => {
   it('returns null for an unknown category', () => {
     expect(getDocumentRequirements('evisa.nope', KB2)).toBeNull();
   });
+});
+
+describe('invalid category combinations', () => {
+  it('UNKNOWN_MODE for a bad mode', () => {
+    const r = validateCombination({ applicationMode: 'walk_in', categoryId: 'evisa.tourist.30d' }, KB2);
+    expect(r).toMatchObject({ valid: false, code: 'UNKNOWN_MODE' });
+  });
+  it('UNKNOWN_CATEGORY for a missing id', () => {
+    expect(validateCombination({ applicationMode: 'evisa', categoryId: 'evisa.ghost' }, KB2))
+      .toMatchObject({ valid: false, code: 'UNKNOWN_CATEGORY' });
+  });
+  it('MODE_MISMATCH when the id belongs to the other mode', () => {
+    expect(validateCombination({ applicationMode: 'regular', categoryId: 'evisa.tourist.30d' }, KB2))
+      .toMatchObject({ valid: false, code: 'MODE_MISMATCH' });
+  });
+  it('NO_ELIGIBILITY_RULE when a nationality is given but no record exists', () => {
+    const kbNoElig = parseKnowledgeBase({
+      meta: { schemaVersion: 1, kbVersion: 'x', destination: 'IND', revisionDate: '2026-09-02' },
+      categories: [{ ...base, id: 'evisa.tourist.30d', applicationMode: 'evisa', category: 'tourist', displayName: 'x' }],
+      eligibility: [],
+    });
+    expect(validateCombination({ nationality: 'BGD', applicationMode: 'evisa', categoryId: 'evisa.tourist.30d' }, kbNoElig))
+      .toMatchObject({ valid: false, code: 'NO_ELIGIBILITY_RULE' });
+  });
+  it('NOT_OFFERED / INELIGIBLE surface the explicit status', () => {
+    expect(validateCombination({ nationality: 'BGD', applicationMode: 'evisa', categoryId: 'evisa.journalist' }, KB2))
+      .toMatchObject({ valid: false, code: 'NOT_OFFERED' });
+  });
+  it('valid combo → { valid: true, categoryId }', () => {
+    expect(validateCombination({ nationality: 'BGD', applicationMode: 'evisa', categoryId: 'evisa.tourist.30d' }, KB2))
+      .toEqual({ valid: true, categoryId: 'evisa.tourist.30d' });
+  });
+  it('valid without a nationality skips the eligibility checks', () => {
+    expect(validateCombination({ applicationMode: 'evisa', categoryId: 'evisa.journalist' }, KB2))
+      .toEqual({ valid: true, categoryId: 'evisa.journalist' });
+  });
+});
+
+it('index.ts re-exports the public API', async () => {
+  const kb = await import('../../../src/shared/visa-kb/index.js');
+  expect(typeof kb.loadKnowledgeBase).toBe('function');
+  expect(typeof kb.validateCombination).toBe('function');
+  expect(typeof kb.knowledgeBaseSchema).toBe('object');
 });

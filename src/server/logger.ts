@@ -20,9 +20,55 @@ export const REDACT_PATHS = [
   '*.email', '*.phone', '*.line1', '*.line2', '*.postalCode',
 ];
 
-export const logger = pino({
+/**
+ * `redact` works on object paths and cannot reach a *substring* of `req.url`, but
+ * the applicant search sends PII there — `GET /api/applicants?q=AB1234567` carries
+ * a passport number or an email address. Drop the query string outright; no route
+ * logs or needs it (the route layer does no logging at all, and the only
+ * query-string consumer is `?q=`, whose value is exactly the thing to hide).
+ */
+export function redactQueryString(url: string): string {
+  const cut = url.indexOf('?');
+  return cut === -1 ? url : `${url.slice(0, cut)}?[REDACTED]`;
+}
+
+interface LoggableRequest {
+  method?: string;
+  url?: string;
+  hostname?: string;
+  ip?: string;
+  headers?: Record<string, unknown>;
+  socket?: { remoteAddress?: string };
+}
+
+/**
+ * Replaces pino's default `req` serializer (which emits the full URL including the
+ * query string, plus every header). Only method / path / host / remote address are
+ * kept — headers never reach the log at all.
+ */
+export function serializeRequest(req: LoggableRequest): {
+  method: string | undefined;
+  url: string;
+  host: string | undefined;
+  remoteAddress: string | undefined;
+} {
+  const host =
+    req.hostname ?? (typeof req.headers?.host === 'string' ? req.headers.host : undefined);
+  return {
+    method: req.method,
+    url: redactQueryString(req.url ?? ''),
+    host,
+    remoteAddress: req.ip ?? req.socket?.remoteAddress,
+  };
+}
+
+/** Exported so tests can build an identically-configured logger over a capture stream. */
+export const loggerOptions = {
   level: env.NODE_ENV === 'test' ? 'silent' : env.LOG_LEVEL,
   redact: { paths: REDACT_PATHS, censor: '[REDACTED]' },
+  serializers: { req: serializeRequest },
   transport:
     env.NODE_ENV === 'development' ? { target: 'pino-pretty' } : undefined,
-});
+} satisfies pino.LoggerOptions;
+
+export const logger = pino(loggerOptions);

@@ -108,8 +108,13 @@ In **Applicants**:
    and provenance in one cascade.
 
 Applicant data (passport number, date of birth, address, email) is stored only in
-the local SQLite database, is never written to logs, and the list view exposes
-just the last four digits of the passport number.
+the local SQLite database, and the list view exposes just the last four digits of
+the passport number. Logging is defended on two fronts: pino `redact` censors the
+PII keys by name in any logged object, and a `req` serializer keeps only
+method / path / host / remote address — request URLs are logged with their query
+string replaced by `?[REDACTED]`, so a passport number or email typed into the
+search box (`GET /api/applicants?q=…`) never reaches the log. Request headers and
+bodies are not logged at all.
 
 ## Docs
 

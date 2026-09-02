@@ -17,6 +17,9 @@ import { errorBody, notFoundError } from './routes/errors.js';
 
 export interface BuildServerOptions {
   dbPath: string;
+  /** Test seam: swap the shared pino instance (e.g. for one writing to a capture
+   *  stream, so log output can be asserted on). Production always uses `logger`. */
+  loggerInstance?: FastifyBaseLogger;
 }
 
 export async function buildServer(
@@ -25,7 +28,9 @@ export async function buildServer(
   // fastify 5.12 / pino 9.14: a concrete pino instance passed as `loggerInstance`
   // narrows the server's logger generic and no longer matches `FastifyBaseLogger`
   // (pino's `BaseLogger` requires `msgPrefix`). Runtime behaviour is unchanged.
-  const app = Fastify({ loggerInstance: logger as unknown as FastifyBaseLogger });
+  const app = Fastify({
+    loggerInstance: opts.loggerInstance ?? (logger as unknown as FastifyBaseLogger),
+  });
 
   // JSON body parser that never throws a raw framework error at the client.
   // The stock parser throws FST_ERR_CTP_EMPTY_JSON_BODY / _INVALID_JSON_BODY,

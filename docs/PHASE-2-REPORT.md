@@ -275,12 +275,21 @@ Run: `NODE_ENV=test npx tsx phase2-smoke.mts` → **12 / 12 passed**.
 
 - **List response:** smoke step 12 asserts the list JSON exposes only the
   passport last-4 and no full number / DOB / email. PASS.
-- **Logs:** covered by `test/server/loggerRedaction.test.ts` (2 tests) — every
-  applicant PII key (`raw_value`, names, `passportNumber`, `dateOfBirth`, `email`,
-  `phone`, address lines, `postalCode`) and its wildcard variant is in
-  `REDACT_PATHS`, and no over-broad bare `number` key is present. Route layer does
-  no logging; the error handler logs `{ err }` only, through the redacting pino
-  instance. No live-log scrape needed.
+- **Logs:** covered by `test/server/loggerRedaction.test.ts` (5 tests). Two
+  vectors, two defences:
+  - *Logged objects* — every applicant PII key (`raw_value`, names,
+    `passportNumber`, `dateOfBirth`, `email`, `phone`, address lines,
+    `postalCode`) and its wildcard variant is in `REDACT_PATHS`, and no
+    over-broad bare `number` key is present. The route layer does no logging;
+    the error handler logs `{ err }` only, through the redacting pino instance.
+  - *Request URLs* — `redact` cannot reach a substring of `req.url`, and the
+    search box sends a passport number / email as `GET /api/applicants?q=…`.
+    `logger.ts` therefore installs a `serializers.req` that emits only
+    `{ method, url, host, remoteAddress }` with the query string replaced by
+    `?[REDACTED]` (headers are dropped entirely). Verified against the real
+    captured log bytes: the server is built over a pino instance writing to an
+    in-memory stream, a `?q=AB1234567` request is injected, and the output is
+    asserted to contain `/api/applicants` but not the search term.
 
 ---
 
@@ -301,7 +310,7 @@ Run: `NODE_ENV=test npx tsx phase2-smoke.mts` → **12 / 12 passed**.
 | 11 | `applicant_field_meta` stores `source`(`manual`), nullable `confidence`(null for manual), `raw_value`, `verified`, `verified_at`; accepts Phase 3 OCR sources w/o schema change; one row per `(applicant, field_path)` | `applicantSchemas.test.ts` field-meta `superRefine` + source list; `applicantService.test.ts` upsert / uniqueness; `migrations.ts:118` `UNIQUE(applicant_id, field_path)`, no `CHECK` on `source` |
 | 12 | Canonical data and provenance metadata in separate tables; meta not primary store | Schema: values in `applicant_identity/passport/contact/address/travel/reference`; `applicant_field_meta` keyed by `field_path` only — `applicantService.ts` reads canonical from section tables; `ARCHITECTURE.md` §"provenance" line |
 | 13 | Nullable fields throughout — half-filled profile saves + reloads intact | `applicantSchemas.test.ts` nullable coercion; `applicantService.test.ts` reopen-persistence; smoke step 11 |
-| 14 | No passport number, DOB, address, email, or `raw_value` in any log line or error message; list omits them | `loggerRedaction.test.ts` (2); `applicantRoutes.test.ts` "list omits PII" / "error reports path not value"; smoke step 12 |
+| 14 | No passport number, DOB, address, email, or `raw_value` in a logged object, a logged request URL, or an error message; list omits them | `loggerRedaction.test.ts` (5): `REDACT_PATHS` key coverage + no bare `number`, and three tests asserting on real captured log bytes that the `serializers.req` query-string strip holds (`?q=<passport>` / `?q=<email>` absent, path present). `applicantRoutes.test.ts` "list omits PII" / "error reports path not value"; smoke step 12. Scope note: this covers logged objects and request URLs — request headers and bodies are never logged. |
 | 15 | No browser automation, OCR, document upload, or portal-specific field added | `git diff --stat 785b5ae^..HEAD` — no `automation/` change, no new deps, no OCR/upload code; `test/automation/noHardcodedUrl.test.ts` still green |
 | 16 | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` all pass | §4 above — all exit 0 / 132 passed |
 | 17 | Git diff reviewed; each task a focused commit | `git log --oneline 785b5ae^..HEAD` — 14 focused commits (migration, redaction, types, schemas, completeness, service ×4, routes ×2, frontend ×3) + this docs commit |

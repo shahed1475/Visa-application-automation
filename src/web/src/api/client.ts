@@ -1,5 +1,19 @@
 import type { PortalInput } from '../../../shared/schemas';
 import type { ConnectionTestResult, VisaPortal } from '../../../shared/types';
+import type {
+  ApplicantDetail,
+  ApplicantSummary,
+  Reference,
+  TravelRecord,
+  FieldMeta,
+} from '../../../shared/applicant/types';
+import type {
+  ApplicantCreate,
+  ApplicantPut,
+  TravelInput,
+  ReferenceInput,
+  FieldMetaInput,
+} from '../../../shared/applicant/schemas';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -44,5 +58,54 @@ export const api = {
   testConnection: (id: string) =>
     request<{ result: ConnectionTestResult }>(`/portals/${id}/test-connection`, {
       method: 'POST',
+    }),
+  listApplicants: (q?: string) =>
+    request<{ applicants: ApplicantSummary[] }>(
+      `/applicants${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+    ),
+  createApplicant: (input: ApplicantCreate) =>
+    request<{ applicant: ApplicantDetail }>('/applicants', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  getApplicant: (id: string) =>
+    request<{ applicant: ApplicantDetail }>(`/applicants/${id}`),
+  updateApplicant: (id: string, patch: ApplicantPut) =>
+    request<{ applicant: ApplicantDetail }>(`/applicants/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
+  deleteApplicant: (id: string) =>
+    request<{ deleted: true }>(`/applicants/${id}`, { method: 'DELETE' }),
+  duplicateApplicant: (id: string) =>
+    request<{ applicant: ApplicantDetail }>(`/applicants/${id}/duplicate`, { method: 'POST' }),
+  addTravel: (id: string, input: TravelInput) =>
+    request<{ travel: TravelRecord }>(`/applicants/${id}/travel`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  updateTravel: (id: string, travelId: string, input: TravelInput) =>
+    request<{ travel: TravelRecord }>(`/applicants/${id}/travel/${travelId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  deleteTravel: (id: string, travelId: string) =>
+    request<{ deleted: true }>(`/applicants/${id}/travel/${travelId}`, { method: 'DELETE' }),
+  addReference: (id: string, input: ReferenceInput) =>
+    request<{ reference: Reference }>(`/applicants/${id}/references`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  updateReference: (id: string, refId: string, input: ReferenceInput) =>
+    request<{ reference: Reference }>(`/applicants/${id}/references/${refId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  deleteReference: (id: string, refId: string) =>
+    request<{ deleted: true }>(`/applicants/${id}/references/${refId}`, { method: 'DELETE' }),
+  setFieldMeta: (id: string, input: FieldMetaInput) =>
+    request<{ fieldMeta: FieldMeta }>(`/applicants/${id}/field-meta`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
     }),
 };

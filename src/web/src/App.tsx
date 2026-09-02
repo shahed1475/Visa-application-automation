@@ -7,6 +7,7 @@ export function App() {
         <h1>Visa Autofill</h1>
         <nav>
           <NavLink to="/settings/portals">Visa Portals</NavLink>
+          <NavLink to="/applicants">Applicants</NavLink>
         </nav>
       </header>
       <main className="app__main">

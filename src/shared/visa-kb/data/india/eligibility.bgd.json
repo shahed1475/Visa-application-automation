@@ -198,7 +198,7 @@
       { "type": "passport_validity_months_min", "value": 6 }
     ],
     "basis": "Bangladesh nationals are eligible for the Tourist visa (S5). Standard tourist-visa processing resumed 28 Jun 2026 (S6). Nationals aged 65+ may receive a 5-year multiple-entry tourist visa under the bilateral travel arrangement (S6).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -210,7 +210,7 @@
       { "type": "passport_validity_months_min", "value": 6 }
     ],
     "basis": "Bangladesh nationals are eligible for the Business visa (S5). Double-entry business visas were among the first categories restored for Bangladesh nationals in early 2026 (S6).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -222,7 +222,7 @@
       { "type": "passport_validity_months_min", "value": 6 }
     ],
     "basis": "Bangladesh nationals are eligible for the Medical visa (S5); it was among the first categories restored for Bangladesh nationals in early 2026 (S6).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -235,7 +235,7 @@
       { "type": "custom", "text": "Issued only to a close blood relative or spouse of the Medical visa holder; maximum two per patient." }
     ],
     "basis": "Bangladesh nationals are eligible for the Medical Attendant visa (S5).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -250,7 +250,7 @@
       { "type": "custom", "text": "Mandatory FRRO/FRO registration within 14 days of arrival." }
     ],
     "basis": "Bangladesh nationals are eligible for the Employment visa (S5) but it is conditional on the skilled-employment and minimum-remuneration rules (S6).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -263,7 +263,7 @@
       { "type": "requires_supporting_institution_letter" }
     ],
     "basis": "Bangladesh nationals are eligible for the Student visa (S5); it requires an admission/bonafide letter from a recognised institution (S6). A minor below 18 not accompanied by a studying parent applies under Entry (X) instead.",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -277,7 +277,7 @@
       { "type": "custom", "text": "MEA political clearance and MHA event clearance are prerequisites, obtained by the Indian organiser." }
     ],
     "basis": "Bangladesh nationals are eligible for the Conference visa (S5) but it is gated on prior MEA/MHA clearance (S6).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -290,7 +290,7 @@
       { "type": "custom", "text": "A confirmed onward/return ticket to a third country is required; stay limited to 72 hours per transit." }
     ],
     "basis": "Bangladesh nationals are eligible for the Transit visa (S5) for genuine transit (S6).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -303,7 +303,7 @@
       { "type": "custom", "text": "Requires proof of Indian origin of the sponsoring relative, or marriage certificate plus the Indian spouse's identity document. Not a work visa." }
     ],
     "basis": "Bangladesh nationals are eligible for the Entry (X) visa (S5); the X visa covers dependants of long-term visa holders, persons of Indian origin, accompanying minors, and cases not covered by a specific category (S6).",
-    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   }
 ]

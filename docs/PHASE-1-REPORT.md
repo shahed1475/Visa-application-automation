@@ -112,8 +112,11 @@ Totals for the range: 26 files, +4913 / -13 (includes the 2 070-line plan and th
 
 Reproduced from `src/shared/visa-kb/data/india/SOURCES.md`. **Honesty note:** on
 2026-09-03 the e-Visa portal pages were retrievable and are the primary e-Visa
-source, but `hcidhaka.gov.in`, `mha.gov.in`, and `boi.gov.in` returned HTTP
-403/404 to automated retrieval — see §8.
+source. `mha.gov.in` returned **HTTP 403** and `boi.gov.in` **HTTP 404**;
+`hcidhaka.gov.in`'s landing page did load, but the category-wise requirements
+live in a PDF that was not machine-retrievable, so **no per-category HCI Dhaka
+page was ever fetched** — the Regular values rest on generally-published
+guidance. Each affected record discloses this in its own `source.notes`. See §8.
 
 ### e-Visa
 
@@ -128,8 +131,8 @@ source, but `hcidhaka.gov.in`, `mha.gov.in`, and `boi.gov.in` returned HTTP
 |---|---|---|---|
 | S3 | https://indianvisaonline.gov.in/visa/visa-provision.html | 2026-09-03 | Tourist / Business / Employment / Student / Transit validity, entries, extension rules; FRRO 14-day / 180-day rule |
 | S4 | https://indianvisaonline.gov.in/visa/visa-category.html | 2026-09-03 | The regular visa category list |
-| S5 | https://hcidhaka.gov.in/ | 2026-09-03 (**HTTP 403 to automated retrieval**) | Bangladesh-national rules: passport 6 months + 2 blank pages; authorised Immigration Check Posts; no visa fee for Bangladeshi passport holders; Tourist by online appointment, others walk-in at IVAC. Used as `source.officialUrl` for every Regular eligibility record. |
-| S6 | MHA / India–Bangladesh Revised Travel Arrangement (context) | 2026-09-03 (**not machine-retrievable**) | 5-year multiple-entry tourist visa for BGD nationals 65+; Employment remuneration threshold; progressive 2026 restoration of visa services (tourist processing resumed 28 Jun 2026); Conference MEA/MHA clearance; Transit / Entry(X) terms |
+| S5 | https://hcidhaka.gov.in/ | 2026-09-03 (**landing page only — the category-wise document PDF was not machine-retrievable, so no per-category page was actually fetched**) | Bangladesh-national rules: passport 6 months + 2 blank pages; authorised Immigration Check Posts; no visa fee for Bangladeshi passport holders; Tourist by online appointment, others walk-in at IVAC. Used as `source.officialUrl` for every Regular eligibility record. |
+| S6 | https://indianvisaonline.gov.in/visa/visa-category.html — closest retrievable page for the MHA visa manual / India–Bangladesh Revised Travel Arrangement | 2026-09-03 (**underlying MHA source not machine-retrievable — `mha.gov.in` 403**) | 5-year multiple-entry tourist visa for BGD nationals 65+; Employment remuneration threshold; progressive 2026 restoration of visa services (tourist processing resumed 28 Jun 2026); Conference MEA/MHA clearance; Transit / Entry(X) terms |
 
 ### Entries flagged stale / ambiguous / re-verify
 
@@ -305,13 +308,21 @@ Phase 1 range: `b78ae80..HEAD`, 13 commits (`0e6172c` spec, `28f86f5` plan, then
 (`indianvisaonline.gov.in/evisa/tvoa.html`, `/evisa/`) were retrievable and are
 the primary e-Visa source — but that detail page carries a **2019-05-16**
 "last updated" stamp (recorded as `documentDate` on every e-Visa entry).
-`hcidhaka.gov.in`, `mha.gov.in`, and `boi.gov.in` returned **HTTP 403/404** to
-automated retrieval, so a number of Regular-visa values — the per-category
+`mha.gov.in` returned **HTTP 403** and `boi.gov.in` **HTTP 404**. `hcidhaka.gov.in`
+served its landing page, but the category-wise requirements are published only as
+a "Documents Required for Visa" PDF that was **not machine-retrievable** — so no
+per-category HCI Dhaka page was ever fetched, even though all 9 Regular
+eligibility records carry `officialUrl: https://hcidhaka.gov.in/` and
+`retrievedAt: 2026-09-03`. A number of Regular-visa values — the per-category
 document lists, and the Medical / Medical Attendant / Conference / Entry(X) terms
-— rest on generally-published guidance cross-referenced across HCI-Dhaka / IVAC-BD
-public material and the MHA visa manual. Each such entry carries a `source.notes`
-"re-verify against hcidhaka.gov.in" flag. **This is a known limitation, not a
-defect** — a correction is a one-JSON-file edit plus a `meta.kbVersion` bump, and
+— therefore rest on generally-published guidance cross-referenced across
+HCI-Dhaka / IVAC-BD public material and the MHA visa manual. Every affected
+record opens its `source.notes` with "NOT A LIVE CATEGORY FETCH…" and keeps the
+"re-verify against hcidhaka.gov.in" flag, so the caveat travels with the data
+rather than only with this report;
+`test/shared/visaKb/data.test.ts` → "every Regular eligibility record sourced to
+hcidhaka.gov.in discloses that the fetch was not live" enforces it.
+**This is a known limitation, not a defect** — a correction is a one-JSON-file edit plus a `meta.kbVersion` bump, and
 the data-integrity test catches structural regressions.
 
 **Point-in-time snapshot.** The seed data is a 2026-09-03 snapshot. The

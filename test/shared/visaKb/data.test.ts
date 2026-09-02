@@ -93,6 +93,19 @@ describe('the shipped India KB — integrity & versioning', () => {
     }
   });
 
+  it('every Regular eligibility record sourced to hcidhaka.gov.in discloses that the fetch was not live', () => {
+    const kb = loadKnowledgeBase();
+    const hci = kb.eligibility.filter((e) => e.source.officialUrl.includes('hcidhaka.gov.in'));
+    expect(hci.length).toBeGreaterThan(0);
+    for (const e of hci) {
+      // `retrievedAt` on these records must not read as "we pulled this category page";
+      // the note has to carry the retrieval caveat and the re-verify instruction.
+      expect(e.source.notes, `${e.categoryId} has no source.notes`).toBeTruthy();
+      expect(e.source.notes, e.categoryId).toMatch(/not machine-retrievable/i);
+      expect(e.source.notes, e.categoryId).toMatch(/re-verify/i);
+    }
+  });
+
   it('no eligibility record silently implies eligibility for a category that has none', () => {
     // sanity: there is no category without a record (covered above); this asserts the guarantee explicitly
     const kb = loadKnowledgeBase();

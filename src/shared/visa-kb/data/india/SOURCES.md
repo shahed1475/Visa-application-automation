@@ -21,16 +21,27 @@ and a per-entry `source.notes` recording any cross-check or caveat.
 |---|-----|-----------|-----------------|
 | S3 | https://indianvisaonline.gov.in/visa/visa-provision.html | 2026-09-03 | Tourist/Business/Employment/Student/Transit validity, entries, extension rules; FRRO 14-day/180-day rule |
 | S4 | https://indianvisaonline.gov.in/visa/visa-category.html | 2026-09-03 | the regular visa category list (Tourist, Business, Medical, Student, Journalist, Transit, Entry/Family, Conference/misc) |
-| S5 | https://hcidhaka.gov.in/ | 2026-09-03 | Bangladesh-national rules: passport 6 months + 2 blank pages; enter/leave via authorised Immigration Check Posts by air/land/sea; **no visa fee for Bangladeshi passport holders**; Tourist needs an online appointment, other categories are walk-in at IVAC Dhaka/Khulna |
-| S6 | (context) MHA / bilateral India–Bangladesh Revised Travel Arrangement | 2026-09-03 | 5-year multiple-entry tourist visa for Bangladesh nationals aged 65+ (90-day stay per visit); minors <18 on study travel apply under Entry(X); India was progressively restoring visa services in Bangladesh through 2026 (medical + double-entry business first from Feb 2026; standard tourist processing resumed 28 Jun 2026) |
+| S5 | https://hcidhaka.gov.in/ | 2026-09-03 — **landing page only; the category-wise document PDF was NOT machine-retrievable** | Bangladesh-national rules: passport 6 months + 2 blank pages; enter/leave via authorised Immigration Check Posts by air/land/sea; **no visa fee for Bangladeshi passport holders**; Tourist needs an online appointment, other categories are walk-in at IVAC Dhaka/Khulna |
+| S6 | https://indianvisaonline.gov.in/visa/visa-category.html (closest retrievable page; the underlying MHA visa manual / bilateral India–Bangladesh Revised Travel Arrangement was **not machine-retrievable — `mha.gov.in` HTTP 403**) | 2026-09-03 | 5-year multiple-entry tourist visa for Bangladesh nationals aged 65+ (90-day stay per visit); minors <18 on study travel apply under Entry(X); India was progressively restoring visa services in Bangladesh through 2026 (medical + double-entry business first from Feb 2026; standard tourist processing resumed 28 Jun 2026) |
 
 ### Source-access note
 
-The Indian government's category-authoritative pages resisted automated retrieval on 2026-09-03:
+The Indian government's category-authoritative pages resisted automated retrieval on 2026-09-03
+(re-verified during the whole-branch review on the same date):
 
-- `hcidhaka.gov.in` category-wise document PDFs — not machine-readable / blocked.
-- `mha.gov.in` Annex IV ("Visa for Bangladesh Nationals") and BOI "list of visas" — HTTP 403.
+- `hcidhaka.gov.in` — the **landing page loads**, but it does not carry the rules themselves: the
+  category-wise requirements are published only as a "Documents Required for Visa" PDF that was
+  **not machine-retrievable**. So no per-category HCI Dhaka page was ever actually fetched.
+- `mha.gov.in` Annex IV ("Visa for Bangladesh Nationals") — **HTTP 403**.
+- `boi.gov.in` "list of visas" — **HTTP 404**.
 - `indianvisaonline.gov.in/visa/visa-provision.html` and `/visa/visa-category.html` — retrieved OK; provide validity/entries/extension for Tourist, Business, Employment, Student, Transit.
+
+**What this means for `retrievedAt`.** Every Regular eligibility record carries
+`source.officialUrl = https://hcidhaka.gov.in/` and `retrievedAt = 2026-09-03`, but those values
+were **not** read off a live category page — they come from generally-published HCI Dhaka /
+IVAC Bangladesh guidance. Each of those 9 records says so in its own `source.notes`
+("NOT A LIVE CATEGORY FETCH…"), so the disclosure travels with the data and not only with this file.
+`test/shared/visaKb/data.test.ts` enforces it.
 
 So **validity / entries / extension** for Tourist, Business, Employment, Student and Transit come from `visa-provision.html` (S3). Everything else — the per-category **document lists**, the Medical / Medical Attendant / Conference / Entry(X) terms, and the Bangladesh-specific provisions — rests on the **generally-published standard requirements** cross-referenced across the HCI-Dhaka / IVAC-Bangladesh public guidance and the MHA visa manual (S4, S5). Each such entry carries a `source.notes` flag noting that the category-wise HCI Dhaka PDF was not machine-retrievable on 2026-09-03 and should be re-verified against `hcidhaka.gov.in` before operational use.
 
@@ -52,8 +63,8 @@ category. Sources:
 |---|-----|-----------|-----------------|
 | S1 | https://indianvisaonline.gov.in/evisa/tvoa.html | 2026-09-03 | The e-Visa universal exclusions (diplomatic/official/service passport; defence/military/security/police background; endorsement on a relative's passport; 6-month passport validity; not of Pakistani origin / no Pakistani passport); per-category purpose gating; e-Conference MEA/MHA clearance; e-Student / e-Medical Attendant supporting-document and quota rules. Page "Last Updated" stamp: **2019-05-16**. |
 | S2 | https://indianvisaonline.gov.in/evisa/ | 2026-09-03 | Bangladesh is on the e-Visa eligible-nationalities list ("14.Bangladesh"); the eight admissible e-Visa categories. |
-| S5 | https://hcidhaka.gov.in/ | 2026-09-03 | Bangladesh nationals are eligible for all regular Indian visa categories; no visa fee for Bangladeshi passport holders. Used as `source.officialUrl` for every Regular eligibility record. |
-| S6 | MHA / India–Bangladesh bilateral Revised Travel Arrangement (context) | 2026-09-03 | 5-year multiple-entry tourist visa for Bangladesh nationals aged 65+; Employment-visa skilled-role / minimum-remuneration threshold (broadly USD 25,000/year, with role exemptions); progressive restoration of visa services in Bangladesh through 2026 (medical + double-entry business first from Feb 2026; standard tourist processing resumed 28 Jun 2026); Conference-visa MEA/MHA clearance; Transit and Entry(X) terms. |
+| S5 | https://hcidhaka.gov.in/ | 2026-09-03 — **landing page only, category-wise PDF not machine-retrievable** | Bangladesh nationals are eligible for all regular Indian visa categories; no visa fee for Bangladeshi passport holders. Used as `source.officialUrl` for every Regular eligibility record — see "What this means for `retrievedAt`" above. |
+| S6 | https://indianvisaonline.gov.in/visa/visa-category.html (closest retrievable page; MHA visa manual / India–Bangladesh bilateral Revised Travel Arrangement **not machine-retrievable 2026-09-03**) | 2026-09-03 | 5-year multiple-entry tourist visa for Bangladesh nationals aged 65+; Employment-visa skilled-role / minimum-remuneration threshold (broadly USD 25,000/year, with role exemptions); progressive restoration of visa services in Bangladesh through 2026 (medical + double-entry business first from Feb 2026; standard tourist processing resumed 28 Jun 2026); Conference-visa MEA/MHA clearance; Transit and Entry(X) terms. |
 
 Every e-Visa eligibility record carries `source.officialUrl` = the S2 URL, `source.documentDate`
 = `2019-05-16` (the S1 exclusions page stamp); every Regular eligibility record carries

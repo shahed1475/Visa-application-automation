@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import evisa from '../../../src/shared/visa-kb/data/india/evisa-categories.json' with { type: 'json' };
 import regular from '../../../src/shared/visa-kb/data/india/regular-categories.json' with { type: 'json' };
 import { visaCategorySchema } from '../../../src/shared/visa-kb/schema.js';
+import { loadKnowledgeBase, reload } from '../../../src/shared/visa-kb/loader.js';
+import { getVersion } from '../../../src/shared/visa-kb/queries.js';
 
 describe('e-Visa seed data', () => {
   it('is a non-empty array of schema-valid categories, all applicationMode "evisa"', () => {
@@ -48,6 +50,55 @@ describe('Regular/Paper seed data', () => {
   it('every entry has an official source URL (HCI Dhaka / indianvisaonline / MHA / IVAC BD)', () => {
     for (const e of regular as { source: { officialUrl: string } }[]) {
       expect(e.source.officialUrl).toMatch(/hcidhaka\.gov\.in|indianvisaonline\.gov\.in|mha\.gov\.in|ivacbd\.com|boi\.gov\.in/);
+    }
+  });
+});
+
+afterEach(() => reload());
+
+describe('the shipped India KB — integrity & versioning', () => {
+  it('loads without error (all cross-checks pass)', () => {
+    expect(() => loadKnowledgeBase()).not.toThrow();
+  });
+
+  it('every category has exactly one Bangladesh eligibility record', () => {
+    const kb = loadKnowledgeBase();
+    const bgd = kb.eligibility.filter((e) => e.nationality === 'BGD');
+    const covered = new Map<string, number>();
+    for (const e of bgd) covered.set(e.categoryId, (covered.get(e.categoryId) ?? 0) + 1);
+    for (const c of kb.categories) {
+      expect(covered.get(c.id), `no BGD eligibility record for ${c.id}`).toBe(1);
+    }
+    expect(bgd.length).toBe(kb.categories.length);
+  });
+
+  it('every e-Visa eligibility record encodes the universal exclusions', () => {
+    const kb = loadKnowledgeBase();
+    for (const e of kb.eligibility.filter((x) => x.applicationMode === 'evisa')) {
+      const types = e.conditions.map((c) => c.type);
+      expect(types, e.categoryId).toContain('passport_type_not_in');
+      expect(types, e.categoryId).toContain('no_prohibited_background');
+    }
+  });
+
+  it('getVersion reports the meta version, and every entry carries provenance', () => {
+    const kb = loadKnowledgeBase();
+    const v = getVersion(kb);
+    expect(v.kbVersion).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(v.schemaVersion).toBeGreaterThanOrEqual(1);
+    for (const entry of [...kb.categories, ...kb.eligibility]) {
+      expect(entry.source.officialUrl).toMatch(/^https?:\/\//);
+      expect(entry.source.retrievedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(entry.lastVerified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  });
+
+  it('no eligibility record silently implies eligibility for a category that has none', () => {
+    // sanity: there is no category without a record (covered above); this asserts the guarantee explicitly
+    const kb = loadKnowledgeBase();
+    const recorded = new Set(kb.eligibility.map((e) => `${e.nationality}|${e.applicationMode}|${e.categoryId}`));
+    for (const c of kb.categories) {
+      expect(recorded.has(`BGD|${c.applicationMode}|${c.id}`)).toBe(true);
     }
   });
 });

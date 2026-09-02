@@ -42,3 +42,25 @@ Every Regular entry: `source.retrievedAt` = `2026-09-03`, `lastVerified` = `2026
 2. Set that entry's `lastVerified` and `source.retrievedAt` to today's date.
 3. If the change is material (a validity, entries, stay-limit, eligibility status, or documents change — not a wording fix), bump `meta.kbVersion` and `meta.revisionDate` in `meta.json`.
 4. Run `npm test` — `test/shared/visaKb/data.test.ts` fails on a dangling eligibility reference, a duplicate category id, missing provenance (`source.officialUrl` / `retrievedAt`), or an `applicationMode` mismatch.
+
+## Bangladesh eligibility sources
+
+`eligibility.bgd.json` records the eligibility of Bangladesh (`BGD`) nationals for every seeded
+category. Sources:
+
+| # | URL | Retrieved | What it sourced |
+|---|-----|-----------|-----------------|
+| S1 | https://indianvisaonline.gov.in/evisa/tvoa.html | 2026-09-03 | The e-Visa universal exclusions (diplomatic/official/service passport; defence/military/security/police background; endorsement on a relative's passport; 6-month passport validity; not of Pakistani origin / no Pakistani passport); per-category purpose gating; e-Conference MEA/MHA clearance; e-Student / e-Medical Attendant supporting-document and quota rules. Page "Last Updated" stamp: **2019-05-16**. |
+| S2 | https://indianvisaonline.gov.in/evisa/ | 2026-09-03 | Bangladesh is on the e-Visa eligible-nationalities list ("14.Bangladesh"); the eight admissible e-Visa categories. |
+| S5 | https://hcidhaka.gov.in/ | 2026-09-03 | Bangladesh nationals are eligible for all regular Indian visa categories; no visa fee for Bangladeshi passport holders. Used as `source.officialUrl` for every Regular eligibility record. |
+| S6 | MHA / India–Bangladesh bilateral Revised Travel Arrangement (context) | 2026-09-03 | 5-year multiple-entry tourist visa for Bangladesh nationals aged 65+; Employment-visa skilled-role / minimum-remuneration threshold (broadly USD 25,000/year, with role exemptions); progressive restoration of visa services in Bangladesh through 2026 (medical + double-entry business first from Feb 2026; standard tourist processing resumed 28 Jun 2026); Conference-visa MEA/MHA clearance; Transit and Entry(X) terms. |
+
+Every e-Visa eligibility record carries `source.officialUrl` = the S2 URL, `source.documentDate`
+= `2019-05-16` (the S1 exclusions page stamp); every Regular eligibility record carries
+`source.officialUrl` = the S5 URL. All eligibility records: `source.retrievedAt` = `lastVerified`
+= `2026-09-03`.
+
+Bangladesh eligibility is recorded as one explicit record per seeded category (20 total). Where a
+category is offered but gated on an external prerequisite (organiser clearance, remuneration
+threshold) the record status is `conditional`, not `eligible`. No seeded category is `ineligible`
+or `not_offered` for Bangladesh in this KB version.

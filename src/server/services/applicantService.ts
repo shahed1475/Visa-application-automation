@@ -353,6 +353,88 @@ export function upsertFieldMeta(
   return listFieldMeta(db, applicantId).find((m) => m.fieldPath === input.fieldPath) ?? null;
 }
 
+export function duplicateApplicant(db: DatabaseSync, id: string): ApplicantDetail | null {
+  const src = getApplicantRow(db, id);
+  if (!src) return null;
+
+  const newId = randomUUID();
+  const now = new Date().toISOString();
+
+  db.exec('BEGIN');
+  try {
+    db.prepare(
+      `INSERT INTO applicants (id, display_name, status, created_at, updated_at)
+       VALUES (?, ?, 'draft', ?, ?)`,
+    ).run(newId, `${src.display_name} (copy)`, now, now);
+
+    for (const { table } of Object.values(SECTION_TABLES)) {
+      const row = db.prepare(`SELECT * FROM ${table} WHERE applicant_id = ?`).get(id) as
+        | Record<string, unknown>
+        | undefined;
+      const cols = row ? Object.keys(row) : ['applicant_id'];
+      const values = cols.map((c) =>
+        c === 'applicant_id' ? newId : row ? row[c] : null,
+      ) as SQLInputValue[];
+      db.prepare(
+        `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+      ).run(...values);
+    }
+
+    const idMap = new Map<string, string>();
+    for (const table of ['applicant_travel', 'applicant_reference'] as const) {
+      const rows = db
+        .prepare(`SELECT * FROM ${table} WHERE applicant_id = ?`)
+        .all(id) as Record<string, unknown>[];
+      for (const row of rows) {
+        const childNewId = randomUUID();
+        idMap.set(row.id as string, childNewId);
+        const cols = Object.keys(row);
+        const values = cols.map((c) => {
+          if (c === 'id') return childNewId;
+          if (c === 'applicant_id') return newId;
+          if (c === 'created_at' || c === 'updated_at') return now;
+          return row[c];
+        }) as SQLInputValue[];
+        db.prepare(
+          `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+        ).run(...values);
+      }
+    }
+
+    const metaRows = db
+      .prepare('SELECT * FROM applicant_field_meta WHERE applicant_id = ?')
+      .all(id) as Record<string, unknown>[];
+    for (const row of metaRows) {
+      const remappedPath = (row.field_path as string)
+        .split('.')
+        .map((seg) => idMap.get(seg) ?? seg)
+        .join('.');
+      db.prepare(
+        `INSERT INTO applicant_field_meta
+           (id, applicant_id, field_path, source, confidence, raw_value, verified, verified_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
+      ).run(
+        ...([
+          randomUUID(),
+          newId,
+          remappedPath,
+          row.source,
+          row.confidence,
+          row.raw_value,
+          now,
+          now,
+        ] as SQLInputValue[]),
+      );
+    }
+
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+  return getApplicantDetail(db, newId);
+}
+
 export function deleteApplicant(db: DatabaseSync, id: string): boolean {
   const { changes } = db.prepare('DELETE FROM applicants WHERE id = ?').run(id);
   return Number(changes) > 0;

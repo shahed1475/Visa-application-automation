@@ -259,3 +259,55 @@ describe('field meta', () => {
     expect(m.verified).toBe(true);
   });
 });
+
+describe('duplicate', () => {
+  it('deep-copies sections, travel, references and meta; resets verification; renames', () => {
+    const a = svc.createApplicant(db, {
+      displayName: 'Original',
+      identity: { surname: 'Khan', givenNames: 'Aisha' } as any,
+      passport: { number: 'A999' } as any,
+    });
+    const t = svc.addTravel(db, a.id, { purpose: 'Tourism', arrivalDate: '2026-05-01' } as any)!;
+    const r = svc.addReference(db, a.id, { kind: 'employer', name: 'ACME' } as any)!;
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname', verified: true } as any);
+    svc.upsertFieldMeta(db, a.id, { fieldPath: `travel.${t.id}.arrival_date`, source: 'passport_ocr', confidence: 0.8 } as any);
+
+    const copy = svc.duplicateApplicant(db, a.id)!;
+
+    expect(copy.id).not.toBe(a.id);
+    expect(copy.displayName).toBe('Original (copy)');
+    expect(copy.status).toBe('draft');
+    expect(copy.identity.surname).toBe('Khan');
+    expect(copy.passport.number).toBe('A999');
+    expect(copy.travel).toHaveLength(1);
+    expect(copy.travel[0].id).not.toBe(t.id);
+    expect(copy.travel[0].purpose).toBe('Tourism');
+    expect(copy.references[0].kind).toBe('employer');
+    expect(copy.references[0].id).not.toBe(r.id);
+
+    // meta: verified reset, source/confidence kept, travel id remapped
+    const surnameMeta = copy.fieldMeta.find((m) => m.fieldPath === 'identity.surname')!;
+    expect(surnameMeta.verified).toBe(false);
+    expect(surnameMeta.verifiedAt).toBeNull();
+
+    const travelMeta = copy.fieldMeta.find((m) => m.fieldPath.startsWith('travel.'))!;
+    expect(travelMeta.fieldPath).toBe(`travel.${copy.travel[0].id}.arrival_date`);
+    expect(travelMeta.source).toBe('passport_ocr');
+    expect(travelMeta.confidence).toBeCloseTo(0.8, 5);
+    expect(travelMeta.verified).toBe(false);
+  });
+
+  it('does not modify the original', () => {
+    const a = svc.createApplicant(db, { displayName: 'Keep', identity: { surname: 'X' } as any });
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname', verified: true } as any);
+    svc.duplicateApplicant(db, a.id);
+    const again = svc.getApplicantDetail(db, a.id)!;
+    expect(again.displayName).toBe('Keep');
+    expect(again.fieldMeta.find((m) => m.fieldPath === 'identity.surname')!.verified).toBe(true);
+    expect(svc.listApplicants(db)).toHaveLength(2);
+  });
+
+  it('returns null for a missing applicant', () => {
+    expect(svc.duplicateApplicant(db, 'missing')).toBeNull();
+  });
+});

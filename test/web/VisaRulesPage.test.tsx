@@ -14,7 +14,10 @@ vi.mock('../../src/shared/visa-kb/index', () => {
     requiredDocuments: [{ id: 'passport_bio_page', label: 'Passport bio page' }],
     optionalDocuments: [], specialConditions: [], restrictions: [], source: src, lastVerified: '2026-09-02',
   });
-  const evisa = [mk('evisa.tourist.30d', 'evisa', 'tourist', 'e-Tourist 30d')];
+  const evisa = [
+    mk('evisa.tourist.30d', 'evisa', 'tourist', 'e-Tourist 30d'),
+    mk('evisa.journalist', 'evisa', 'journalist', 'e-Journalist'),
+  ];
   const regular = [mk('regular.tourist', 'regular', 'tourist', 'Tourist (paper)')];
   const all = [...evisa, ...regular];
   return {
@@ -25,10 +28,15 @@ vi.mock('../../src/shared/visa-kb/index', () => {
       const c = all.find((x) => x.id === id);
       return c ? { required: c.requiredDocuments, optional: c.optionalDocuments } : null;
     },
-    checkEligibility: (_n: string, m: string, id: string) =>
-      id === 'evisa.tourist.30d'
-        ? { status: 'eligible', conditions: [], basis: 'listed', source: src, lastVerified: '2026-09-02' }
-        : { status: 'unknown', reason: 'no eligibility rule recorded' },
+    checkEligibility: (_n: string, m: string, id: string) => {
+      if (id === 'evisa.tourist.30d') {
+        return { status: 'eligible', conditions: [], basis: 'listed', source: src, lastVerified: '2026-09-02' };
+      }
+      if (id === 'evisa.journalist') {
+        return { status: 'not_offered', conditions: [], basis: 'not offered to BGD', source: src, lastVerified: '2026-09-02' };
+      }
+      return { status: 'unknown', reason: 'no eligibility rule recorded' };
+    },
   };
 });
 
@@ -55,6 +63,16 @@ it('selecting a category shows its documents, eligibility, and an external sourc
   expect(screen.getByText(/eligible/i)).toBeTruthy();
   const link = screen.getByRole('link', { name: /official source/i }) as HTMLAnchorElement;
   expect(link.href).toContain('indianvisaonline.gov.in');
+});
+
+it('a not_offered category does not get the "eligible" or the amber "conditional" badge', async () => {
+  render(<MemoryRouter><VisaRulesPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByText('e-Journalist'));
+  const badge = await screen.findByText('not_offered');
+  expect(badge.className).toContain('badge--unverified');
+  expect(badge.className).not.toContain('badge--verified');
+  expect(badge.className).not.toContain('badge--partial');
+  expect(screen.queryByText(/^eligible$/i)).toBeNull();
 });
 
 it('a category with no eligibility rule shows the "no rule recorded" message, never "eligible"', async () => {

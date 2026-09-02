@@ -24,6 +24,19 @@ function formatCondition(c: EligibilityCondition): string {
   }
 }
 
+type EligibilityStatus = 'eligible' | 'conditional' | 'ineligible' | 'not_offered';
+
+/** Green only for a clean pass, amber only for "yes, but"; a refusal must never look like either. */
+function badgeVariant(status: EligibilityStatus): 'verified' | 'partial' | 'unverified' {
+  switch (status) {
+    case 'eligible': return 'verified';
+    case 'conditional': return 'partial';
+    case 'ineligible':
+    case 'not_offered': return 'unverified';
+    default: { const _exhaustive: never = status; return _exhaustive; }
+  }
+}
+
 export function VisaRulesPage() {
   const version = useMemo(() => getVersion(), []);
   const [mode, setMode] = useState<ApplicationMode>('evisa');
@@ -151,7 +164,7 @@ function VisaCategoryDetail({ category, mode }: { category: VisaCategory; mode: 
         <p className="warning">No Bangladesh eligibility rule recorded for this category.</p>
       ) : (
         <>
-          <p><span className={`badge badge--${eligibility.status === 'eligible' ? 'verified' : 'partial'}`}>{eligibility.status}</span> {eligibility.basis}</p>
+          <p><span className={`badge badge--${badgeVariant(eligibility.status)}`}>{eligibility.status}</span> {eligibility.basis}</p>
           {eligibility.conditions.length > 0 && (
             <ul>
               {eligibility.conditions.map((c, i) => <li key={i}>{formatCondition(c)}</li>)}

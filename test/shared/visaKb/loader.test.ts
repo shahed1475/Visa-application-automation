@@ -62,6 +62,19 @@ describe('parseKnowledgeBase', () => {
       .toThrow(/duplicate .*eligibility/i);
   });
 
+  it('rejects a category whose id prefix disagrees with its applicationMode', () => {
+    expect(() => parseKnowledgeBase({
+      meta,
+      categories: [cat({ id: 'regular.tourist', applicationMode: 'evisa' })],
+      eligibility: [],
+    })).toThrow(/prefix|mode/i);
+    expect(() => parseKnowledgeBase({
+      meta,
+      categories: [cat({ id: 'evisa.tourist.30d', applicationMode: 'regular' })],
+      eligibility: [],
+    })).toThrow(/prefix|mode/i);
+  });
+
   it('rejects a non-IND destination', () => {
     expect(() => parseKnowledgeBase({ meta: { ...meta, destination: 'BGD' }, categories: [], eligibility: [] }))
       .toThrow(/destination/i);
@@ -69,7 +82,7 @@ describe('parseKnowledgeBase', () => {
 });
 
 describe('loadKnowledgeBase', () => {
-  it('loads the shipped data (empty categories/eligibility for now) and caches', () => {
+  it('loads the shipped data and caches', () => {
     const a = loadKnowledgeBase();
     const b = loadKnowledgeBase();
     expect(a).toBe(b);                 // same frozen instance (cached)

@@ -42,6 +42,15 @@ export function parseKnowledgeBase(raw: unknown): KnowledgeBase {
   for (const c of kb.categories) {
     if (ids.has(c.id)) throw new KnowledgeBaseError(`visa-kb: duplicate category id "${c.id}"`);
     ids.add(c.id);
+
+    // The id prefix is load-bearing: callers and the UI read "evisa."/"regular." off the id,
+    // so it must not disagree with the authoritative applicationMode field.
+    const expectedPrefix = `${c.applicationMode}.`;
+    if (!c.id.startsWith(expectedPrefix)) {
+      throw new KnowledgeBaseError(
+        `visa-kb: category "${c.id}" has applicationMode "${c.applicationMode}" so its id must start with "${expectedPrefix}"`,
+      );
+    }
   }
 
   const byId = new Map(kb.categories.map((c) => [c.id, c]));

@@ -52,7 +52,7 @@ Every Regular entry: `source.retrievedAt` = `2026-09-03`, `lastVerified` = `2026
 1. Edit the affected entry's JSON in `evisa-categories.json`, `regular-categories.json`, or `eligibility.bgd.json`.
 2. Set that entry's `lastVerified` and `source.retrievedAt` to today's date.
 3. If the change is material (a validity, entries, stay-limit, eligibility status, or documents change — not a wording fix), bump `meta.kbVersion` and `meta.revisionDate` in `meta.json`.
-4. Run `npm test` — `test/shared/visaKb/data.test.ts` fails on a dangling eligibility reference, a duplicate category id, missing provenance (`source.officialUrl` / `retrievedAt`), or an `applicationMode` mismatch.
+4. Run `npm test` — `test/shared/visaKb/data.test.ts` fails on a dangling eligibility reference, a duplicate category id, missing provenance (`source.officialUrl` / `retrievedAt`), an `applicationMode` mismatch, a category `id` whose `evisa.` / `regular.` prefix disagrees with its `applicationMode`, or a Regular eligibility record sourced to `hcidhaka.gov.in` that drops the "not machine-retrievable / re-verify" disclosure.
 
 ## Bangladesh eligibility sources
 

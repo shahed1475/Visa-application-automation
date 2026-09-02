@@ -68,8 +68,8 @@ commit). Excludes the spec/plan docs, which are process artefacts:
 
 **Created — module**
 - `src/shared/visa-kb/schema.ts` (168) — Zod schema + inferred types
-- `src/shared/visa-kb/loader.ts` (84) — validate → cross-check → deep-freeze → cache; `parseKnowledgeBase` / `loadKnowledgeBase` / `reload` / `KnowledgeBaseError`
-- `src/shared/visa-kb/queries.ts` (156) — the 8 pure query/validation functions
+- `src/shared/visa-kb/loader.ts` (93) — validate → cross-check → deep-freeze → cache; `parseKnowledgeBase` / `loadKnowledgeBase` / `reload` / `KnowledgeBaseError`
+- `src/shared/visa-kb/queries.ts` (169) — the 8 pure query/validation functions
 - `src/shared/visa-kb/index.ts` (3) — public barrel (`export *` of schema + loader + queries)
 
 **Created — data (`src/shared/visa-kb/data/india/`)**
@@ -84,9 +84,9 @@ commit). Excludes the spec/plan docs, which are process artefacts:
 
 **Created — tests**
 - `test/shared/visaKb/schema.test.ts` (121) — 16 tests
-- `test/shared/visaKb/loader.test.ts` (85) — 10 tests
-- `test/shared/visaKb/queries.test.ts` (173) — 22 tests
-- `test/shared/visaKb/data.test.ts` (104) — 12 tests (real-KB integrity guard)
+- `test/shared/visaKb/loader.test.ts` (98) — 11 tests
+- `test/shared/visaKb/queries.test.ts` (182) — 23 tests
+- `test/shared/visaKb/data.test.ts` (117) — 13 tests (real-KB integrity guard)
 - `test/web/VisaRulesPage.test.tsx` (66) — 4 tests
 
 **Created — config**
@@ -152,16 +152,18 @@ guidance. Each affected record discloses this in its own `source.notes`. See §8
 
 ## 4. Tests
 
-`npm test` → **211 passed / 211** (25 files). Phase 0/2 baseline was 147; Phase 1
-adds **64** across 5 files:
+`npm test` → **217 passed / 217** (26 files). Phase 0/2 baseline was 147; Phase 1
+adds **70** across 6 files (211/25 at the end of Task 11; the whole-branch fix
+wave added 6 more tests and one file):
 
 | File | Tests | Covers |
 |---|---|---|
 | `test/shared/visaKb/schema.test.ts` | 16 | `metaSchema` (alpha-3, ISO date), `sourceSchema` (http(s) URL, strict extra-key reject), `visaCategorySchema` (mode / category enums, id slug, missing-source reject), `conditionSchema` (each type; unknown type reject), `eligibilityRecordSchema`, `knowledgeBaseSchema`, the exported tuples |
-| `test/shared/visaKb/loader.test.ts` | 10 | `parseKnowledgeBase` deep-freeze; `KnowledgeBaseError` naming the field; unknown `schemaVersion`; duplicate ids; dangling `eligibility.categoryId`; mode mismatch; duplicate `(nationality, mode, categoryId)`; non-IND destination; `loadKnowledgeBase` caching + `reload()` |
-| `test/shared/visaKb/queries.test.ts` | 22 | every query function against hand-built fixtures |
-| `test/shared/visaKb/data.test.ts` | 12 | **the shipped KB**: schema-valid; the e-Tourist 30d/1y/5y split; real source URLs; `loadKnowledgeBase()` passes all cross-checks; every category has exactly one BGD record (`bgd.length === categories.length`); every e-Visa record encodes the universal exclusions; provenance on every entry |
-| `test/web/VisaRulesPage.test.tsx` | 4 | renders the e-Visa list + KB version; mode toggle switches to Regular; detail panel shows docs + eligibility + external source link; unknown-eligibility category shows "no rule recorded" and never bare "eligible" |
+| `test/shared/visaKb/loader.test.ts` | 11 | `parseKnowledgeBase` deep-freeze; `KnowledgeBaseError` naming the field; unknown `schemaVersion`; duplicate ids; **category id prefix vs `applicationMode`**; dangling `eligibility.categoryId`; mode mismatch; duplicate `(nationality, mode, categoryId)`; non-IND destination; `loadKnowledgeBase` caching + `reload()` |
+| `test/shared/visaKb/queries.test.ts` | 23 | every query function against hand-built fixtures, incl. `validateCombination`'s `eligibilityChecked` flag |
+| `test/shared/visaKb/data.test.ts` | 13 | **the shipped KB**: schema-valid; the e-Tourist 30d/1y/5y split; real source URLs; `loadKnowledgeBase()` passes all cross-checks; every category has exactly one BGD record (`bgd.length === categories.length`); every e-Visa record encodes the universal exclusions; provenance on every entry; **every hcidhaka.gov.in-sourced Regular record discloses that the fetch was not live** |
+| `test/web/VisaRulesPage.test.tsx` | 5 | renders the e-Visa list + KB version; mode toggle switches to Regular; detail panel shows docs + eligibility + external source link; a `not_offered` category gets the grey badge, never the green or amber one; unknown-eligibility category shows "no rule recorded" and never bare "eligible" |
+| `test/web/VisaRulesPage.realKb.test.tsx` | 2 | the same page rendered with **no module mock**, against the shipped KB — real `displayName`s, the real `kbVersion`, and a real detail panel resolved through the real loader |
 
 ### The six required areas → specific tests
 
@@ -171,7 +173,7 @@ adds **64** across 5 files:
 | application-mode filtering | `queries.test.ts` → `describe('application-mode filtering')` — `getCategoriesForMode returns only that mode`, `never leaks the other mode`, `listCategories({ applicationMode }) agrees with getCategoriesForMode` |
 | nationality eligibility | `queries.test.ts` → `describe('nationality eligibility')` — `returns the explicit record for a known tuple`, `returns unknown — never inferred — when no record exists`, `surfaces an explicit not_offered / ineligible rather than hiding it`, `listEligibleCategories returns only eligible/conditional…` |
 | document requirements | `queries.test.ts` → `describe('document requirements')` — `returns required + optional for a known category`, `returns { required, optional: [] } for a category with no optional docs`, `returns null for an unknown category` |
-| invalid category combinations | `queries.test.ts` → `describe('invalid category combinations')` — `UNKNOWN_MODE for a bad mode`, `UNKNOWN_CATEGORY for a missing id`, `MODE_MISMATCH when the id belongs to the other mode`, `NO_ELIGIBILITY_RULE when a nationality is given but no record exists`, `NOT_OFFERED / INELIGIBLE surface the explicit status`, `valid combo → { valid: true, categoryId }`, `valid without a nationality skips the eligibility checks` |
+| invalid category combinations | `queries.test.ts` → `describe('invalid category combinations')` — `UNKNOWN_MODE for a bad mode`, `UNKNOWN_CATEGORY for a missing id`, `MODE_MISMATCH when the id belongs to the other mode`, `NO_ELIGIBILITY_RULE when a nationality is given but no record exists`, `NOT_OFFERED / INELIGIBLE surface the explicit status`, `valid combo with a nationality → eligibilityChecked: true`, `valid without a nationality skips the eligibility checks and says so`, `a skipped eligibility check is distinguishable from a passed one` |
 | versioned rules | `queries.test.ts` → `getVersion > returns the meta version fields`; `loader.test.ts` → `rejects an unknown schemaVersion`, `throws KnowledgeBaseError on a schema violation`; `data.test.ts` → `getVersion reports the meta version, and every entry carries provenance` |
 
 ### Data-integrity guard
@@ -222,35 +224,36 @@ checked under the resolution it actually runs on: `tsconfig.test.node.json`
 
  RUN  v3.2.7 C:/Users/Fahad/Desktop/Formal work/Visa application automation
 
- ✓ test/server/applicantService.test.ts (27 tests) 1087ms
- ✓ test/server/staticServing.test.ts (3 tests) 1380ms
- ✓ test/server/applicantRoutes.test.ts (18 tests) 1126ms
- ✓ test/automation/pageInspector.test.ts (1 test) 712ms
- ✓ test/server/loggerRedaction.test.ts (5 tests) 426ms
- ✓ test/server/portalService.test.ts (8 tests) 190ms
- ✓ test/server/health.test.ts (1 test) 264ms
- ✓ test/server/applicantMigrations.test.ts (5 tests) 116ms
- ✓ test/server/portalRoutes.test.ts (10 tests) 2830ms
- ✓ test/server/migrations.test.ts (3 tests) 75ms
- ✓ test/shared/visaKb/loader.test.ts (10 tests) 33ms
- ✓ test/shared/visaKb/queries.test.ts (22 tests) 20ms
- ✓ test/shared/visaKb/data.test.ts (12 tests) 37ms
- ✓ test/automation/testConnection.test.ts (5 tests) 4233ms
- ✓ test/shared/applicantSchemas.test.ts (24 tests) 23ms
- ✓ test/automation/noHardcodedUrl.test.ts (2 tests) 19ms
- ✓ test/shared/visaKb/schema.test.ts (16 tests) 14ms
- ✓ test/web/apiClient.test.ts (4 tests) 12ms
- ✓ test/server/schemas.test.ts (7 tests) 10ms
+ ✓ test/server/applicantService.test.ts (27 tests) 934ms
+ ✓ test/server/staticServing.test.ts (3 tests) 1565ms
+ ✓ test/server/applicantRoutes.test.ts (18 tests) 968ms
+ ✓ test/automation/pageInspector.test.ts (1 test) 468ms
+ ✓ test/server/portalRoutes.test.ts (10 tests) 2364ms
+ ✓ test/server/loggerRedaction.test.ts (5 tests) 500ms
+ ✓ test/server/health.test.ts (1 test) 281ms
+ ✓ test/server/portalService.test.ts (8 tests) 286ms
+ ✓ test/server/applicantMigrations.test.ts (5 tests) 100ms
+ ✓ test/server/migrations.test.ts (3 tests) 71ms
+ ✓ test/shared/visaKb/loader.test.ts (11 tests) 29ms
+ ✓ test/shared/visaKb/data.test.ts (13 tests) 40ms
+ ✓ test/shared/applicantSchemas.test.ts (24 tests) 22ms
+ ✓ test/shared/visaKb/queries.test.ts (23 tests) 31ms
+ ✓ test/automation/testConnection.test.ts (5 tests) 4333ms
+ ✓ test/shared/visaKb/schema.test.ts (16 tests) 15ms
+ ✓ test/automation/noHardcodedUrl.test.ts (2 tests) 16ms
+ ✓ test/web/apiClient.test.ts (4 tests) 11ms
  ✓ test/server/applicantCompleteness.test.ts (10 tests) 8ms
- ✓ test/web/VisaRulesPage.test.tsx (4 tests) 224ms
- ✓ test/web/ApplicantsPage.test.tsx (4 tests) 462ms
- ✓ test/web/PortalsPage.test.tsx (2 tests) 74ms
- ✓ test/web/PortalForm.test.tsx (2 tests) 217ms
- ✓ test/web/ApplicantDetailPage.test.tsx (6 tests) 731ms
+ ✓ test/server/schemas.test.ts (7 tests) 6ms
+ ✓ test/web/VisaRulesPage.test.tsx (5 tests) 436ms
+ ✓ test/web/ApplicantsPage.test.tsx (4 tests) 547ms
+ ✓ test/web/PortalForm.test.tsx (2 tests) 284ms
+ ✓ test/web/VisaRulesPage.realKb.test.tsx (2 tests) 406ms
+ ✓ test/web/ApplicantDetailPage.test.tsx (6 tests) 1094ms
+ ✓ test/web/PortalsPage.test.tsx (2 tests) 62ms
 
- Test Files  25 passed (25)
-      Tests  211 passed (211)
-   Duration  7.58s
+ Test Files  26 passed (26)
+      Tests  217 passed (217)
+   Duration  8.87s
 ```
 
 (React Router v7 future-flag warnings on the web tests are pre-existing and
@@ -284,7 +287,7 @@ and the `docs/ARCHITECTURE.md` §3 paragraph, no `.ts` / `.tsx` / `.json` change
 records the value.)
 
 Last implementation commit: `d0e2836` ("feat: India visa rules reference page").
-Phase 1 range: `b78ae80..HEAD`, 13 commits (`0e6172c` spec, `28f86f5` plan, then
+Phase 1 range: `b78ae80..HEAD`, 14 commits (`0e6172c` spec, `28f86f5` plan, then
 `777888a` `ed81fe9` `70ce3fe` `df6cd87` `9ce8d17` `ff378e7` `755d411` `89aa9b9`
 `9675045` `d0e2836` and this one).
 

@@ -91,10 +91,11 @@ commit). Excludes the spec/plan docs, which are process artefacts:
 
 **Created — config**
 - `tsconfig.test.json` (7) — extends `tsconfig.web.json`, `noEmit`, `include` = `src/**` + `test/**`
+  (superseded in the fix wave by `tsconfig.test.node.json` + `tsconfig.test.web.json` — see §8)
 
 **Changed**
 - `tsconfig.server.json` (+3 / -1) — `exclude: ["src/shared/visa-kb/**"]` (JSON-importing module is not part of the server emit)
-- `package.json` (+1 / -1) — `typecheck` script chained with `tsc -p tsconfig.test.json`
+- `package.json` (+1 / -1) — `typecheck` script chained with the test config(s)
 - `.gitignore` (+2) — un-ignore `src/shared/visa-kb/data/` (root `data/` still ignores the DB)
 - `src/web/src/main.tsx` (+2) — `/visa-rules` route
 - `src/web/src/App.tsx` (+1) — nav link
@@ -195,11 +196,14 @@ Run 2026-09-03 on branch `phase-0-portal-settings`, working tree clean.
 
 ```
 > visa-autofill@0.0.0 typecheck
-> tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.web.json && tsc -p tsconfig.test.json
+> tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.web.json && tsc -p tsconfig.test.node.json && tsc -p tsconfig.test.web.json
 ```
 
-(No diagnostics. `tsconfig.test.json` now type-checks all of `test/**` and
-`src/**` together — added in Task 1.)
+(No diagnostics, 4 passes. The test coverage is split in two so each half is
+checked under the resolution it actually runs on: `tsconfig.test.node.json`
+(extends the NodeNext base) covers `test/server`, `test/shared`, `test/helpers`,
+`test/automation` + `src/server` + `src/shared`; `tsconfig.test.web.json`
+(extends `tsconfig.web.json`) covers `test/web` + `src/web` + `src/shared`.)
 
 ### `npm run lint` — exit 0
 
@@ -296,7 +300,7 @@ Phase 1 range: `b78ae80..HEAD`, 13 commits (`0e6172c` spec, `28f86f5` plan, then
 - [x] **Rule change = JSON edit + version bump, no code change** — loader reads the four JSON files (`loader.ts:1-4`, `71-79`); `SOURCES.md` → "How to update a rule"; the data-integrity test is the safety net.
 - [x] **Tests for the six areas, all passing** — see §4 mapping table; 211/211.
 - [x] **No browser automation, no CAPTCHA/OTP code added** — `git diff --stat b78ae80..HEAD` touches nothing under `src/server/automation/`; `test/automation/noHardcodedUrl.test.ts` still passes.
-- [x] **`typecheck` · `lint` · `test` · `build` all green, test dirs now type-checked** — §5; `tsconfig.test.json` added in Task 1, `include` covers all `test/**`.
+- [x] **`typecheck` · `lint` · `test` · `build` all green, test dirs now type-checked** — §5; `tsconfig.test.node.json` + `tsconfig.test.web.json` between them cover all five `test/**` directories, each under the resolution it runs on.
 - [x] **`docs/PHASE-1-REPORT.md` covers: data model · files created/changed · official sources · tests · typecheck · lint · build · commit hash** — §1 / §2 / §3 / §4 / §5 / §6.
 - [x] **Phase stops here; Phase 2's document system not started** — this commit is docs-only.
 
@@ -349,7 +353,16 @@ Phase 1 (spec §2, §4.3). `VisaRulesPage` only formats conditions for display
 `test/**` + `src/**` coverage to `npm run typecheck`; 12 pre-existing errors in
 `test/server/applicantService.test.ts` and `test/server/migrations.test.ts` were
 fixed mechanically (`!` assertions, `SQLOutputValue` row casts) — no assertion or
-behaviour changed.
+behaviour changed. The whole-branch review then found that single config
+overstated its coverage: it extended `tsconfig.web.json`, so server code and
+server tests were checked under Bundler resolution with DOM libs and
+`verbatimModuleSyntax: false` — a missing `.js` extension or a `document`
+reference in server code type-checked clean and would only fail at NodeNext
+runtime. It is now split into `tsconfig.test.node.json` (NodeNext base) and
+`tsconfig.test.web.json` (web), each checking the half it describes. Both passes
+were clean on the existing tree — no new errors were hidden — and a deliberate
+`document.title` probe in `test/server/health.test.ts` now fails the Node pass
+(`TS2584`), which the old config accepted.
 
 **Deferred minor items (carried from the SDD ledger, none blocking):**
 

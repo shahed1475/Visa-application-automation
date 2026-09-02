@@ -3,5 +3,5 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["src/shared/**/*", "src/server/**/*", "src/web/**/*", "test/**/*"]
+  "include": ["src/web/**/*", "src/shared/**/*", "test/web/**/*"]
 }

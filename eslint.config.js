@@ -16,4 +16,12 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    // Test fixtures build partial section objects and cast them; `as any` is the
+    // agreed shorthand across the Phase 2 task briefs.
+    files: ['test/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 );

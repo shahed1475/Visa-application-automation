@@ -77,8 +77,15 @@ export function ApplicantDetailPage() {
     };
 
   const verifyField = async (fieldPath: string, verified: boolean) => {
-    await api.setFieldMeta(id, { fieldPath, verified });
-    await reload();
+    try {
+      await api.setFieldMeta(id, { fieldPath, verified });
+      await reload();
+    } catch (e) {
+      // Re-thrown rather than set on the page: the SectionCard that owns the
+      // control renders it in its own inline error slot, so the rest of the
+      // profile stays on screen (a page-level error replaces the whole view).
+      throw e instanceof Error ? e : new Error('Failed to update verification');
+    }
   };
 
   async function duplicate() {

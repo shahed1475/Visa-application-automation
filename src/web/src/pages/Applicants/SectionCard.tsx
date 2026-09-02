@@ -60,6 +60,17 @@ export function SectionCard({ title, sectionKey, fields, values, fieldMeta, onSa
     }
   }
 
+  // The verify toggle is the one action whose promise used to float; route it
+  // through the same inline `error` slot every other action in this card uses.
+  async function verify(path: string, next: boolean) {
+    setError(null);
+    try {
+      await onVerify(path, next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update verification');
+    }
+  }
+
   const verifiedPaths = new Set(fieldMeta.filter((m) => m.verified).map((m) => m.fieldPath));
 
   return (
@@ -112,7 +123,7 @@ export function SectionCard({ title, sectionKey, fields, values, fieldMeta, onSa
                     <button
                       className={isVerified ? 'verify verify--on' : 'verify'}
                       aria-pressed={isVerified}
-                      onClick={() => onVerify(path, !isVerified)}
+                      onClick={() => void verify(path, !isVerified)}
                     >
                       {isVerified ? '✓ Verified' : 'Confirm'}
                     </button>

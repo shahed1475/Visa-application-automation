@@ -98,13 +98,44 @@ it('toggling a field verify control calls setFieldMeta', async () => {
   renderAt();
   const { api } = await import('../../src/web/src/api/client');
   await waitFor(() => expect(screen.getByText('Khan')).toBeTruthy());
-  // givenNames is filled ('Aisha') and unverified -> a "Confirm" control exists
+  // Every filled field gets a toggle; the first is identity.surname, which the
+  // fixture already marks verified, so this asserts the un-verify direction.
   const confirmButtons = screen.getAllByRole('button', { name: /confirm|verified/i });
   fireEvent.click(confirmButtons[0]!);
   await waitFor(() => expect(api.setFieldMeta).toHaveBeenCalled());
   expect((api.setFieldMeta as ReturnType<typeof vi.fn>).mock.calls[0]![1]).toEqual(
     expect.objectContaining({ fieldPath: expect.stringMatching(/^identity\./), verified: expect.any(Boolean) }),
   );
+});
+
+it('surfaces a failed verify toggle instead of floating the rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (e: PromiseRejectionEvent) => {
+    e.preventDefault();
+    unhandled.push(e.reason);
+  };
+  window.addEventListener('unhandledrejection', onUnhandled);
+  try {
+    const { api } = await import('../../src/web/src/api/client');
+    (api.setFieldMeta as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Field meta write failed'),
+    );
+    renderAt();
+    await waitFor(() => expect(screen.getByText('Khan')).toBeTruthy());
+
+    fireEvent.click(screen.getAllByRole('button', { name: /confirm|verified/i })[0]!);
+
+    await waitFor(() => expect(screen.getByText('Field meta write failed')).toBeTruthy());
+    // the message lands in the owning section card's inline error slot
+    expect(screen.getByRole('alert').textContent).toContain('Field meta write failed');
+    // the page itself stays rendered (not replaced by the page-level error branch)
+    expect(screen.getByText('Aisha Khan')).toBeTruthy();
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(unhandled).toEqual([]);
+  } finally {
+    window.removeEventListener('unhandledrejection', onUnhandled);
+  }
 });
 
 describe('travel & references', () => {

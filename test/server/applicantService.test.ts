@@ -132,11 +132,11 @@ it('summary omits sensitive fields but exposes last-4 of passport number', () =>
     identity: { nationality: 'Bangladeshi' },
     passport: { number: 'AB1234567' },
   });
-  const [row] = svc.listApplicants(db);
+  const row = svc.listApplicants(db)[0]!;
   expect(row.id).toBe(a.id);
   expect(row.nationality).toBe('Bangladeshi');
   expect(row.passportNumberLast4).toBe('4567');
-  expect(row as Record<string, unknown>).not.toHaveProperty('dateOfBirth');
+  expect(row as unknown as Record<string, unknown>).not.toHaveProperty('dateOfBirth');
   expect(JSON.stringify(row)).not.toContain('AB1234567');
 });
 
@@ -325,7 +325,7 @@ describe('field meta', () => {
     // (node:sqlite's DatabaseSync throws on a double close()).
     db = openDatabase(dbPath);
     runMigrations(db);
-    const m = svc.getApplicantDetail(db, a.id)!.fieldMeta[0];
+    const m = svc.getApplicantDetail(db, a.id)!.fieldMeta[0]!;
     expect(m.fieldPath).toBe('identity.surname');
     expect(m.verified).toBe(true);
   });
@@ -351,10 +351,10 @@ describe('duplicate', () => {
     expect(copy.identity.surname).toBe('Khan');
     expect(copy.passport.number).toBe('A999');
     expect(copy.travel).toHaveLength(1);
-    expect(copy.travel[0].id).not.toBe(t.id);
-    expect(copy.travel[0].purpose).toBe('Tourism');
-    expect(copy.references[0].kind).toBe('employer');
-    expect(copy.references[0].id).not.toBe(r.id);
+    expect(copy.travel[0]!.id).not.toBe(t.id);
+    expect(copy.travel[0]!.purpose).toBe('Tourism');
+    expect(copy.references[0]!.kind).toBe('employer');
+    expect(copy.references[0]!.id).not.toBe(r.id);
 
     // meta: verified reset, source/confidence kept, travel id remapped
     const surnameMeta = copy.fieldMeta.find((m) => m.fieldPath === 'identity.surname')!;
@@ -362,7 +362,7 @@ describe('duplicate', () => {
     expect(surnameMeta.verifiedAt).toBeNull();
 
     const travelMeta = copy.fieldMeta.find((m) => m.fieldPath.startsWith('travel.'))!;
-    expect(travelMeta.fieldPath).toBe(`travel.${copy.travel[0].id}.arrival_date`);
+    expect(travelMeta.fieldPath).toBe(`travel.${copy.travel[0]!.id}.arrival_date`);
     expect(travelMeta.source).toBe('passport_ocr');
     expect(travelMeta.confidence).toBeCloseTo(0.8, 5);
     expect(travelMeta.verified).toBe(false);

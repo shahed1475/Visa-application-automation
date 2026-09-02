@@ -25,10 +25,10 @@ it('brings a fresh db to the latest schema version', () => {
 
 it('creates the expected tables', () => {
   runMigrations(db);
-  const names = db
+  const rows = db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-    .all()
-    .map((r: { name: string }) => r.name);
+    .all() as { name: string }[];
+  const names = rows.map((r) => r.name);
   expect(names).toContain('visa_portals');
   expect(names).toContain('app_settings');
 });

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.web.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/shared/**/*", "src/server/**/*", "src/web/**/*", "test/**/*"]
+}

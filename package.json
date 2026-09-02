@@ -10,7 +10,7 @@
     "dev:web": "vite",
     "build": "vite build && tsc -p tsconfig.server.json",
     "start": "cross-env NODE_ENV=production NODE_OPTIONS=--disable-warning=ExperimentalWarning node dist/server/index.js",
-    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.web.json",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.web.json && tsc -p tsconfig.test.json",
     "lint": "eslint .",
     "test": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning vitest run",
     "test:watch": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning vitest"

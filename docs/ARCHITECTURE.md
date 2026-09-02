@@ -133,6 +133,16 @@ test/
   `shared/` carries an explicit `.js` extension. The web build uses
   `moduleResolution: Bundler` and omits extensions.
 
+**Phase 1 (visa knowledge base):** `src/shared/visa-kb/` is a pure,
+dependency-light module — a Zod schema, a loader that validates and freezes
+versioned JSON rule data (`data/india/`), and query functions (category lookup,
+application-mode filtering, explicit-never-inferred nationality eligibility,
+document requirements, invalid-combination validation). e-Visa and Regular/Paper
+categories are separate JSON files; Bangladesh eligibility is a set of explicit
+per-category records. The React `/visa-rules` page imports the module directly;
+there is no HTTP API. Rule changes are a JSON edit plus a `meta.kbVersion` bump.
+See `docs/PHASE-1-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live

@@ -144,3 +144,75 @@ button.link {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.portal-form {
+  max-width: 480px;
+}
+
+.portal-form h2 {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+}
+
+.portal-form label {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+
+.portal-form label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.portal-form label.checkbox input {
+  width: auto;
+}
+
+.portal-form textarea {
+  width: 100%;
+  max-width: 360px;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.test-connection {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.test-connection h3 {
+  margin: 0 0 0.3rem;
+}
+
+.test-connection .hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+}
+
+dl.result {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.3rem 1rem;
+  margin-top: 1rem;
+}
+
+dl.result dt {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+dl.result dd {
+  margin: 0;
+}

@@ -8,6 +8,7 @@ export function App() {
         <nav>
           <NavLink to="/settings/portals">Visa Portals</NavLink>
           <NavLink to="/applicants">Applicants</NavLink>
+          <NavLink to="/visa-rules">Visa Rules</NavLink>
         </nav>
       </header>
       <main className="app__main">

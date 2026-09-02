@@ -404,3 +404,17 @@ table.applicants th {
   text-decoration: none;
   font-size: 0.9rem;
 }
+
+/* ---- Visa rules reference page (Phase 1) --------------------------------- */
+.visa-rules__modes { display: flex; gap: 0.5rem; margin: 0.75rem 0; }
+.visa-rules__modes button { padding: 0.35rem 0.9rem; }
+.visa-rules__modes button.active { border-color: var(--accent); font-weight: 600; }
+.visa-rules__body { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 1.25rem; align-items: start; }
+.visa-rules__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.visa-rules__list button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 0.5rem 0.7rem; }
+.visa-rules__list button.active { border-color: var(--accent); }
+.visa-rules__detail { border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.15rem; }
+.visa-rules__detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 0.9rem; margin: 0.5rem 0 1rem; }
+.visa-rules__detail dt { font-weight: 600; }
+.visa-rules__detail dd { margin: 0; }
+@media (max-width: 720px) { .visa-rules__body { grid-template-columns: 1fr; } }

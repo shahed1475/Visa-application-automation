@@ -16,9 +16,11 @@ import type {
 import type {
   ApplicantCreate,
   ApplicantPut,
+  FieldMetaInput,
   ReferenceInput,
   TravelInput,
 } from '../../shared/applicant/schemas.js';
+import { isOcrSource } from '../../shared/applicant/fieldPaths.js';
 import { SECTION_TABLES, readSection, writeSection } from './applicantColumns.js';
 import {
   collectWarnings,
@@ -256,14 +258,45 @@ export function updateApplicant(
     }
     for (const key of ['identity', 'passport', 'contact', 'address'] as const) {
       const sectionPatch = patch[key];
-      if (sectionPatch) {
-        writeSection(
-          db,
-          SECTION_TABLES[key].table,
-          SECTION_TABLES[key].cols,
-          id,
-          sectionPatch as Record<string, unknown>,
-        );
+      if (!sectionPatch) continue;
+      const before = readSection<Record<string, unknown>>(
+        db,
+        SECTION_TABLES[key].table,
+        SECTION_TABLES[key].cols,
+        id,
+      );
+      writeSection(
+        db,
+        SECTION_TABLES[key].table,
+        SECTION_TABLES[key].cols,
+        id,
+        sectionPatch as Record<string, unknown>,
+      );
+      const after = readSection<Record<string, unknown>>(
+        db,
+        SECTION_TABLES[key].table,
+        SECTION_TABLES[key].cols,
+        id,
+      );
+      for (const field of Object.keys(SECTION_TABLES[key].cols)) {
+        if (before[field] === after[field]) continue;
+        const fieldPath = `${key}.${field}`;
+        if (after[field] == null) {
+          db.prepare(
+            'DELETE FROM applicant_field_meta WHERE applicant_id = ? AND field_path = ?',
+          ).run(id, fieldPath);
+        } else {
+          const meta = db
+            .prepare('SELECT id FROM applicant_field_meta WHERE applicant_id = ? AND field_path = ?')
+            .get(id, fieldPath) as { id: string } | undefined;
+          if (meta) {
+            db.prepare(
+              `UPDATE applicant_field_meta
+                 SET source = 'manual', confidence = NULL, verified = 0, verified_at = NULL, updated_at = ?
+               WHERE id = ?`,
+            ).run(new Date().toISOString(), meta.id);
+          }
+        }
       }
     }
     touch(db, id);
@@ -273,6 +306,51 @@ export function updateApplicant(
     throw err;
   }
   return getApplicantDetail(db, id);
+}
+
+export function upsertFieldMeta(
+  db: DatabaseSync,
+  applicantId: string,
+  input: FieldMetaInput,
+): FieldMeta | null {
+  if (!getApplicantRow(db, applicantId)) return null;
+  const now = new Date().toISOString();
+  const existing = db
+    .prepare('SELECT * FROM applicant_field_meta WHERE applicant_id = ? AND field_path = ?')
+    .get(applicantId, input.fieldPath) as Record<string, unknown> | undefined;
+
+  const source = input.source ?? 'manual';
+  const confidence = isOcrSource(source) ? input.confidence : null;
+  const verified = input.verified ?? (existing ? existing.verified === 1 : false);
+  const verifiedAt = verified ? ((existing?.verified_at as string | null) ?? now) : null;
+  const rawValue = input.rawValue ?? (existing?.raw_value as string | null) ?? null;
+
+  if (existing) {
+    db.prepare(
+      `UPDATE applicant_field_meta
+         SET source = ?, confidence = ?, raw_value = ?, verified = ?, verified_at = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(source, confidence, rawValue, verified ? 1 : 0, verifiedAt, now, existing.id as string);
+  } else {
+    db.prepare(
+      `INSERT INTO applicant_field_meta
+         (id, applicant_id, field_path, source, confidence, raw_value, verified, verified_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      randomUUID(),
+      applicantId,
+      input.fieldPath,
+      source,
+      confidence,
+      rawValue,
+      verified ? 1 : 0,
+      verifiedAt,
+      now,
+      now,
+    );
+  }
+  touch(db, applicantId);
+  return listFieldMeta(db, applicantId).find((m) => m.fieldPath === input.fieldPath) ?? null;
 }
 
 export function deleteApplicant(db: DatabaseSync, id: string): boolean {

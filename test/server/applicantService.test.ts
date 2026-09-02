@@ -166,3 +166,96 @@ describe('travel & references', () => {
     expect(m.n).toBe(0);
   });
 });
+
+describe('field meta', () => {
+  it('upserts one row per (applicant, field_path); default source manual, confidence null', () => {
+    const a = svc.createApplicant(db, { displayName: 'M', identity: { surname: 'K' } as any });
+    const m1 = svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname', verified: true } as any)!;
+    expect(m1.source).toBe('manual');
+    expect(m1.confidence).toBeNull();
+    expect(m1.verified).toBe(true);
+    expect(m1.verifiedAt).not.toBeNull();
+
+    const m2 = svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname', verified: false } as any)!;
+    expect(m2.id).toBe(m1.id); // same row
+    expect(m2.verified).toBe(false);
+    expect(m2.verifiedAt).toBeNull();
+
+    const all = svc.getApplicantDetail(db, a.id)!.fieldMeta.filter((m) => m.fieldPath === 'identity.surname');
+    expect(all).toHaveLength(1);
+  });
+
+  it('accepts Phase 3 OCR source values with a numeric confidence and raw value', () => {
+    const a = svc.createApplicant(db, { displayName: 'O', passport: { number: 'A1' } as any });
+    const m = svc.upsertFieldMeta(db, a.id, {
+      fieldPath: 'passport.number',
+      source: 'passport_mrz',
+      confidence: 0.97,
+      rawValue: 'A1<<<<',
+    } as any)!;
+    expect(m.source).toBe('passport_mrz');
+    expect(m.confidence).toBeCloseTo(0.97, 5);
+    expect(m.rawValue).toBe('A1<<<<');
+    expect(m.verified).toBe(false); // OCR is never auto-verified
+  });
+
+  it('returns null for a missing applicant', () => {
+    expect(svc.upsertFieldMeta(db, 'missing', { fieldPath: 'identity.surname' } as any)).toBeNull();
+  });
+
+  it('multiple field paths coexist for one applicant', () => {
+    const a = svc.createApplicant(db, { displayName: 'M2' });
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname' } as any);
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'passport.number' } as any);
+    expect(svc.getApplicantDetail(db, a.id)!.fieldMeta.map((m) => m.fieldPath).sort()).toEqual([
+      'identity.surname',
+      'passport.number',
+    ]);
+  });
+
+  it('editing a verified value via updateApplicant un-verifies it and marks source manual', () => {
+    const a = svc.createApplicant(db, { displayName: 'RC', passport: { number: 'OLD' } as any });
+    svc.upsertFieldMeta(db, a.id, {
+      fieldPath: 'passport.number',
+      source: 'passport_mrz',
+      confidence: 0.9,
+    } as any);
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'passport.number', verified: true } as any);
+
+    svc.updateApplicant(db, a.id, { passport: { number: 'NEW' } as any });
+
+    const meta = svc.getApplicantDetail(db, a.id)!.fieldMeta.find((m) => m.fieldPath === 'passport.number')!;
+    expect(meta.source).toBe('manual');
+    expect(meta.confidence).toBeNull();
+    expect(meta.verified).toBe(false);
+    expect(meta.verifiedAt).toBeNull();
+  });
+
+  it('clearing a value to null via updateApplicant deletes its meta row', () => {
+    const a = svc.createApplicant(db, { displayName: 'RC2', identity: { surname: 'Z' } as any });
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname', verified: true } as any);
+    svc.updateApplicant(db, a.id, { identity: { surname: null } as any });
+    expect(svc.getApplicantDetail(db, a.id)!.fieldMeta.find((m) => m.fieldPath === 'identity.surname')).toBeUndefined();
+  });
+
+  it('field meta is removed when the applicant is deleted (cascade)', () => {
+    const a = svc.createApplicant(db, { displayName: 'D' });
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname' } as any);
+    svc.deleteApplicant(db, a.id);
+    const n = db.prepare('SELECT COUNT(*) AS n FROM applicant_field_meta').get() as { n: number };
+    expect(n.n).toBe(0);
+  });
+
+  it('field meta persists across a reopen', () => {
+    const a = svc.createApplicant(db, { displayName: 'P' });
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'identity.surname', verified: true } as any);
+    db.close();
+    // Reassign the shared handle so afterEach closes it exactly once
+    // (node:sqlite's DatabaseSync throws on a double close()).
+    db = openDatabase(dbPath);
+    runMigrations(db);
+    const m = svc.getApplicantDetail(db, a.id)!.fieldMeta[0];
+    expect(m.fieldPath).toBe('identity.surname');
+    expect(m.verified).toBe(true);
+  });
+});

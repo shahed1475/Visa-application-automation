@@ -12,6 +12,7 @@ import { openDatabase } from './db/connection.js';
 import { runMigrations } from './db/migrations.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerPortalRoutes } from './routes/portals.js';
+import { registerApplicantRoutes } from './routes/applicants.js';
 import { errorBody, notFoundError } from './routes/errors.js';
 
 export interface BuildServerOptions {
@@ -57,6 +58,7 @@ export async function buildServer(
   });
   await registerHealthRoutes(app);
   await registerPortalRoutes(app);
+  await registerApplicantRoutes(app);
 
   if (env.NODE_ENV === 'production') {
     // Serve the built React app from Fastify — no Vite dev server in production.

@@ -107,8 +107,13 @@ normal `VALIDATION_ERROR`.
 - `fieldPaths.ts` — `FIELD_SOURCES` tuple, `PROFILE_SECTIONS` spec,
   `isValidFieldPath` guard, `isOcrSource`.
 - `schemas.ts` — Zod section / travel / reference / field-meta / create / put
-  schemas; nullable everywhere, `YYYY-MM-DD` date regex, lenient email, `kind`
-  default `other`, field-meta `superRefine` (confidence only for OCR sources).
+  schemas; nullable everywhere, `YYYY-MM-DD` dates validated against the real
+  calendar (`2026-02-31` rejected), lenient email, `kind` default `other`,
+  field-meta `superRefine` (confidence only for an explicit OCR source; an OCR
+  source may not be written with `verified: true`). Omitted keys stay `undefined`
+  through parsing so a body is a true partial patch. Each schema's `z.input`
+  shape is exported alongside its `z.infer` one — the API client takes the input
+  shapes, so no caller needs a cast.
 
 ### 1.5 Frontend — `src/web/src/`
 
@@ -193,19 +198,20 @@ Task 15 (this commit) additionally changes, with **no `.ts`/`.tsx` logic change*
 
 Baseline before Phase 2 (Phase 0/1 foundation): **48 tests / 12 files**.
 After Phase 2: **132 tests / 20 files** — **+84 tests, +8 files**.
+After the post-review fix wave (§7): **147 tests / 20 files**.
 
 New / changed test files this phase:
 
 | File | Tests | Covers |
 |---|---:|---|
 | `test/server/applicantMigrations.test.ts` | 5 | migration 2 reaches `user_version = 2`; all 8 tables; idempotent re-run; portal data preserved; cascade delete |
-| `test/shared/applicantSchemas.test.ts` | 20 | nullable coercion, date regex, lenient email, `kind` default, field-meta `superRefine`, create/put shapes |
+| `test/shared/applicantSchemas.test.ts` | 24 | nullable coercion, date regex, lenient email, `kind` default, field-meta `superRefine`, create/put shapes |
 | `test/server/applicantCompleteness.test.ts` | 10 | section ratios, overall mean, verification counts + label transitions, warnings |
-| `test/server/applicantService.test.ts` | 24 | CRUD, partial patches, search fields, travel/reference CRUD + sort order, field-meta upsert, reconciliation on value change, duplicate deep-copy + id remap + verified reset, reopen persistence |
-| `test/server/applicantRoutes.test.ts` | 14 | every endpoint, 201/200/400/404 mapping, body-less/invalid JSON, sanitized errors report path not value, list omits PII |
-| `test/server/loggerRedaction.test.ts` | 2 | `REDACT_PATHS` covers every applicant PII key (raw_value, names, passportNumber, DOB, email, phone, address lines, postal code) + wildcards; no bare `number` key |
+| `test/server/applicantService.test.ts` | 27 | CRUD, partial patches, search fields, travel/reference CRUD + sort order, field-meta upsert, reconciliation on value change, duplicate deep-copy + id remap + verified reset, reopen persistence |
+| `test/server/applicantRoutes.test.ts` | 18 | every endpoint, 201/200/400/404 mapping, body-less/invalid JSON, sanitized errors report path not value, list omits PII |
+| `test/server/loggerRedaction.test.ts` | 5 | `REDACT_PATHS` covers every applicant PII key (raw_value, names, passportNumber, DOB, email, phone, address lines, postal code) + wildcards; no bare `number` key |
 | `test/web/ApplicantsPage.test.tsx` | 4 | list render from API, completeness bar, verification badge, passport last4 only |
-| `test/web/ApplicantDetailPage.test.tsx` | 5 | four sections + completeness header render, verify toggle path, nullable rendering |
+| `test/web/ApplicantDetailPage.test.tsx` | 6 | four sections + completeness header render, verify toggle path, nullable rendering |
 
 Full suite still includes the Phase 0/1 tests (portals, migrations, health, static
 serving, automation, schemas) — all green.
@@ -231,8 +237,8 @@ exit=0
 
 === npm test ===
  Test Files  20 passed (20)
-      Tests  132 passed (132)
-   Duration  5.56s
+      Tests  147 passed (147)
+   Duration  6.02s
 
 === npm run build ===
 
@@ -323,7 +329,7 @@ Run: `NODE_ENV=test npx tsx phase2-smoke.mts` → **12 / 12 passed**.
 | 13 | Nullable fields throughout — half-filled profile saves + reloads intact | `applicantSchemas.test.ts` nullable coercion; `applicantService.test.ts` reopen-persistence; smoke step 11 |
 | 14 | No passport number, DOB, address, email, or `raw_value` in a logged object, a logged request URL, or an error message; list omits them | `loggerRedaction.test.ts` (5): `REDACT_PATHS` key coverage + no bare `number`, and three tests asserting on real captured log bytes that the `serializers.req` query-string strip holds (`?q=<passport>` / `?q=<email>` absent, path present). `applicantRoutes.test.ts` "list omits PII" / "error reports path not value"; smoke step 12. Scope note: this covers logged objects and request URLs — request headers and bodies are never logged. |
 | 15 | No browser automation, OCR, document upload, or portal-specific field added | `git diff --stat 785b5ae^..HEAD` — no `automation/` change, no new deps, no OCR/upload code; `test/automation/noHardcodedUrl.test.ts` still green |
-| 16 | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` all pass | §4 above — all exit 0 / 132 passed |
+| 16 | `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` all pass | §4 above — all exit 0 / 147 passed |
 | 17 | Git diff reviewed; each task a focused commit | `git log --oneline 785b5ae^..HEAD` — 14 focused commits (migration, redaction, types, schemas, completeness, service ×4, routes ×2, frontend ×3) + this docs commit |
 
 All 17 items satisfied.
@@ -411,3 +417,25 @@ None of these block Phase 2 acceptance.
    reject each field. OCR values are never auto-verified.
 5. Keep the constraints: no portal automation, no form submission, no
    CAPTCHA/OTP/MFA handling, loopback only, PII never logged.
+
+---
+
+## 7. Post-review fix wave
+
+A whole-branch review of the 15 Phase 2 commits produced two blocking findings
+and five improvements, all applied on this branch after the report above was
+first written. Detail: `.superpowers/sdd/2026-09-02-phase-2-applicant-profile/final-fix-report.md`.
+
+| Finding | Fix |
+|---|---|
+| C1 | `isValidFieldPath` rejected camelCase, so 13 of 24 fields 400'd on `PUT /field-meta`. Segment regex is now `/^[a-z][a-zA-Z0-9_]*$/`. |
+| C2 | Fastify's default `req` serializer logged the full URL, leaking `?q=<passport\|email>`. `logger.ts` installs a `serializers.req` that strips the query string. |
+| I1 | Section / child PUTs are now true partial patches — an omitted key stays `undefined` and is never written, so siblings and their field-meta survive. |
+| I2 | A verify-only `upsertFieldMeta` no longer resets an existing row's `source` / `confidence`. |
+| I3 | An OCR `source` together with `verified: true` is rejected (400). |
+| I4 | A failed verify toggle renders in the section card's error slot instead of floating the rejection. |
+| I5 | The log-safety claims here and in README.md now name the serializer and state their scope. |
+| M1/M3/M5 | Calendar-real date validation (`2026-02-31` rejected); `Object.hasOwn` at the child-write sites; `updateChild` re-asserts `AND applicant_id = ?`. |
+
+The §6 checklist is unaffected — items 10, 11, 13 and 14 are now backed by
+stronger evidence than at first writing, and no item regressed.

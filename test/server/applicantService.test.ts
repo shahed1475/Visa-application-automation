@@ -381,4 +381,24 @@ describe('duplicate', () => {
   it('returns null for a missing applicant', () => {
     expect(svc.duplicateApplicant(db, 'missing')).toBeNull();
   });
+
+  it('clones field-meta with document_id NULL (documents are not duplicated)', () => {
+    const a = svc.createApplicant(db, { displayName: 'WithDoc', passport: { number: 'A1' } });
+    svc.upsertFieldMeta(db, a.id, { fieldPath: 'passport.number', source: 'passport_mrz', confidence: 0.9 });
+    // simulate a document back-link the way documentService would set it
+    db.prepare(
+      `INSERT INTO documents (id, applicant_id, kind, mime_type, byte_size, sha256, storage_path, status, created_at, updated_at)
+       VALUES ('doc-x', ?, 'passport', 'image/png', 1, 'x', 'doc-x/original.png', 'uploaded', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+    ).run(a.id);
+    db.prepare(
+      `UPDATE applicant_field_meta SET document_id = 'doc-x' WHERE applicant_id = ? AND field_path = 'passport.number'`,
+    ).run(a.id);
+
+    const copy = svc.duplicateApplicant(db, a.id)!;
+    const rows = db
+      .prepare('SELECT document_id FROM applicant_field_meta WHERE applicant_id = ?')
+      .all(copy.id) as { document_id: string | null }[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) expect(r.document_id).toBeNull();
+  });
 });

@@ -413,8 +413,8 @@ export function duplicateApplicant(db: DatabaseSync, id: string): ApplicantDetai
         .join('.');
       db.prepare(
         `INSERT INTO applicant_field_meta
-           (id, applicant_id, field_path, source, confidence, raw_value, verified, verified_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
+           (id, applicant_id, field_path, source, confidence, raw_value, verified, verified_at, document_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?)`,
       ).run(
         ...([
           randomUUID(),

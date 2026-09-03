@@ -391,11 +391,14 @@ of a non-null confidence.
 | MRZ field, no own check digit (name, issuing country, doc type), line's other checks OK | `0.95` | `null` |
 | MRZ field, no own check digit, sibling checks failed | `0.60` | `null` |
 | OCR fallback, value found next to its printed label / strong anchor | `clamp(0.35 + 0.5·(lineConf/100), 0.30, 0.75)` | `null` |
-| OCR fallback, value found without a strong anchor | `clamp(0.20 + 0.4·(lineConf/100), 0.15, 0.55)` | `null` |
+| OCR fallback, value found without a strong anchor | `clamp(0.15 + 0.4·(lineConf/100), 0.15, 0.55)` | `null` |
 | Any of the above, but **normalization failed** (`value = null`) | `score · 0.5` | unchanged |
 
 `lineConf` is the tesseract line confidence (0–100) for the line the value came
-from.
+from. The unanchored base was `0.20` in the first draft; it is `0.15` here so the
+floor is the lc-0 value (parallel to the anchored formula's base-above-floor
+shape). These constants are uncalibrated heuristic knobs (see Amendment 2) — the
+exact numbers are not load-bearing, only their ordering.
 
 ---
 

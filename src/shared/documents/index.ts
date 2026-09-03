@@ -3,3 +3,5 @@ export * from './types.js';
 export * from './fieldMap.js';
 export * from './confidence.js';
 export * from './classify.js';
+export * from './ocrFieldExtract.js';
+export * from './schemas.js';

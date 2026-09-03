@@ -67,6 +67,9 @@ export async function extractSingleImage(pdfBytes: Uint8Array): Promise<Prepared
   try {
     doc = await task.promise;
   } catch (err) {
+    // The loading task never produced a document — tear it down here, the
+    // finally below only runs once `doc` exists.
+    await task.destroy().catch(() => undefined);
     if (err && typeof err === 'object' && (err as { name?: string }).name === 'PasswordException') {
       throw new ExtractionError('pdf_encrypted');
     }
@@ -96,14 +99,19 @@ export async function extractSingleImage(pdfBytes: Uint8Array): Promise<Prepared
       throw new ExtractionError('pdf_unsupported');
     }
 
-    const name = imageNames[0]!;
-    const img = await new Promise<DecodedImage>((resolve, reject) => {
-      try {
-        page.objs.get(name, resolve as (value: unknown) => void);
-      } catch (e) {
-        reject(e instanceof Error ? e : new Error('image object unavailable'));
-      }
-    });
+    // After getOperatorList() the image XObjects the op list references are
+    // resolved, so the *synchronous* getter returns them. If one is somehow not
+    // ready it throws synchronously — we return pdf_unsupported rather than hang
+    // (the callback form has no timeout/rejection path).
+    let img: DecodedImage;
+    try {
+      img = page.objs.get(imageNames[0]!) as DecodedImage;
+    } catch {
+      throw new ExtractionError('pdf_unsupported');
+    }
+    // pdfjs can instead hand back an ImageBitmap on `img.bitmap` (no `img.data`)
+    // when @napi-rs/canvas is installed — not the case here; treat as unsupported.
+    if (!img || !img.data) throw new ExtractionError('pdf_unsupported');
 
     const png = encodeImageToPng(img);
     return { bytes: png, mime: 'image/png', pageCount };

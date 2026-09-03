@@ -27,4 +27,5 @@ export const env = {
   DATA_DIR: dataDir,
   DB_PATH: path.join(dataDir, 'visa-autofill.db'),
   SCREENSHOT_DIR: path.join(dataDir, 'screenshots'),
+  DOCUMENTS_DIR: path.join(dataDir, 'documents'),
 };

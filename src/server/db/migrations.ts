@@ -131,6 +131,67 @@ const migrations: Migration[] = [
       CREATE INDEX idx_applicant_field_meta_applicant ON applicant_field_meta(applicant_id);
     `,
   },
+  {
+    version: 3,
+    up: `
+      CREATE TABLE documents (
+        id                         TEXT PRIMARY KEY,
+        applicant_id               TEXT REFERENCES applicants(id) ON DELETE CASCADE,
+        kind                       TEXT NOT NULL DEFAULT 'unknown' CHECK (kind IN ('passport','unknown')),
+        classification_confidence  REAL,
+        original_name              TEXT,
+        mime_type                  TEXT NOT NULL CHECK (mime_type IN ('image/jpeg','image/png','application/pdf')),
+        byte_size                  INTEGER NOT NULL,
+        sha256                     TEXT NOT NULL,
+        storage_path               TEXT NOT NULL,
+        status                     TEXT NOT NULL DEFAULT 'uploaded' CHECK (status IN ('uploaded','extracted','failed')),
+        latest_extraction_method   TEXT CHECK (latest_extraction_method IN ('mrz','ocr','mrz_ocr') OR latest_extraction_method IS NULL),
+        latest_ocr_mean_confidence REAL,
+        page_count                 INTEGER,
+        error_code                 TEXT,
+        created_at                 TEXT NOT NULL,
+        updated_at                 TEXT NOT NULL
+      );
+      CREATE INDEX idx_documents_applicant ON documents(applicant_id);
+
+      CREATE TABLE extraction_runs (
+        id                  TEXT PRIMARY KEY,
+        document_id         TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+        attempt             INTEGER NOT NULL,
+        method              TEXT CHECK (method IN ('mrz','ocr','mrz_ocr') OR method IS NULL),
+        status              TEXT NOT NULL CHECK (status IN ('completed','failed')),
+        mrz_detected        INTEGER NOT NULL DEFAULT 0 CHECK (mrz_detected IN (0,1)),
+        mrz_valid           INTEGER NOT NULL DEFAULT 0 CHECK (mrz_valid IN (0,1)),
+        ocr_mean_confidence REAL,
+        field_count         INTEGER NOT NULL DEFAULT 0,
+        error_code          TEXT,
+        engine_detail       TEXT,
+        created_at          TEXT NOT NULL,
+        UNIQUE (document_id, attempt)
+      );
+      CREATE INDEX idx_extraction_runs_document ON extraction_runs(document_id);
+
+      CREATE TABLE document_fields (
+        id                 TEXT PRIMARY KEY,
+        document_id        TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+        extraction_run_id  TEXT NOT NULL REFERENCES extraction_runs(id) ON DELETE CASCADE,
+        field_path         TEXT NOT NULL,
+        value              TEXT,
+        raw_value          TEXT,
+        source             TEXT NOT NULL CHECK (source IN ('passport_mrz','passport_ocr','document_ocr')),
+        confidence         REAL NOT NULL,
+        check_digit_ok     INTEGER CHECK (check_digit_ok IN (0,1) OR check_digit_ok IS NULL),
+        status             TEXT NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed','applied','held','dismissed')),
+        normalization_note TEXT,
+        created_at         TEXT NOT NULL,
+        updated_at         TEXT NOT NULL,
+        UNIQUE (document_id, field_path)
+      );
+      CREATE INDEX idx_document_fields_document ON document_fields(document_id);
+
+      ALTER TABLE applicant_field_meta ADD COLUMN document_id TEXT REFERENCES documents(id) ON DELETE SET NULL;
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations[migrations.length - 1]!.version;

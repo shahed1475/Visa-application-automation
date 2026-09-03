@@ -26,13 +26,13 @@ afterEach(() => {
   cleanupTempDb(dbPath);
 });
 
-it('LATEST_SCHEMA_VERSION is 2', () => {
-  expect(LATEST_SCHEMA_VERSION).toBe(2);
+it('LATEST_SCHEMA_VERSION is 3', () => {
+  expect(LATEST_SCHEMA_VERSION).toBe(3);
 });
 
-it('creates all eight applicant tables and reaches version 2', () => {
+it('creates all eight applicant tables and reaches version 3', () => {
   runMigrations(db);
-  expect(userVersion(db)).toBe(2);
+  expect(userVersion(db)).toBe(3);
   for (const t of [
     'applicants',
     'applicant_identity',
@@ -50,7 +50,7 @@ it('creates all eight applicant tables and reaches version 2', () => {
 it('is idempotent', () => {
   runMigrations(db);
   expect(() => runMigrations(db)).not.toThrow();
-  expect(userVersion(db)).toBe(2);
+  expect(userVersion(db)).toBe(3);
 });
 
 it('preserves existing portal data when upgrading from v1', () => {
@@ -71,7 +71,7 @@ it('preserves existing portal data when upgrading from v1', () => {
 
   runMigrations(db);
 
-  expect(userVersion(db)).toBe(2);
+  expect(userVersion(db)).toBe(3);
   const row = db.prepare('SELECT name FROM visa_portals WHERE id = ?').get('p1') as
     | { name: string }
     | undefined;

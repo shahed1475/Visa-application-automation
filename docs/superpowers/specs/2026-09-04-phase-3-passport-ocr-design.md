@@ -611,7 +611,7 @@ detail. Upload → `POST /api/documents` → navigate to detail → auto-trigger
 | Package | Kind | Why | WDAC / offline |
 |---|---|---|---|
 | `tesseract.js` (v5/v6) | prod | the local OCR engine (Amendment 1 decision) | pure JS + WASM — safe; model vendored |
-| `pdfjs-dist` (legacy build) | prod | parse a single-image PDF, pull the embedded JPEG, detect encryption | pure JS + WASM — safe; run with no network |
+| `pdfjs-dist` (legacy build) | prod | parse a single-image PDF, take its one decoded image, detect encryption | pure JS + WASM — safe; run with no network |
 | `@fastify/multipart` (v9) | prod | file upload for Fastify 5 | pure JS — safe |
 | `form-data` | dev | build multipart bodies in route tests | test only |
 | `vendor/tessdata/eng.traineddata` | vendored asset (~4 MB, tessdata_fast eng) | offline + reproducible OCR | committed, git-exempt like the visa-kb JSON |
@@ -649,8 +649,10 @@ Vitest 3, same 4-tsconfig gate as Phase 1/2. Target ~90–120 new tests. The gat
 - `test/server/migrations.test.ts` — `LATEST_SCHEMA_VERSION === 3` (update).
 - `test/server/documentFileType.test.ts` — magic-byte accept/reject, size.
 - `test/server/documentStorage.test.ts` — write/read/delete, path containment.
-- `test/server/pdfImage.test.ts` — single-JPEG PDF unwraps; encrypted → reject
-  (no password attempt); multi-image / FlateDecode / multi-page → reject.
+- `test/server/pdfImage.test.ts` — single-image PDF → PNG; encrypted → reject
+  (no password attempt); 0-image / multi-image / multi-page → reject. (A single
+  image of any XObject filter is accepted — pdfjs has already decoded it — so
+  there is no filter-based reject.)
 - `test/server/extractionPipeline.test.ts` — `FakeOcrEngine`: MRZ-primary path;
   OCR-fallback path (fake returns broken MRZ); mixed `mrz_ocr`; classification;
   normalization failure surfaces `value:null`; no content in errors.
@@ -681,11 +683,13 @@ Vitest 3, same 4-tsconfig gate as Phase 1/2. Target ~90–120 new tests. The gat
   `content-type` (extend).
 
 **Fixtures — `test/fixtures/documents/` (synthetic / SPECIMEN only):**
-`mrz-clean.png` (a rendered TD3 MRZ, SPECIMEN holder), `passport-specimen.jpg`
-(a specimen-style photo page), `single-image.pdf`, `encrypted.pdf`,
-`multi-image.pdf`. Produced by the controller during planning and committed;
-each contains only invented data. `vendor/tessdata/eng.traineddata` is downloaded
-during planning, its SHA-256 recorded in `vendor/tessdata/README.md`.
+`mrz-clean.png` (a rendered TD3 MRZ, SPECIMEN holder), `single-image.pdf`
+(Pillow, one DCT image), `multi-page.pdf` (Pillow, two pages), `no-image.pdf`
+(minimal, one page, zero images), `encrypted.pdf` (hand-rolled stdlib RC4,
+non-empty user password). Produced by the controller during planning and
+committed; each contains only invented data. `vendor/tessdata/eng.traineddata`
+is downloaded during planning, its SHA-256 recorded in
+`vendor/tessdata/README.md`.
 
 ---
 

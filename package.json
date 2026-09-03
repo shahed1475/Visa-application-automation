@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,green npm:dev:server npm:dev:web",
     "dev:server": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx watch src/server/index.ts",
@@ -18,6 +20,7 @@
   "dependencies": {
     "@fastify/static": "^8.0.0",
     "fastify": "^5.0.0",
+    "pdfjs-dist": "^4.10.38",
     "pino": "^9.0.0",
     "playwright": "^1.47.0",
     "react": "^18.3.1",

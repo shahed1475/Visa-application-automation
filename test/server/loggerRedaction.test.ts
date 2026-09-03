@@ -25,8 +25,31 @@ const MUST_INCLUDE = [
   '*.passportNumber',
 ];
 
+const PHASE_3_MUST_INCLUDE = [
+  'ocrText',
+  'mrzLine',
+  'mrzLines',
+  'extractedFields',
+  'text',
+  'lines',
+  'fields',
+  '*.ocrText',
+  '*.mrzLine',
+  '*.mrzLines',
+  '*.extractedFields',
+  '*.text',
+  '*.lines',
+  '*.fields',
+];
+
 it('redacts every applicant PII key we care about', () => {
   for (const key of MUST_INCLUDE) {
+    expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
+  }
+});
+
+it('redacts every document-extraction PII key we care about', () => {
+  for (const key of PHASE_3_MUST_INCLUDE) {
     expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
   }
 });
@@ -34,6 +57,12 @@ it('redacts every applicant PII key we care about', () => {
 it('does not use a bare over-broad "number" key', () => {
   // a top-level `number` would redact unrelated numeric fields (counts, ports…)
   expect(REDACT_PATHS).not.toContain('number');
+});
+
+it('does not use over-broad "value" / "raw" keys', () => {
+  // `value` / `raw` collide with benign fields all over the codebase
+  expect(REDACT_PATHS).not.toContain('value');
+  expect(REDACT_PATHS).not.toContain('raw');
 });
 
 /**
@@ -44,6 +73,7 @@ it('does not use a bare over-broad "number" key', () => {
 let app: FastifyInstance;
 let dbPath: string;
 let captured: string[];
+let testLogger: FastifyBaseLogger;
 
 beforeEach(async () => {
   captured = [];
@@ -53,7 +83,7 @@ beforeEach(async () => {
     },
   };
   // Same options the production logger uses, forced to a level that actually emits.
-  const testLogger = pino(
+  testLogger = pino(
     { ...loggerOptions, level: 'info', transport: undefined },
     stream,
   ) as unknown as FastifyBaseLogger;
@@ -94,4 +124,25 @@ it('does not leak an email address searched for through the query string', async
   expect(log).not.toContain('aisha');
   expect(log).not.toContain('example.com');
   expect(log).toContain('/api/applicants?[REDACTED]');
+});
+
+it('never writes OCR text, MRZ lines, or extracted-field objects to the log', () => {
+  testLogger.info(
+    {
+      ocrText: 'P<BGDRAHMAN<<ABDUL<KARIM SENTINEL_OCR',
+      mrzLines: ['L898902C36UTO7408122F1204159 SENTINEL_MRZ'],
+      fields: [
+        { fieldPath: 'passport.number', value: 'SENTINEL_VAL', raw_value: 'SENTINEL_RAW' },
+      ],
+      extractedFields: [{ raw: 'SENTINEL_EF' }],
+    },
+    'extraction complete',
+  );
+  const out = captured.join('');
+  expect(out.length).toBeGreaterThan(0);
+  // None of the PII sentinels survive — the whole `fields` array is censored as
+  // one unit, so `SENTINEL_VAL` / `SENTINEL_RAW` nested two levels deep are gone
+  // too even though `value` / `raw` are not themselves redaction paths.
+  expect(out).not.toMatch(/SENTINEL_(OCR|MRZ|EF|VAL|RAW)/);
+  expect(out).toContain('[REDACTED]');
 });

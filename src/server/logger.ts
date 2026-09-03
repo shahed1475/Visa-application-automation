@@ -18,6 +18,13 @@ export const REDACT_PATHS = [
   '*.surname', '*.givenNames', '*.given_names',
   '*.passportNumber', '*.dateOfBirth', '*.date_of_birth',
   '*.email', '*.phone', '*.line1', '*.line2', '*.postalCode',
+  // Phase 3 — document extraction
+  // `documentText` + `mrz` (and `*.mrz`) already redacted from Phase 0;
+  // `rawValue` / `raw_value` (and `*.` variants) already redacted from Phase 2.
+  // pino redaction is not recursive: a bare key catches top-level, `*.key`
+  // catches exactly one level deep — deliberate belt-and-suspenders scope.
+  'ocrText', 'mrzLine', 'mrzLines', 'extractedFields', 'text', 'lines', 'fields',
+  '*.ocrText', '*.mrzLine', '*.mrzLines', '*.extractedFields', '*.text', '*.lines', '*.fields',
 ];
 
 /**

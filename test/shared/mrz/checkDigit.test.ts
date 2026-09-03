@@ -13,6 +13,7 @@ describe('charValue', () => {
     expect(() => charValue('a')).toThrow();
     expect(() => charValue(' ')).toThrow();
   });
+  it('throws on multi-char input', () => expect(() => charValue('ab')).toThrow());
 });
 
 describe('computeCheckDigit — ICAO 9303 vectors', () => {

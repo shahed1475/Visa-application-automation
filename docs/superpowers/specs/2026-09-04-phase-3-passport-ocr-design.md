@@ -328,7 +328,7 @@ export interface OcrEngine {
 
 - **`tesseractEngine.ts`** — the only real implementation. `tesseract.js` WASM,
   language `eng`, model **vendored** at `vendor/tessdata/eng.traineddata`
-  (`tessdata_fast`, ~2 MB), core & worker resolved from `node_modules`. A lazily
+  (`tessdata_fast`, ~4 MB), core & worker resolved from `node_modules`. A lazily
   created worker, reused across calls, torn down by `dispose()`. It is constructed
   with **local file paths only** — no `langPath`/`corePath` URL, no network.
   `engine_detail` string records the library version + model source.
@@ -614,7 +614,7 @@ detail. Upload → `POST /api/documents` → navigate to detail → auto-trigger
 | `pdfjs-dist` (legacy build) | prod | parse a single-image PDF, pull the embedded JPEG, detect encryption | pure JS + WASM — safe; run with no network |
 | `@fastify/multipart` (v9) | prod | file upload for Fastify 5 | pure JS — safe |
 | `form-data` | dev | build multipart bodies in route tests | test only |
-| `vendor/tessdata/eng.traineddata` | vendored asset (~2 MB) | offline + reproducible OCR | committed, git-exempt like the visa-kb JSON |
+| `vendor/tessdata/eng.traineddata` | vendored asset (~4 MB, tessdata_fast eng) | offline + reproducible OCR | committed, git-exempt like the visa-kb JSON |
 
 No native addon is added (WDAC constraint from Phase 0 Amendment 01 holds).
 MRZ parsing, check digits, classification, confidence, normalization, and OCR

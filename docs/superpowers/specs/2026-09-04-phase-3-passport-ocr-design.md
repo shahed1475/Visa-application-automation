@@ -250,8 +250,13 @@ Notes:
    - **OCR fallback** — otherwise: `extractFieldsFromOcr(text, lines, kind)` →
      candidates, `source = 'passport_ocr'` if `kind === 'passport'` else
      `'document_ocr'`.
-   - **Mixed** — if MRZ is primary but produced no value for a mapped field, that
-     one field may be taken from OCR fallback (marks the run `method = 'mrz_ocr'`).
+   - **Mixed** — when MRZ is primary, `extractFieldsFromOcr` still runs and its
+     candidates are merged in for every `field_path` the MRZ path did **not**
+     produce (e.g. `passport.placeOfIssue`, `passport.issueDate`). MRZ always
+     wins a path it produced — OCR never re-derives the MRZ fields, and never
+     backfills an MRZ field it left `value = null`. If any OCR candidate
+     survives the merge the run is `method = 'mrz_ocr'`, else `'mrz'`. There is
+     no MRZ-vs-visual-zone cross-check (deferred).
    - Each candidate is normalized (stage 7). A value that fails normalization is
      still emitted with `value = null`, `raw` kept, `normalizationNote` set.
 7. **Score** (stage 8): `confidence.ts` assigns each candidate a heuristic score.

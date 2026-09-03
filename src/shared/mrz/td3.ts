@@ -25,7 +25,7 @@ const trimFiller = (s: string): string => s.replace(/<+$/, '');
 const charAt = (s: string, i: number): string => s[i] ?? '';
 
 /** Compute a field check digit safely — an invalid character never throws here. */
-function makeCheckDigit(input: string, actual: string): Td3CheckDigit {
+function makeCheckDigit(input: string, actual: string, isOptionalData = false): Td3CheckDigit {
   let expected = -1;
   try {
     expected = computeCheckDigit(input);
@@ -35,13 +35,20 @@ function makeCheckDigit(input: string, actual: string): Td3CheckDigit {
   let ok = /^[0-9]$/.test(actual) && Number(actual) === expected;
   // All-filler optional-data field: the printed digit is often '<' or '0'.
   // computeCheckDigit of all-filler is 0; verifyCheckDigit rejects '<', so
-  // accept a supplied '<' here explicitly.
-  if (!ok && input.length > 0 && /^<+$/.test(input) && actual === '<') ok = true;
+  // accept a supplied '<' here explicitly. This exception is scoped to the
+  // optionalData field only — for any other field an all-filler slice (e.g. a
+  // truncated line 2) is a parse failure, not a passing check digit.
+  if (isOptionalData && !ok && input.length > 0 && /^<+$/.test(input) && actual === '<') ok = true;
   return { input, expected, actual, ok };
 }
 
-function buildField(fixedWidthInput: string, rawTrimmed: string, actual: string): Td3Field {
-  return { raw: rawTrimmed, checkDigit: makeCheckDigit(fixedWidthInput, actual) };
+function buildField(
+  fixedWidthInput: string,
+  rawTrimmed: string,
+  actual: string,
+  isOptionalData = false,
+): Td3Field {
+  return { raw: rawTrimmed, checkDigit: makeCheckDigit(fixedWidthInput, actual, isOptionalData) };
 }
 
 export function parseTd3(line1Raw: string, line2Raw: string): Td3Result {
@@ -76,7 +83,7 @@ export function parseTd3(line1Raw: string, line2Raw: string): Td3Result {
   const expiryDate = buildField(expirySlice, expirySlice, charAt(line2, 27));
 
   const optSlice = slice(line2, 28, 42);
-  const optionalData = buildField(optSlice, trimFiller(optSlice), charAt(line2, 42));
+  const optionalData = buildField(optSlice, trimFiller(optSlice), charAt(line2, 42), true);
 
   // ---- Composite check digit ----
   const compositeInput = slice(line2, 0, 10) + slice(line2, 13, 20) + slice(line2, 21, 43);

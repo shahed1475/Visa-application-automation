@@ -55,4 +55,17 @@ describe('parseTd3 — corrupted', () => {
     expect(r.documentNumber.raw).toBe('L898902C3');
     expect(r.overallValid).toBe(false);
   });
+  it('does not accept an all-filler expiry slice as a valid check digit', () => {
+    // Line 2 truncated before the expiry field: slice 21..27 is all filler and
+    // the printed check char is '<'. The all-filler exception is scoped to
+    // optionalData only, so this must NOT report ok.
+    const r = parseTd3(ICAO_SPECIMEN.line1, 'L898902C36UTO7408122F');
+    expect(r.expiryDate.checkDigit?.ok).toBe(false);
+  });
+  it('still accepts a genuine all-filler optionalData with a printed "<" check', () => {
+    const line2 = 'L898902C36UTO7408122F1204159' + '<'.repeat(16);
+    const r = parseTd3(ICAO_SPECIMEN.line1, line2);
+    expect(r.optionalData.raw).toBe('');
+    expect(r.optionalData.checkDigit?.ok).toBe(true);
+  });
 });

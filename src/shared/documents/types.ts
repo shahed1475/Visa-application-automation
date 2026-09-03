@@ -29,6 +29,8 @@ export interface ExtractionOutcome {
   mrzDetected: boolean;
   mrzValid: boolean;
   ocrMeanConfidence: number | null;
+  /** `null` for a direct image; the source PDF's page count for a PDF. */
+  pageCount: number | null;
   fields: ExtractedField[];
   warnings: string[];
 }

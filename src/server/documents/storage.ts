@@ -13,7 +13,7 @@ export function sha256Hex(bytes: Uint8Array): string {
 function containedAbs(baseDir: string, rel: string): string {
   const root = path.resolve(baseDir);
   const abs = path.resolve(root, rel);
-  if (!abs.startsWith(root + path.sep) && abs !== root) {
+  if (abs === root || !abs.startsWith(root + path.sep)) {
     throw new Error('path escapes document store');
   }
   return abs;

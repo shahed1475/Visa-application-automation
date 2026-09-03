@@ -83,7 +83,9 @@ describe('validateUpload', () => {
   it('does not put file bytes or absolute paths in the error message', () => {
     try {
       validateUpload(GIF);
+      expect.unreachable('validateUpload should have thrown');
     } catch (err) {
+      expect(err).toBeInstanceOf(UploadError);
       expect((err as UploadError).message).toBe('unsupported_type');
     }
   });

@@ -68,4 +68,31 @@ describe('storeOriginal / readOriginal / deleteOriginal', () => {
   it('rejects a storagePath containing ".." on delete', () => {
     expect(() => deleteOriginal('../../etc/passwd', tmp)).toThrow();
   });
+
+  it('rejects a storagePath that resolves to the store root', () => {
+    expect(() => readOriginal('', tmp)).toThrow('path escapes document store');
+    expect(() => readOriginal('.', tmp)).toThrow('path escapes document store');
+  });
+
+  it('rejects an absolute-ish documentId via the segment regex', () => {
+    try {
+      storeOriginal('C:\\evil', 'jpg', BYTES, tmp);
+      expect.unreachable('storeOriginal should have thrown');
+    } catch (err) {
+      expect((err as Error).message).toBe('invalid documentId');
+    }
+  });
+
+  it('storage error messages are fixed strings — no interpolated paths', () => {
+    try {
+      readOriginal('../../etc/passwd', tmp);
+      expect.unreachable('readOriginal should have thrown');
+    } catch (err) {
+      const msg = String((err as Error).message);
+      expect(['invalid documentId', 'path escapes document store']).toContain(msg);
+      expect(msg).not.toContain(tmp);
+      expect(msg).not.toContain('passwd');
+      expect(msg).not.toMatch(/[/\\]/);
+    }
+  });
 });

@@ -14,6 +14,7 @@ export type ExtractionSource = 'passport_mrz' | 'passport_ocr' | 'document_ocr';
 export interface ExtractedField {
   fieldPath: string;
   value: string | null;
+  /** Pre-normalization text. Maps to the `raw_value` column (the one intentional view↔column name divergence). */
   raw: string | null;
   source: ExtractionSource;
   confidence: number;

@@ -90,7 +90,7 @@ orchestrator only wires them together and owns no extraction logic of its own.
 | # | Stage | Unit | Pure? | Responsibility |
 |---|---|---|---|---|
 | 1 | Document ingestion | `documentService.createDocument` + `fileType.ts` | no (fs/db) | accept bytes, sniff type, size-check, hash, store, insert `documents` row |
-| 2 | Image/PDF preparation | `documents/pdfImage.ts` | no (pdfjs) | image → bytes as-is; single-image PDF → embedded JPEG bytes; else reject |
+| 2 | Image/PDF preparation | `documents/pdfImage.ts` | no (pdfjs) | image → bytes as-is; single-image PDF → its one image re-encoded to PNG; else reject |
 | 3 | OCR | `documents/ocrEngine.ts` (interface) + `tesseractEngine.ts` | no (wasm) | **pixels → text only.** Returns `{ text, lines[], meanConfidence }`. Knows nothing about passports or the MRZ. |
 | 4 | MRZ detection | `shared/mrz/detect.ts` | yes | find the 2 candidate TD3 lines inside OCR output (or confirm none) |
 | 5 | MRZ parsing | `shared/mrz/td3.ts` + `shared/mrz/checkDigit.ts` | yes | **authoritative** TD3 parser: fields + per-field & composite check digits + `overallValid` |
@@ -221,8 +221,8 @@ Notes:
 1. **Prepare** (stage 2): `image/jpeg`|`image/png` → bytes unchanged.
    `application/pdf` → `pdfImage.extractSingleImage(bytes)`:
    - encrypted / password-protected → throw `ExtractionError('pdf_encrypted')`.
-   - exactly one page **and** exactly one image XObject with filter `DCTDecode`
-     → return `{ bytes: <raw JPEG>, mime: 'image/jpeg' }`.
+   - exactly one page **and** exactly one image XObject → return
+     `{ bytes: <png>, mime: 'image/png' }` (pdfjs's decoded pixels re-encoded).
    - anything else → `ExtractionError('pdf_unsupported')` (guidance: upload the
      photo page as a JPEG/PNG).
 2. **OCR** (stage 3): `ocr.recognize(imageBytes)` → `OcrResult`. Failure →
@@ -354,11 +354,14 @@ export interface OcrEngine {
 
 - Encrypted PDF (`PasswordException`) → `ExtractionError('pdf_encrypted')`.
   **No password attempt.**
-- Load page 1; walk its operator list for `paintImageXObject`; resolve the image
-  object(s).
-- Exactly one image, filter `DCTDecode` → return its raw JPEG stream bytes.
-- 0 images, > 1 image, non-DCT filter (`FlateDecode`, `JPXDecode`, …), or > 1
-  page → `ExtractionError('pdf_unsupported')`.
+- Load page 1; walk its operator list for `paintImageXObject` /
+  `paintImageXObjectRepeat`; resolve the image object(s).
+- Exactly one image → take pdfjs's **decoded pixels** (`img.kind` 2 = RGB, 3 =
+  RGBA; kind 1 / 1-bit grayscale is rejected) and **re-encode to PNG** with
+  `node:zlib` (pdfjs 4.x does not hand back the original JPEG stream), returning
+  `{ bytes: <png>, mime: 'image/png' }`. tesseract reads PNG natively, so the
+  downstream pipeline is unaffected.
+- 0 images, > 1 image, kind 1, or > 1 page → `ExtractionError('pdf_unsupported')`.
 - `page_count` recorded on the `documents` row regardless.
 
 ---

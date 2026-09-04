@@ -16,7 +16,7 @@ import {
   listDocuments,
   runExtraction,
 } from '../../src/server/documents/documentService.js';
-import { duplicateApplicant } from '../../src/server/services/applicantService.js';
+import { deleteApplicant, duplicateApplicant } from '../../src/server/services/applicantService.js';
 import type { OcrEngine, OcrResult } from '../../src/server/documents/ocrEngine.js';
 import { ocrResultFromLines } from '../helpers/fakeOcrEngine.js';
 import { ICAO_SPECIMEN, buildTd3 } from '../helpers/mrzFixtures.js';
@@ -485,6 +485,35 @@ describe('deleteDocument', () => {
 
   it('returns false for an unknown id', () => {
     expect(deleteDocument(db, 'nope')).toBe(false);
+  });
+});
+
+describe('deleteApplicant removes stored document originals', () => {
+  it('deletes every original file + directory for the applicant when the applicant is deleted', async () => {
+    const applicantId = makeApplicant(db);
+    const docA = mkDoc(applicantId);
+    const docB = mkDoc(applicantId);
+    await runExtraction(db, docA, { ocr: new SeqOcrEngine([specimenOcr()]), engineDetail: ENGINE, now: NOW });
+
+    const paths = (
+      db
+        .prepare('SELECT storage_path FROM documents WHERE applicant_id = ?')
+        .all(applicantId) as { storage_path: string }[]
+    ).map((r) => r.storage_path);
+    expect(paths).toHaveLength(2);
+    for (const p of paths) {
+      expect(existsSync(path.join(env.DOCUMENTS_DIR, p))).toBe(true);
+    }
+
+    expect(deleteApplicant(db, applicantId)).toBe(true);
+
+    for (const p of paths) {
+      expect(existsSync(path.join(env.DOCUMENTS_DIR, p))).toBe(false);
+    }
+    for (const id of [docA, docB]) {
+      expect(existsSync(path.join(env.DOCUMENTS_DIR, id))).toBe(false);
+      expect(db.prepare('SELECT id FROM documents WHERE id = ?').get(id)).toBeUndefined();
+    }
   });
 });
 

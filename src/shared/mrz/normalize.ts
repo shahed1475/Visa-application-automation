@@ -92,16 +92,3 @@ export function normalizeCountry(alpha3: string): string {
 export function normalizeDocNumber(raw: string): string {
   return raw.replace(/<+$/, '').toUpperCase();
 }
-
-/** Re-expose the already-split name components; trims, empty → `null`. */
-export function splitName(
-  surname: string,
-  givenNames: string,
-): { surname: string | null; givenNames: string | null } {
-  const s = surname.trim();
-  const g = givenNames.trim();
-  return {
-    surname: s === '' ? null : s,
-    givenNames: g === '' ? null : g,
-  };
-}

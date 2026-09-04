@@ -28,7 +28,7 @@ export type MrzFieldKey =
   | 'dateOfBirth'
   | 'sex';
 
-export type OcrFieldKey = 'placeOfIssue' | 'issueDate' | 'fullName';
+export type OcrFieldKey = 'placeOfIssue' | 'issueDate';
 
 export interface FieldTarget {
   fieldPath: string;
@@ -50,7 +50,6 @@ export const MRZ_FIELD_MAP: Readonly<Record<MrzFieldKey, FieldTarget>> = {
 export const OCR_FIELD_MAP: Readonly<Record<OcrFieldKey, FieldTarget>> = {
   placeOfIssue: { fieldPath: 'passport.placeOfIssue', section: 'passport' },
   issueDate: { fieldPath: 'passport.issueDate', section: 'passport' },
-  fullName: { fieldPath: 'identity.fullNameAsInPassport', section: 'identity' },
 } as const;
 
 /** Keys that carry their own ICAO 9303 check digit in a TD3 MRZ. */

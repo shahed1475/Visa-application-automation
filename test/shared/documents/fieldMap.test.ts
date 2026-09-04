@@ -23,7 +23,6 @@ describe('field maps', () => {
   it('OCR_FIELD_MAP maps every key to its spec §9 target', () => {
     expect(OCR_FIELD_MAP.placeOfIssue).toEqual({ fieldPath: 'passport.placeOfIssue', section: 'passport' });
     expect(OCR_FIELD_MAP.issueDate).toEqual({ fieldPath: 'passport.issueDate', section: 'passport' });
-    expect(OCR_FIELD_MAP.fullName).toEqual({ fieldPath: 'identity.fullNameAsInPassport', section: 'identity' });
   });
 
   it('exposes exactly the spec §9 key sets (no added or removed keys)', () => {
@@ -40,6 +39,6 @@ describe('field maps', () => {
         'surname',
       ].sort(),
     );
-    expect(Object.keys(OCR_FIELD_MAP).sort()).toEqual(['fullName', 'issueDate', 'placeOfIssue'].sort());
+    expect(Object.keys(OCR_FIELD_MAP).sort()).toEqual(['issueDate', 'placeOfIssue'].sort());
   });
 });

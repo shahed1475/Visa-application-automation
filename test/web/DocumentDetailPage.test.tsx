@@ -153,12 +153,28 @@ beforeEach(async () => {
 });
 afterEach(() => cleanup());
 
-it('renders the header — kind badge, method, classification percent', async () => {
+it('renders the header — kind badge, method, classification as a labelled heuristic', async () => {
   renderAt();
   await waitFor(() => expect(screen.getByText('passport.jpg')).toBeTruthy());
   expect(screen.getByText('passport')).toBeTruthy();
   expect(screen.getByText('Method MRZ')).toBeTruthy();
-  expect(screen.getByText('Classification 97%')).toBeTruthy();
+  const cls = screen.getByText(/Classification:/);
+  const text = (cls.textContent ?? '').toLowerCase();
+  expect(text).toContain('heuristic');
+  expect(text).toContain('0.97');
+  expect(text).not.toContain('97%');
+  expect(text).not.toContain('probability');
+});
+
+it('classification for a non-passport reads "not a passport", not "unknown · 0.90"', async () => {
+  const api = await client();
+  api.getDocument.mockResolvedValue({
+    document: makeDetail({ kind: 'unknown', classificationConfidence: 0.9, fields: [] }),
+  });
+  renderAt();
+  await waitFor(() => expect(screen.getByText('passport.jpg')).toBeTruthy());
+  const cls = screen.getByText(/Classification:/);
+  expect((cls.textContent ?? '').toLowerCase()).toContain('not a passport');
 });
 
 it('shows the uploaded image pointing at the document file URL', async () => {
@@ -266,6 +282,18 @@ it('Delete confirms, deletes and navigates to /documents', async () => {
   fireEvent.click(screen.getByRole('button', { name: /delete/i }));
   await waitFor(() => expect(api.deleteDocument).toHaveBeenCalledWith('d1'));
   expect(navigateSpy).toHaveBeenCalledWith('/documents');
+});
+
+it('a failed Re-extract shows an error banner but keeps the review view on screen', async () => {
+  const api = await client();
+  api.extractDocument.mockRejectedValueOnce(new Error('Re-extraction failed'));
+  renderAt();
+  await waitFor(() => expect(screen.getByText('passport.jpg')).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: /re-extract/i }));
+  await waitFor(() => expect(screen.getByText('Re-extraction failed')).toBeTruthy());
+  // the runs list + fields table are still rendered
+  expect(screen.getByText('Extraction runs')).toBeTruthy();
+  expect(screen.getByText('passport.number')).toBeTruthy();
 });
 
 it('a failed extraction shows the friendly error message', async () => {

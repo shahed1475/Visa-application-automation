@@ -21,6 +21,7 @@ import type {
   TravelInput,
 } from '../../shared/applicant/schemas.js';
 import { isOcrSource } from '../../shared/applicant/fieldPaths.js';
+import { deleteOriginal } from '../documents/storage.js';
 import { SECTION_TABLES, readSection, writeSection } from './applicantColumns.js';
 import {
   collectWarnings,
@@ -439,6 +440,23 @@ export function duplicateApplicant(db: DatabaseSync, id: string): ApplicantDetai
 }
 
 export function deleteApplicant(db: DatabaseSync, id: string): boolean {
+  // FK CASCADE drops the child `documents` rows, but the stored originals under
+  // DOCUMENTS_DIR (`<uuid>/original.*`) are ours to remove — a deleted applicant
+  // must leave no passport scans on disk. A bad/missing path must not abort the
+  // DB delete: `deleteOriginal` uses `rmSync(..., { force: true })`, and the
+  // per-path try/catch covers anything else.
+  const storagePaths = (
+    db
+      .prepare('SELECT storage_path FROM documents WHERE applicant_id = ?')
+      .all(id) as { storage_path: string }[]
+  ).map((r) => r.storage_path);
+  for (const p of storagePaths) {
+    try {
+      deleteOriginal(p);
+    } catch {
+      /* file already gone / unreadable path */
+    }
+  }
   const { changes } = db.prepare('DELETE FROM applicants WHERE id = ?').run(id);
   return Number(changes) > 0;
 }

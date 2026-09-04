@@ -316,99 +316,98 @@ export async function runExtraction(
       ).run(failCode, nowIso, documentId);
       touchApplicant(db, applicantId, nowIso);
       db.exec('COMMIT');
-      return getDocument(db, documentId)!;
-    }
+    } else {
+      const result = outcome!;
+      db.prepare(
+        `INSERT INTO extraction_runs
+           (id, document_id, attempt, method, status, mrz_detected, mrz_valid, ocr_mean_confidence, field_count, error_code, engine_detail, created_at)
+         VALUES (?, ?, ?, ?, 'completed', ?, ?, ?, ?, NULL, ?, ?)`,
+      ).run(
+        runId,
+        documentId,
+        attempt,
+        result.method,
+        result.mrzDetected ? 1 : 0,
+        result.mrzValid ? 1 : 0,
+        result.ocrMeanConfidence,
+        result.fields.length,
+        deps.engineDetail,
+        nowIso,
+      );
 
-    const result = outcome!;
-    db.prepare(
-      `INSERT INTO extraction_runs
-         (id, document_id, attempt, method, status, mrz_detected, mrz_valid, ocr_mean_confidence, field_count, error_code, engine_detail, created_at)
-       VALUES (?, ?, ?, ?, 'completed', ?, ?, ?, ?, NULL, ?, ?)`,
-    ).run(
-      runId,
-      documentId,
-      attempt,
-      result.method,
-      result.mrzDetected ? 1 : 0,
-      result.mrzValid ? 1 : 0,
-      result.ocrMeanConfidence,
-      result.fields.length,
-      deps.engineDetail,
-      nowIso,
-    );
+      for (const field of result.fields) {
+        const existing = db
+          .prepare('SELECT * FROM document_fields WHERE document_id = ? AND field_path = ?')
+          .get(documentId, field.fieldPath) as FieldRow | undefined;
 
-    for (const field of result.fields) {
-      const existing = db
-        .prepare('SELECT * FROM document_fields WHERE document_id = ? AND field_path = ?')
-        .get(documentId, field.fieldPath) as FieldRow | undefined;
+        // Sticky dismiss: never re-apply, never touch the row.
+        if (existing?.status === 'dismissed') continue;
 
-      // Sticky dismiss: never re-apply, never touch the row.
-      if (existing?.status === 'dismissed') continue;
+        const applied = applyExtractedField(db, applicantId, documentId, field, nowIso);
+        const dfStatus: DocumentFieldStatus = applied.status;
+        const checkDigitOk =
+          field.checkDigitOk === null ? null : field.checkDigitOk ? 1 : 0;
 
-      const applied = applyExtractedField(db, applicantId, documentId, field, nowIso);
-      const dfStatus: DocumentFieldStatus = applied.status;
-      const checkDigitOk =
-        field.checkDigitOk === null ? null : field.checkDigitOk ? 1 : 0;
-
-      if (existing) {
-        db.prepare(
-          `UPDATE document_fields
-             SET extraction_run_id = ?, value = ?, raw_value = ?, source = ?, confidence = ?,
-                 check_digit_ok = ?, status = ?, normalization_note = ?, updated_at = ?
-           WHERE id = ?`,
-        ).run(
-          runId,
-          field.value,
-          field.raw,
-          field.source,
-          field.confidence,
-          checkDigitOk,
-          dfStatus,
-          field.normalizationNote,
-          nowIso,
-          existing.id,
-        );
-      } else {
-        db.prepare(
-          `INSERT INTO document_fields
-             (id, document_id, extraction_run_id, field_path, value, raw_value, source, confidence, check_digit_ok, status, normalization_note, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(
-          randomUUID(),
-          documentId,
-          runId,
-          field.fieldPath,
-          field.value,
-          field.raw,
-          field.source,
-          field.confidence,
-          checkDigitOk,
-          dfStatus,
-          field.normalizationNote,
-          nowIso,
-          nowIso,
-        );
+        if (existing) {
+          db.prepare(
+            `UPDATE document_fields
+               SET extraction_run_id = ?, value = ?, raw_value = ?, source = ?, confidence = ?,
+                   check_digit_ok = ?, status = ?, normalization_note = ?, updated_at = ?
+             WHERE id = ?`,
+          ).run(
+            runId,
+            field.value,
+            field.raw,
+            field.source,
+            field.confidence,
+            checkDigitOk,
+            dfStatus,
+            field.normalizationNote,
+            nowIso,
+            existing.id,
+          );
+        } else {
+          db.prepare(
+            `INSERT INTO document_fields
+               (id, document_id, extraction_run_id, field_path, value, raw_value, source, confidence, check_digit_ok, status, normalization_note, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).run(
+            randomUUID(),
+            documentId,
+            runId,
+            field.fieldPath,
+            field.value,
+            field.raw,
+            field.source,
+            field.confidence,
+            checkDigitOk,
+            dfStatus,
+            field.normalizationNote,
+            nowIso,
+            nowIso,
+          );
+        }
       }
-    }
-    // Fields a prior run produced that THIS run does not → left as-is.
+      // Fields a prior run produced that THIS run does not → left as-is.
 
-    db.prepare(
-      `UPDATE documents
-         SET kind = ?, classification_confidence = ?, status = 'extracted',
-             latest_extraction_method = ?, latest_ocr_mean_confidence = ?, page_count = ?,
-             error_code = NULL, updated_at = ?
-       WHERE id = ?`,
-    ).run(
-      result.kind,
-      result.classificationConfidence,
-      result.method,
-      result.ocrMeanConfidence,
-      result.pageCount,
-      nowIso,
-      documentId,
-    );
-    touchApplicant(db, applicantId, nowIso);
-    db.exec('COMMIT');
+      db.prepare(
+        `UPDATE documents
+           SET kind = ?, classification_confidence = ?, status = 'extracted',
+               latest_extraction_method = ?, latest_ocr_mean_confidence = ?, page_count = ?,
+               error_code = NULL, updated_at = ?
+         WHERE id = ?`,
+      ).run(
+        result.kind,
+        result.classificationConfidence,
+        result.method,
+        result.ocrMeanConfidence,
+        result.pageCount,
+        nowIso,
+        documentId,
+      );
+      touchApplicant(db, applicantId, nowIso);
+      db.exec('COMMIT');
+    }
   } catch (err) {
     db.exec('ROLLBACK');
     throw err;

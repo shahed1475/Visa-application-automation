@@ -311,7 +311,6 @@ Pure, zero runtime dependency. TD3 only (2 lines × 44 chars).
     set (`BGD`→Bangladesh, `IND`→India, plus common issuers); unknown → the raw
     code (never guessed).
   - `normalizeDocNumber(raw): string` — strip trailing `<`, uppercase.
-  - `splitName(nameField): { surname: string|null, givenNames: string|null }`.
 
 ---
 
@@ -428,11 +427,12 @@ existing Phase 2 `field_path` and must satisfy `isValidFieldPath`.
 | `mrz.sex` | `identity.sex` | identity |
 | `ocr.placeOfIssue` (fallback only) | `passport.placeOfIssue` | passport |
 | `ocr.issueDate` (fallback only) | `passport.issueDate` | passport |
-| `ocr.fullName` (fallback only) | `identity.fullNameAsInPassport` | identity |
 
-`fullNameAsInPassport` from the MRZ path = `surname + ', ' + givenNames`
-reconstruction is **not** done automatically (MRZ names are truncated/transliterated);
-it stays an OCR-fallback field only. Mapping completeness is unit-tested.
+`identity.fullNameAsInPassport` is **not** extracted in Phase 3 — MRZ names are
+truncated/transliterated so reconstruction is unsafe, and passport visual zones
+label Surname / Given names separately with no single "full name" field to anchor
+on. The user enters it manually if the target form needs it. Mapping completeness
+is unit-tested.
 
 ---
 

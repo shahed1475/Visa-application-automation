@@ -1,4 +1,4 @@
-const WEIGHTS = [7, 3, 1];
+const WEIGHTS = [7, 3, 1] as const;
 
 export function charValue(c: string): number {
   if (c.length !== 1) throw new RangeError(`expected one char, got ${JSON.stringify(c)}`);

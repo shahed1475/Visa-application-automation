@@ -2,10 +2,11 @@
 
 **Status:** Complete. Gate green.
 **Branch:** `phase-0-portal-settings` (established non-main working branch for all phases).
-**Range:** `237c90b..e72982d` — spec `237c90b`, plan `8f5fdca`, 18 implementation
-commits, 6 controller spec-reconciliation commits (28 commits total). This
-docs commit adds the report + the `ARCHITECTURE.md` paragraph + the synthetic
-acceptance fixture, with no `src/` change.
+**Range:** `237c90b..e72982d` — spec `237c90b`, plan `8f5fdca`, 18 feature/fix
+implementation commits across the 19 tasks (several took a fix round), 5
+controller spec-reconciliation commits (29 commits total). This docs commit adds
+the report + the `ARCHITECTURE.md` paragraph + the synthetic acceptance fixture,
+with no `src/` change.
 **Last verified:** 2026-09-04 — `npm run typecheck` (4 tsc passes), `npm run lint`,
 `npm test` (423 passed / 48 files), `npm run build` (web bundle 375.59 kB JS /
 101.54 kB gzip, css 7.15 kB) all green.
@@ -34,7 +35,7 @@ The orchestrator only wires them; it owns no extraction logic.
 | 4 | MRZ detection | `detectMrzLines` | yes | `src/shared/mrz/detect.ts` |
 | 5 | MRZ parsing (authoritative) | `parseTd3` + `checkDigit.ts` | yes | `src/shared/mrz/td3.ts`, `src/shared/mrz/checkDigit.ts` |
 | 6 | OCR-fallback field extraction | `extractFieldsFromOcr` | yes | `src/shared/documents/ocrFieldExtract.ts` |
-| 7 | Normalization | `normalizeMrzDate` / `normalizeSex` / `normalizeCountry` / `normalizeDocNumber` / `splitName` | yes | `src/shared/mrz/normalize.ts` |
+| 7 | Normalization | `normalizeMrzDate` / `normalizeSex` / `normalizeCountry` / `normalizeDocNumber` | yes | `src/shared/mrz/normalize.ts` |
 | 8 | Confidence scoring | `scoreMrzField` / `scoreOcrField` / `penalizeUnnormalized` | yes | `src/shared/documents/confidence.ts` |
 | 9 | Applicant-field mapping | `MRZ_FIELD_MAP` / `OCR_FIELD_MAP` / `mapMrzResult` | yes | `src/shared/documents/fieldMap.ts` |
 | 10 | Provenance (write rows) | `documentService` / `applyExtractedField` | no (db) | `src/server/documents/documentService.ts`, `documentApply.ts` |
@@ -268,7 +269,7 @@ check-digit chip, never as a bare "% correct".
 | **PII redaction** | `REDACT_PATHS` gains `ocrText`, `mrzLine(s)`, `extractedFields`, `text`, `lines`, `fields` (+ `*.` variants); the pipeline and service pass no extracted content to any logger; `error_code` columns hold codes only; `serializeRequest` already strips query strings | `test/server/loggerRedaction.test.ts` |
 | **Loopback only** | server still binds `127.0.0.1`; stored originals are served only from the loopback server, never transmitted | unchanged from Phase 0 |
 | **Path containment** | `storage.ts` — the document id is a generated UUID; the resolved storage path must stay within `DOCUMENTS_DIR`, and the store root itself is rejected | `test/server/documentStorage.test.ts` (write/read/delete + containment + root reject) |
-| **File validation** | magic-byte sniff (JPEG/PNG/PDF only), 15 MiB cap, zero-byte reject; wrong type → `400 VALIDATION_ERROR` sanitized envelope | `test/server/documentFileType.test.ts`; acceptance walkthrough row 6 (GIF → 400) |
+| **File validation** | magic-byte sniff (JPEG/PNG/PDF only), 15 MiB cap, zero-byte reject; wrong type → `400 VALIDATION_ERROR` sanitized envelope | `test/server/documentFileType.test.ts`; §9 automated-suite sub-note (GIF → 400) |
 | **Never auto-verify** | no extraction code path writes `verified = 1` / `verified: true`; a service test asserts every touched `applicant_field_meta` row is `verified = 0` after any extraction | `test/server/documentsNoNetwork.test.ts` (no `verified: 1` literal in the modules); `test/server/documentApply.test.ts` |
 
 ---
@@ -285,8 +286,17 @@ real `tesseract.js`, clean DB).
 | plain grey non-passport PNG → extract | `kind: unknown` (classification conf 0.9), `method: ocr`, 0 fields, no error. |
 | `test/fixtures/documents/encrypted.pdf` → extract | `status: failed`, `errorCode: pdf_encrypted`, a `failed` `extraction_runs` row (`method: null`) recorded. **No password attempt.** |
 | `test/fixtures/documents/multi-page.pdf` → extract | `status: failed`, `errorCode: pdf_unsupported`, failed run recorded. |
-| GIF upload (magic bytes present) | `400 VALIDATION_ERROR` — `"unsupported file type (JPEG, PNG or PDF only)"` (sanitized envelope). |
-| full lifecycle: create applicant → upload → extract → persist | applicant + document + run + `document_fields` + `applicant_field_meta` all persisted; auto-applied fields `verified: 0`; Confirm (UI) flips one field to verified and the applicant page shows the provenance hint. |
+
+**Covered by the automated suite, not part of the live manual walkthrough:**
+
+- GIF upload (magic bytes present) → `400 VALIDATION_ERROR` —
+  `"unsupported file type (JPEG, PNG or PDF only)"` (sanitized envelope):
+  `test/server/documentFileType.test.ts` / `test/server/documentRoutes.test.ts`.
+- Full lifecycle create applicant → upload → extract → persist, with the UI
+  Confirm flipping one field to `verified` and the applicant page showing the
+  provenance hint: `test/server/documentService.test.ts` +
+  `test/web/DocumentDetailPage.test.tsx` + `test/web/ApplicantDetailPage` /
+  `SectionCard` tests.
 
 ### Fixture provenance
 
@@ -306,14 +316,14 @@ walkthrough is reproducible. It is not referenced by any automated test (the
 |---|---|---|---|
 | 1 | `typecheck` (×4), `lint`, `test`, `build` all green | **PASS** | §"Last verified" — 4 tsc passes, lint clean, 423 tests / 48 files, build OK |
 | 2 | Migration 3 creates the three tables + `applicant_field_meta.document_id`; `LATEST_SCHEMA_VERSION === 3`; fresh DB and v2→v3 both succeed | **PASS** | `test/server/documentMigrations.test.ts`, `test/server/migrations.test.ts`; `migrations.ts` `version: 3` |
-| 3 | Upload JPEG/PNG/single-image-PDF stores under `data/documents/`, sniffs by magic bytes, rejects everything else, never transmits | **PASS** | `documentFileType.test.ts`, `documentStorage.test.ts`, `documentRoutes.test.ts`; walkthrough row 6 |
+| 3 | Upload JPEG/PNG/single-image-PDF stores under `data/documents/`, sniffs by magic bytes, rejects everything else, never transmits | **PASS** | `documentFileType.test.ts`, `documentStorage.test.ts`, `documentRoutes.test.ts`; §9 automated-suite sub-note |
 | 4 | A synthetic passport MRZ image yields the 8 MRZ fields as `document_fields` with `source = 'passport_mrz'` and check-digit-backed confidence | **PARTIAL** | The MRZ path is fully implemented and unit-proven with supplied TD3 text (`td3.test.ts`, `extractionPipeline.test.ts`, `mapMrzResult.test.ts`, `confidence.test.ts`). End-to-end from a **committed image**, real `tesseract.js` cannot read the synthetic Consolas MRZ font well enough to pass ICAO check digits (walkthrough row 2), and no real passport fixture may be committed. A real passport photo exercises `passport_mrz`; a high-fidelity synthetic OCR-B fixture or a manual QA pass is the recommended close (§11). |
 | 5 | TD3 parsing is done by `td3.ts`, not tesseract; with the Fake injected the MRZ path still works from supplied text | **PASS** | `td3.test.ts` (SPECIMEN pairs, every check digit, composite, `overallValid`); `extractionPipeline.test.ts` uses `FakeOcrEngine`; `documentsNoNetwork.test.ts` |
 | 6 | MRZ absent/invalid → OCR-fallback fields with `source = 'passport_ocr'` / `'document_ocr'`, lower confidence, run `method = 'ocr'` | **PASS** | `ocrFieldExtract.test.ts`, `extractionPipeline.test.ts` (fake returns broken MRZ); walkthrough row 1 (8 `passport_ocr` @ 0.75) and row 3 |
 | 7 | Every extraction is an `extraction_runs` row with an incrementing `attempt`; every `document_fields` row names its run; re-extraction is a distinct run | **PASS** | `documentService.test.ts` (lifecycle + attempt numbering + `field_count`); `document_fields.extraction_run_id` NOT NULL |
 | 8 | Profile application follows §10 exactly — EMPTY auto-fills (`verified = 0`), DIFFERENT/verified holds, SAME no false-collide + preserves verification, unnormalizable holds with a note; `applied != verified` | **PASS** | `documentApply.test.ts` (case table exhaustive incl. all `M` sub-cases, apply-over-verified → `verified: 0`, dismiss stickiness, re-extraction re-evaluation) |
 | 9 | No extraction path sets `verified = 1`; guard test passes; confidence `NULL` for manual values | **PASS** | `documentsNoNetwork.test.ts` (no `verified: 1` literal); `documentApply.test.ts` asserts `verified = 0`; Phase 2 `fieldMetaInputSchema` keeps manual confidence `NULL` |
-| 10 | Review UI shows per field: value, source, labelled heuristic confidence, in-profile status, verification status, link to original; per-field Confirm / Apply / Dismiss work | **PASS** | `DocumentDetailPage.tsx` + `ExtractedFieldsTable.tsx`; `test/web/DocumentDetailPage.test.tsx` (columns, Confirm → `field-meta` verify call, Apply/Dismiss, Confirm disabled on mismatch); walkthrough row 7 |
+| 10 | Review UI shows per field: value, source, labelled heuristic confidence, in-profile status, verification status, link to original; per-field Confirm / Apply / Dismiss work | **PASS** | `DocumentDetailPage.tsx` + `ExtractedFieldsTable.tsx`; `test/web/DocumentDetailPage.test.tsx` (columns, Confirm → `field-meta` verify call, Apply/Dismiss, Confirm disabled on mismatch); §9 automated-suite sub-note (full lifecycle + UI Confirm) |
 | 11 | Encrypted PDF rejected with `pdf_encrypted` and no password attempt; no chip/NFC; no external OCR call (import + behaviour tests) | **PASS** | `pdfImage.test.ts`; `documentsNoNetwork.test.ts`; walkthrough rows 4–5 |
 | 12 | `REDACT_PATHS` covers the new PII keys; no OCR/MRZ/field content in logs; error envelopes sanitized | **PASS** | `loggerRedaction.test.ts`; `documentRoutes.test.ts` sanitized-envelope assertions; `error_code` columns are code-only |
 | 13 | Only synthetic/SPECIMEN fixtures committed; `vendor/tessdata/` has a README with source + SHA-256 + licence | **PASS** | `vendor/tessdata/README.md` (URL, SHA-256 `7d4322bd…70b2`, Apache-2.0); fixture provenance §9; `pdfImage.test.ts` + `mrzFixtures.ts` headers |
@@ -326,16 +336,23 @@ is complete and unit-verified.
 
 ## 11. Deferred follow-ups
 
+> **Post-review fix wave** (commit `fix: Phase 3 whole-branch review …`) resolved:
+> the `fullNameAsInPassport` producer decision (below), Task 14's failed-branch
+> `return` inside the `try`, Task 15's dynamic-import guard gap, and Task 17's
+> page-level Re-extract/Delete error replacing the review view. It also cleaned up
+> `deleteApplicant` orphaning stored passport files and the Amendment-2 header
+> confidence rendering. Items not ticked below are still open.
+
 ### Should fix before operational use
 
-- **`identity.fullNameAsInPassport` has no producer (Task 8 / spec §9).**
+- **`identity.fullNameAsInPassport` has no producer (Task 8 / spec §9). RESOLVED.**
   `mapMrzResult` iterates `MRZ_FIELD_MAP` (surname / givenNames, not fullName);
-  `ocrFieldExtract` emits surname + givenNames separately. Spec §9 lists
-  `ocr.fullName` as an OCR-fallback field with no code emitting it. **Decision
-  needed:** add a "NAME" / "FULL NAME" OCR label pattern, OR compose it from
-  surname + givenNames in the pipeline, OR accept that surname + givenNames covers
-  the India e-visa form need (which takes them separately) and drop
-  `OCR_FIELD_MAP.fullName`. Recommendation: the third, or document the gap.
+  `ocrFieldExtract` emits surname + givenNames separately. Decision taken: the
+  dead `OCR_FIELD_MAP.fullName` mapping and the `'fullName'` `OcrFieldKey` member
+  were removed and spec §9 amended — MRZ names are truncated/transliterated and
+  passport visual zones label Surname / Given names separately, so there is no
+  safe anchor for a single "full name"; the user enters it manually if a target
+  form needs it.
 - **Real-OCR quality gap.** `tesseract.js` + `tessdata_fast` reads OCR-B MRZ on a
   real passport far better than the synthetic Consolas fixtures; the `.slow` test
   asserts only token presence, and no real passport fixture may be committed. Do a
@@ -356,13 +373,16 @@ is complete and unit-verified.
 - **Task 13** — `!M` and `M.source === 'manual'` branches are byte-identical
   (collapse); `META_COLS[key]` is unguarded in the hand-written SQL SET builder
   (safe today — keys are code constants).
-- **Task 14** — `getDocument` N+1 (one meta SELECT per field); a failed-branch
-  `return` sits inside the `try`.
-- **Task 15** — `documentsNoNetwork` guard misses dynamic
-  `await import('node:https')` (add an `import\(` pattern); `field_has_no_value`
-  → 409 could be 400.
-- **Task 17** — a page-level Re-extract/Delete error replaces the whole review
-  view; the "In profile?" column shows status, not `profileMatches` divergence.
+- **Task 14** — `getDocument` N+1 (one meta SELECT per field) — still open. The
+  failed-branch `return` inside the `try` — **RESOLVED** (both branches now commit
+  and fall through to a single `return getDocument(...)` after the `try/catch`).
+- **Task 15** — `documentsNoNetwork` guard missed dynamic
+  `await import('node:https')` — **RESOLVED** (an `import\(` pattern was added to
+  the network-module check). `field_has_no_value` → 409 could be 400 — still open.
+- **Task 17** — a page-level Re-extract/Delete error replacing the whole review
+  view — **RESOLVED** (initial-load failure still replaces the page; an action
+  error now renders as a banner above the content). The "In profile?" column
+  showing status, not `profileMatches` divergence — still open (Phase 4 §12.2).
 - **Task 18** — dead `.documents-subsection__list` CSS class.
 - **Tasks 3–7 test hygiene** — MRZ date-window boundary coverage is one-sided;
   `mapMrzResult`'s drop rule is not directly tested; a few missing
@@ -370,7 +390,7 @@ is complete and unit-verified.
 
 ### Process note
 
-6 controller spec-reconciliation commits during execution — `58c24ff` / `4d56f49`
+5 controller spec-reconciliation commits during execution — `58c24ff` / `4d56f49`
 / `0e68880` (PDF → re-encoded PNG + vendored-model size); `3324d8b`
 (`scoreOcrField` unanchored base 0.20 → 0.15); `c7fb6b5` (§4 Mixed path wording).
 All doc-only, aligning the spec with `pdfjs-4.x` reality and the plan's own tests.
@@ -387,11 +407,10 @@ All doc-only, aligning the spec with `pdfjs-4.x` reality and the plan's own test
 2. Surface the `profileMatches` divergence in the review table (Task 17
    follow-up): show, per field, the extracted value **beside** the current
    profile value and its verification state, not just an `applied`/`held` label.
-3. Resolve the `fullNameAsInPassport` producer decision (§11).
-4. A manual QA pass with a real passport to validate the `passport_mrz` path, and
+3. A manual QA pass with a real passport to validate the `passport_mrz` path, and
    — if it proves solid — an MRZ-vs-visual-zone cross-check for a valid MRZ
    (deferred this phase).
-5. Keep every hard boundary: no portal automation, no submission, no
+4. Keep every hard boundary: no portal automation, no submission, no
    CAPTCHA/OTP/MFA, no chip/NFC, no external OCR, loopback only, PII never logged.
 
 Still open before operational use: re-verify the Phase 1 Regular-visa entries

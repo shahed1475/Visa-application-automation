@@ -57,6 +57,9 @@ it('never imports an http/https/fetch client', () => {
       expect(src, `${file} must not require('${mod}')\n${scanned}`).not.toMatch(
         new RegExp(`require\\(\\s*['"]${esc}['"]\\s*\\)`),
       );
+      expect(src, `${file} must not dynamic import('${mod}')\n${scanned}`).not.toMatch(
+        new RegExp(`import\\(\\s*['"]${esc}['"]`),
+      );
     }
   }
 });

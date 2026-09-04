@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { DocumentDetail, ExtractionMethod } from '../../../../shared/documents/types';
 import { api } from '../../api/client';
-import { ExtractedFieldsTable } from './ExtractedFieldsTable';
+import { CONFIDENCE_TITLE, ExtractedFieldsTable } from './ExtractedFieldsTable';
 
 const METHOD_LABEL: Record<ExtractionMethod, string> = {
   mrz: 'MRZ',
@@ -62,13 +62,17 @@ export function DocumentDetailPage() {
   }, [reload]);
 
   if (loading && !detail) return <p>Loading…</p>;
-  if (error) return <p className="error" role="alert">{error}</p>;
+  // Only an initial-load failure replaces the page. An error raised by
+  // Re-extract / Delete (when `detail` is already on screen) renders as a banner
+  // below, so the runs list + fields table stay put.
+  if (error && !detail) return <p className="error" role="alert">{error}</p>;
   if (!detail || !id) return <p>Document not found.</p>;
 
   const isImage = detail.mimeType.startsWith('image/');
   const unlinked = detail.applicantId === null;
 
   async function reExtract() {
+    setError(null);
     setBusy('extracting');
     try {
       await api.extractDocument(id!);
@@ -84,6 +88,7 @@ export function DocumentDetailPage() {
     if (!window.confirm(`Delete "${detail!.originalName ?? 'this document'}"? This cannot be undone.`)) {
       return;
     }
+    setError(null);
     setBusy('deleting');
     try {
       await api.deleteDocument(id!);
@@ -110,10 +115,16 @@ export function DocumentDetailPage() {
         </div>
       </div>
 
+      {error && <p className="error" role="alert">{error}</p>}
+
       <p className="doc-meta">
         <span className={`badge badge--${detail.kind}`}>{detail.kind}</span>
         {detail.classificationConfidence != null && (
-          <span>Classification {Math.round(detail.classificationConfidence * 100)}%</span>
+          <span title={CONFIDENCE_TITLE}>
+            Classification:{' '}
+            {detail.kind === 'passport' ? 'passport' : 'not a passport'} · heuristic{' '}
+            {detail.classificationConfidence.toFixed(2)}
+          </span>
         )}
         {detail.latestExtractionMethod && (
           <span>Method {methodLabel(detail.latestExtractionMethod)}</span>

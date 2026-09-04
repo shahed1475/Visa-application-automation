@@ -21,7 +21,8 @@ const STATUS_LABEL: Record<DocumentExtractedFieldView['status'], string> = {
 // Amendment 2: confidence is a labelled heuristic trust score, never a
 // probability that the value is correct. The chip names the structural signal
 // behind the number; the tooltip spells the caveat out.
-const CONFIDENCE_TITLE = 'Heuristic trust score — not a probability of correctness.';
+export const CONFIDENCE_TITLE =
+  'Heuristic score — an ordering signal, not a probability of correctness.';
 
 function confidenceChip(f: DocumentExtractedFieldView): string {
   if (f.checkDigitOk === true) return '✓ check digit';
@@ -89,11 +90,9 @@ export function ExtractedFieldsTable({ detail, onChange }: Props) {
                   )}
                 </td>
                 <td>{FIELD_SOURCE_LABELS[f.source]}</td>
-                <td>
+                <td title={CONFIDENCE_TITLE}>
                   {f.confidence.toFixed(2)}{' '}
-                  <span className="confidence-chip" title={CONFIDENCE_TITLE}>
-                    {confidenceChip(f)}
-                  </span>
+                  <span className="confidence-chip">{confidenceChip(f)}</span>
                 </td>
                 <td>
                   <span className={`badge badge--${f.status}`}>{STATUS_LABEL[f.status]}</span>

@@ -7,8 +7,8 @@
  * `ExtractedField` per recognised field.
  *
  * Interpretation (recorded in task-8-report.md §"field paths"): §9's
- * `OCR_FIELD_MAP` names the three targets that are *only ever* OCR-sourced
- * (`placeOfIssue` / `issueDate` / `fullName`). §4 step 6 requires the fallback
+ * `OCR_FIELD_MAP` names the two targets that are *only ever* OCR-sourced
+ * (`placeOfIssue` / `issueDate`). §4 step 6 requires the fallback
  * to also produce the core passport fields when there is no MRZ at all, so this
  * module additionally emits the MRZ-set paths it can label-match:
  * `passport.number`, `identity.dateOfBirth`, `passport.expiryDate`,

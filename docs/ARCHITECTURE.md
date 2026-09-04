@@ -143,6 +143,23 @@ per-category records. The React `/visa-rules` page imports the module directly;
 there is no HTTP API. Rule changes are a JSON edit plus a `meta.kbVersion` bump.
 See `docs/PHASE-1-REPORT.md`.
 
+**Phase 3 (passport OCR & document extraction):** `src/shared/mrz/` and
+`src/shared/documents/` are pure, Zod-only modules — ICAO 9303 check digits, an
+authoritative TD3 MRZ parser and line detector, value normalization, document
+classification, a heuristic confidence score, the extracted-field → profile
+`field_path` map, and a label-based OCR field extractor. `src/server/documents/`
+is the Node-only half: magic-byte file typing and local original storage (SHA-256,
+path-containment guarded), single-image-PDF handling via `pdfjs-dist` (encrypted
+PDFs rejected with no password attempt), a local `tesseract.js` OCR engine with a
+vendored `eng` model and no network, a thin stage-by-stage `extractionPipeline`
+orchestrator, the profile-application rules (auto-apply empty fields / hold
+collisions), and `documentService`. Migration 3 adds `documents`,
+`extraction_runs`, `document_fields` and `applicant_field_meta.document_id`. Eight
+`/api/documents` endpoints cover upload / extract / review / apply / dismiss /
+delete; the React `/documents` pages are the per-field review-and-verify UI. OCR
+is text-from-pixels only — `td3.ts` is the sole authority for a valid MRZ — and no
+extraction path writes `verified = 1`. See `docs/PHASE-3-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live

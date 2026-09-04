@@ -33,6 +33,7 @@ export const REDACT_PATHS = [
   '*.fatherName', '*.father_name', '*.motherName', '*.mother_name',
   '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
   '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
+  '*.visibleMarks', '*.visible_marks', '*.nationalityAtBirth', '*.nationality_at_birth',
 ];
 
 /**

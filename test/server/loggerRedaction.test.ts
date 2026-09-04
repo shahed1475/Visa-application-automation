@@ -50,6 +50,7 @@ const PHASE_4_MUST_INCLUDE = [
   '*.fatherName', '*.father_name', '*.motherName', '*.mother_name',
   '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
   '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
+  '*.visibleMarks', '*.visible_marks', '*.nationalityAtBirth', '*.nationality_at_birth',
 ];
 
 it('redacts every applicant PII key we care about', () => {

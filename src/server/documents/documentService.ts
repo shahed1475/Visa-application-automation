@@ -455,6 +455,20 @@ export function getDocument(db: DatabaseSync, id: string): DocumentDetail | null
   };
 }
 
+/**
+ * Raw stored bytes + mime for `GET /api/documents/:id/file`. Deliberately kept
+ * off `getDocument` (which never exposes `storage_path`). Returns `null` for an
+ * unknown id.
+ */
+export function getDocumentFile(
+  db: DatabaseSync,
+  id: string,
+): { bytes: Buffer; mimeType: string } | null {
+  const row = getDocumentRow(db, id);
+  if (!row) return null;
+  return { bytes: readOriginal(row.storage_path), mimeType: row.mime_type };
+}
+
 export function listDocuments(db: DatabaseSync, applicantId?: string): DocumentSummary[] {
   const rows = (
     applicantId === undefined

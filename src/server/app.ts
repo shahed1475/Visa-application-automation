@@ -6,6 +6,7 @@ import Fastify, {
   type FastifyInstance,
 } from 'fastify';
 import fastifyStatic from '@fastify/static';
+import multipart from '@fastify/multipart';
 import { env } from './env.js';
 import { logger } from './logger.js';
 import { openDatabase } from './db/connection.js';
@@ -13,13 +14,19 @@ import { runMigrations } from './db/migrations.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerPortalRoutes } from './routes/portals.js';
 import { registerApplicantRoutes } from './routes/applicants.js';
+import { registerDocumentRoutes } from './routes/documents.js';
 import { errorBody, notFoundError } from './routes/errors.js';
+import { createTesseractEngine } from './documents/tesseractEngine.js';
+import { MAX_DOCUMENT_BYTES } from './documents/fileType.js';
+import type { OcrEngine } from './documents/ocrEngine.js';
 
 export interface BuildServerOptions {
   dbPath: string;
   /** Test seam: swap the shared pino instance (e.g. for one writing to a capture
    *  stream, so log output can be asserted on). Production always uses `logger`. */
   loggerInstance?: FastifyBaseLogger;
+  /** Test seam: swap the OCR engine. Production uses a real tesseract.js engine. */
+  ocr?: OcrEngine;
 }
 
 export async function buildServer(
@@ -61,9 +68,23 @@ export async function buildServer(
   app.addHook('onClose', async () => {
     db.close();
   });
+
+  const ocr = opts.ocr ?? createTesseractEngine();
+  app.decorate('ocr', ocr);
+  app.addHook('onClose', async () => {
+    await ocr.dispose().catch(() => undefined);
+  });
+
   await registerHealthRoutes(app);
   await registerPortalRoutes(app);
   await registerApplicantRoutes(app);
+  await app.register(multipart, {
+    // Signal an oversize file via `file.truncated` (→ route returns a sanitized
+    // 400) rather than letting the plugin throw its own 413.
+    throwFileSizeLimit: false,
+    limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1, fields: 4 },
+  });
+  await registerDocumentRoutes(app);
 
   if (env.NODE_ENV === 'production') {
     // Serve the built React app from Fastify — no Vite dev server in production.

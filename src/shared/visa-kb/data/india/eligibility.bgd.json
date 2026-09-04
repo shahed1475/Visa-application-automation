@@ -1,0 +1,309 @@
+[
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.tourist.30d",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["recreation", "sightseeing", "casual_visit"] }
+    ],
+    "basis": "Bangladesh is on India's e-Visa eligible-nationalities list (S2); the e-Tourist sub-category is offered to eligible nationals subject to the standard e-Visa exclusions (S1).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.tourist.1y",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["recreation", "sightseeing", "casual_visit"] }
+    ],
+    "basis": "Bangladesh is on India's e-Visa eligible-nationalities list (S2); the e-Tourist sub-category is offered to eligible nationals subject to the standard e-Visa exclusions (S1).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.tourist.5y",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["recreation", "sightseeing", "casual_visit"] }
+    ],
+    "basis": "Bangladesh is on India's e-Visa eligible-nationalities list (S2); the e-Tourist sub-category is offered to eligible nationals subject to the standard e-Visa exclusions (S1).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.tourist.6m",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["recreation", "sightseeing", "casual_visit"] }
+    ],
+    "basis": "Bangladesh is on India's e-Visa eligible-nationalities list (S2); the e-Tourist sub-category is offered to eligible nationals subject to the standard e-Visa exclusions (S1). Availability of the 6-month e-Tourist variant has varied — confirm at application.",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.business",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["business"] }
+    ],
+    "basis": "Bangladesh is e-Visa eligible (S2); e-Business is offered to eligible nationals (S1). Double-entry business visas were among the first categories restored for Bangladesh nationals in early 2026 (S6).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.medical",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["medical_treatment"] }
+    ],
+    "basis": "Bangladesh is e-Visa eligible (S2); e-Medical is offered to eligible nationals (S1). Medical visas were among the first restored for Bangladesh nationals in early 2026 (S6).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.medical_attendant",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["medical_attendant"] }
+    ],
+    "basis": "Eligibility follows e-Medical: Bangladesh is e-Visa eligible (S2) and e-Medical Attendant is offered to eligible nationals; a maximum of two e-Medical Attendant visas are granted against one e-Medical visa (S1).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.conference",
+    "status": "conditional",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["conference"] },
+      { "type": "requires_supporting_institution_letter" },
+      { "type": "custom", "text": "MEA political clearance and MHA event clearance must be obtained by the Indian organiser before the visa is granted." }
+    ],
+    "basis": "Bangladesh is e-Visa eligible (S2); e-Conference is offered but is gated on prior MEA/MHA clearance obtained by the organiser (S1).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.student",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["study"] },
+      { "type": "requires_supporting_institution_letter" }
+    ],
+    "basis": "Bangladesh is e-Visa eligible (S2); e-Student is listed among the admissible e-Visa categories (S2) and requires an admission letter from a recognised institution (S1). Confirm current availability at application.",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.transit",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["transit"] }
+    ],
+    "basis": "Bangladesh is e-Visa eligible (S2); e-Transit is offered to eligible nationals for genuine transit (S1).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "evisa",
+    "categoryId": "evisa.entry_x",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_type_not_in", "value": ["diplomatic", "official", "service"] },
+      { "type": "no_prohibited_background", "value": ["defence", "military", "security", "police"] },
+      { "type": "not_endorsed_on_relative_passport" },
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Not of Pakistani origin and not holding a Pakistani passport." },
+      { "type": "purpose_in", "value": ["family_visit", "other"] }
+    ],
+    "basis": "Bangladesh is e-Visa eligible (S2); the e-Miscellaneous (X) category is offered to eligible nationals (S1).",
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/evisa/", "retrievedAt": "2026-09-03", "documentDate": "2019-05-16", "notes": "Eligibility of Bangladesh confirmed from the e-Visa portal country list; exclusions from indianvisaonline.gov.in/evisa/tvoa.html (page stamp 2019-05-16)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.tourist",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Tourist visa (S5). Standard tourist-visa processing resumed 28 Jun 2026 (S6). Nationals aged 65+ may receive a 5-year multiple-entry tourist visa under the bilateral travel arrangement (S6).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.business",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Business visa (S5). Double-entry business visas were among the first categories restored for Bangladesh nationals in early 2026 (S6).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.medical",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Medical visa (S5); it was among the first categories restored for Bangladesh nationals in early 2026 (S6).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.medical_attendant",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Issued only to a close blood relative or spouse of the Medical visa holder; maximum two per patient." }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Medical Attendant visa (S5).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.employment",
+    "status": "conditional",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "The role must be skilled/qualified and meet the prevailing minimum-remuneration threshold (broadly USD 25,000 per annum), with exemptions for e.g. ethnic-cuisine chefs, language teachers, and staff of NGOs and foreign missions." },
+      { "type": "requires_supporting_institution_letter" },
+      { "type": "custom", "text": "Mandatory FRRO/FRO registration within 14 days of arrival." }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Employment visa (S5) but it is conditional on the skilled-employment and minimum-remuneration rules (S6).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.student",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "requires_supporting_institution_letter" }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Student visa (S5); it requires an admission/bonafide letter from a recognised institution (S6). A minor below 18 not accompanied by a studying parent applies under Entry (X) instead.",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.conference",
+    "status": "conditional",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "requires_supporting_institution_letter" },
+      { "type": "custom", "text": "MEA political clearance and MHA event clearance are prerequisites, obtained by the Indian organiser." }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Conference visa (S5) but it is gated on prior MEA/MHA clearance (S6).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.transit",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "A confirmed onward/return ticket to a third country is required; stay limited to 72 hours per transit." }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Transit visa (S5) for genuine transit (S6).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "nationality": "BGD",
+    "applicationMode": "regular",
+    "categoryId": "regular.entry_x",
+    "status": "eligible",
+    "conditions": [
+      { "type": "passport_validity_months_min", "value": 6 },
+      { "type": "custom", "text": "Requires proof of Indian origin of the sponsoring relative, or marriage certificate plus the Indian spouse's identity document. Not a work visa." }
+    ],
+    "basis": "Bangladesh nationals are eligible for the Entry (X) visa (S5); the X visa covers dependants of long-term visa holders, persons of Indian origin, accompanying minors, and cases not covered by a specific category (S6).",
+    "source": { "officialUrl": "https://hcidhaka.gov.in/", "retrievedAt": "2026-09-03", "notes": "NOT A LIVE CATEGORY FETCH: on 2026-09-03 the hcidhaka.gov.in landing page loaded, but its category-wise \"Documents Required for Visa\" list is published only as a PDF that was not machine-retrievable, and mha.gov.in returned HTTP 403 — so this record's values come from generally-published HCI Dhaka / IVAC Bangladesh guidance, not from retrieving a category page. Bangladesh nationals are eligible for all regular Indian visa categories (S5); category-specific conditions per the MHA visa manual / bilateral arrangement (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  }
+]

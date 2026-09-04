@@ -1,0 +1,515 @@
+[
+  {
+    "id": "evisa.tourist.30d",
+    "applicationMode": "evisa",
+    "category": "tourist",
+    "subCategory": "e-Tourist (30 days)",
+    "officialCode": "e-T1V",
+    "displayName": "e-Tourist Visa — 30 days",
+    "purpose": ["recreation", "sightseeing", "casual_visit", "yoga_short_course", "voluntary_work_short"],
+    "validity": { "amount": 30, "unit": "days", "from": "first_arrival" },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "Limited to the 30-day validity from first arrival; no separate per-calendar-year cap on this variant." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" }
+    ],
+    "optionalDocuments": [
+      { "id": "return_ticket", "label": "Confirmed return or onward ticket and proof of sufficient funds" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "Permitted activities: sightseeing, recreation, casual visits to meet friends/relatives, short-term yoga programmes, and unpaid voluntary work up to one month."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "tvoa.html 'Last Updated' 2019-05-16; entries and validity cross-checked against the e-Visa portal landing page (retrieved 2026-09-03)."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.tourist.1y",
+    "applicationMode": "evisa",
+    "category": "tourist",
+    "subCategory": "e-Tourist (1 year)",
+    "officialCode": "e-T1V",
+    "displayName": "e-Tourist Visa — 1 year",
+    "purpose": ["recreation", "sightseeing", "casual_visit", "yoga_short_course", "voluntary_work_short"],
+    "validity": { "amount": 1, "unit": "years", "from": "eta_grant" },
+    "entries": "multiple",
+    "stayLimitations": { "perCalendarYearDays": 180, "notes": "Maximum stay in India during one calendar year must not exceed 180 days." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" }
+    ],
+    "optionalDocuments": [
+      { "id": "return_ticket", "label": "Confirmed return or onward ticket and proof of sufficient funds" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "Permitted activities: sightseeing, recreation, casual visits to meet friends/relatives, short-term yoga programmes, and unpaid voluntary work up to one month."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "tvoa.html 'Last Updated' 2019-05-16; entries and validity cross-checked against the e-Visa portal landing page (retrieved 2026-09-03)."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.tourist.5y",
+    "applicationMode": "evisa",
+    "category": "tourist",
+    "subCategory": "e-Tourist (5 years)",
+    "officialCode": "e-T1V",
+    "displayName": "e-Tourist Visa — 5 years",
+    "purpose": ["recreation", "sightseeing", "casual_visit", "yoga_short_course", "voluntary_work_short"],
+    "validity": { "amount": 5, "unit": "years", "from": "eta_grant" },
+    "entries": "multiple",
+    "stayLimitations": { "perCalendarYearDays": 180, "notes": "Maximum stay in India during one calendar year must not exceed 180 days." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" }
+    ],
+    "optionalDocuments": [
+      { "id": "return_ticket", "label": "Confirmed return or onward ticket and proof of sufficient funds" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "Permitted activities: sightseeing, recreation, casual visits to meet friends/relatives, short-term yoga programmes, and unpaid voluntary work up to one month."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "tvoa.html 'Last Updated' 2019-05-16; entries and validity cross-checked against the e-Visa portal landing page (retrieved 2026-09-03)."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.tourist.6m",
+    "applicationMode": "evisa",
+    "category": "tourist",
+    "subCategory": "e-Tourist (6 months)",
+    "officialCode": "e-T2V",
+    "displayName": "e-Tourist Visa — 6 months",
+    "purpose": ["recreation", "sightseeing", "casual_visit", "yoga_short_course", "voluntary_work_short"],
+    "validity": { "amount": 6, "unit": "months", "from": "eta_grant" },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "No separate per-visit or per-calendar-year cap stated for the 6-month variant." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" }
+    ],
+    "optionalDocuments": [
+      { "id": "return_ticket", "label": "Confirmed return or onward ticket and proof of sufficient funds" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "Permitted activities: sightseeing, recreation, casual visits to meet friends/relatives, short-term yoga programmes, and unpaid voluntary work up to one month."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "e-T2V (6-month) variant on tvoa.html; availability of this variant has varied over time — confirm at application. Page 'Last Updated' 2019-05-16."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.business",
+    "applicationMode": "evisa",
+    "category": "business",
+    "subCategory": null,
+    "officialCode": "e-B1V",
+    "displayName": "e-Business Visa",
+    "purpose": ["business"],
+    "validity": { "amount": 1, "unit": "years", "from": "eta_grant" },
+    "entries": "multiple",
+    "stayLimitations": { "perVisitDays": 180, "notes": "Continuous stay during each visit must not exceed 180 days; if intending to stay longer, register with the FRRO/FRO within two weeks of the 180-day expiry." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" },
+      { "id": "business_card", "label": "Business card of the applicant" }
+    ],
+    "optionalDocuments": [
+      { "id": "invitation_letter_indian_company", "label": "Invitation letter from the Indian company/organisation being visited" },
+      { "id": "proof_of_business_activity", "label": "Proof of the business activity (e.g. company registration, prior correspondence)" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "For sale/purchase, trade meetings, technical/business discussions, recruitment, exhibitions, or as a lecturer under the Global Initiative for Academic Networks — not for full-time employment.",
+      "FRRO/FRO registration required if the stay exceeds 180 days."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "Not permitted for money-lending, petty trading, full-time journalism, or running a business as a self-employed person on a small scale."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "e-B1V on tvoa.html: 'One year (365 days) from the date of grant of ETA, Multiple'. Page 'Last Updated' 2019-05-16."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.medical",
+    "applicationMode": "evisa",
+    "category": "medical",
+    "subCategory": null,
+    "officialCode": "e-M1V",
+    "displayName": "e-Medical Visa",
+    "purpose": ["medical_treatment"],
+    "validity": { "amount": 1, "unit": "years", "from": "first_arrival" },
+    "entries": "multiple",
+    "stayLimitations": { "perVisitDays": 180, "notes": "FRRO/FRO registration required if the stay exceeds 180 days." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" },
+      { "id": "hospital_letter_india", "label": "Letter from the hospital concerned in India, on its letterhead, stating the (tentative) admission date" }
+    ],
+    "optionalDocuments": [
+      { "id": "prior_medical_records", "label": "Prior medical reports / diagnosis from the applicant's home country" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "Up to two e-Medical Attendant visas may be granted against one e-Medical visa.",
+      "For treatment at recognised and specialised hospitals/treatment centres in India, including treatment under Indian systems of medicine."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "tvoa.html states 'One year (365 days) from the date of arrival into India, Multiple'. Older third-party guidance cites a 60-day / triple-entry rule; the current official page value is used. Page 'Last Updated' 2019-05-16."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.medical_attendant",
+    "applicationMode": "evisa",
+    "category": "medical_attendant",
+    "subCategory": null,
+    "officialCode": "e-M2V",
+    "displayName": "e-Medical Attendant Visa",
+    "purpose": ["medical_attendant"],
+    "validity": { "amount": 1, "unit": "years", "from": "first_arrival" },
+    "entries": "multiple",
+    "stayLimitations": { "perVisitDays": 180, "notes": "Co-terminus with the e-Medical visa holder's stay; FRRO/FRO registration if it exceeds 180 days." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" }
+    ],
+    "optionalDocuments": [
+      { "id": "proof_of_relationship", "label": "Proof of relationship to the e-Medical visa holder" },
+      { "id": "copy_of_medical_visa", "label": "Copy of the e-Medical visa / ETA of the patient being attended" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "A maximum of two e-Medical Attendant visas are granted against one e-Medical visa.",
+      "Issued to blood relatives / spouse of the e-Medical visa holder."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "e-M2V on tvoa.html: 'One year (365 days) from the date of arrival into India, Multiple'. Page 'Last Updated' 2019-05-16."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.conference",
+    "applicationMode": "evisa",
+    "category": "conference",
+    "subCategory": "e-Conference",
+    "officialCode": "e-B5V",
+    "displayName": "e-Conference Visa",
+    "purpose": ["conference"],
+    "validity": { "amount": 30, "unit": "days", "from": "first_arrival" },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "For the duration of the conference/seminar/workshop within the 30-day validity." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" },
+      { "id": "conference_invitation", "label": "Invitation from the conference organiser in India" },
+      { "id": "mea_political_clearance", "label": "Political clearance from the Ministry of External Affairs" },
+      { "id": "mha_event_clearance", "label": "Event clearance from the Ministry of Home Affairs" }
+    ],
+    "optionalDocuments": [],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted.",
+      "The organiser uploads the event details and the MEA/MHA clearances on the MHA e-Conference portal.",
+      "Only for conferences/seminars/workshops organised by a Ministry or Department of the Government of India, a State/UT government, a PSU, or a UN/specialised agency."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "Attendance is limited to the specified event."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "Carried under the e-Business code family (e-B5V) on tvoa.html; the e-Visa portal lists it as 'e-Conference'. Page 'Last Updated' 2019-05-16."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.student",
+    "applicationMode": "evisa",
+    "category": "student",
+    "subCategory": null,
+    "officialCode": "e-SV",
+    "displayName": "e-Student Visa",
+    "purpose": ["study"],
+    "validity": { "amount": 1, "unit": "years", "from": "eta_grant" },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "For the duration of the course within the validity; longer courses are regularised through the FRRO." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" },
+      { "id": "admission_letter", "label": "Admission letter from a recognised educational institution in India" },
+      { "id": "financial_proof", "label": "Proof of financial support — parent/guardian letter with a bank guarantee or six months' bank statements" }
+    ],
+    "optionalDocuments": [
+      { "id": "noc_medical_paramedical", "label": "No Objection Certificate, for medical / paramedical courses" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "For study at recognised institutions only; not for employment."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "Listed among the eight admissible e-Visa categories on the e-Visa portal (retrieved 2026-09-03); the tvoa.html detail table shows 'One year (365 days) from the date of grant of ETA, Multiple'. Page 'Last Updated' 2019-05-16 — confirm current availability at application."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.transit",
+    "applicationMode": "evisa",
+    "category": "transit",
+    "subCategory": null,
+    "officialCode": "e-TRV",
+    "displayName": "e-Transit Visa",
+    "purpose": ["transit"],
+    "validity": { "amount": 30, "unit": "days", "from": "first_arrival" },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "For genuine transit through India en route to a third country." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" },
+      { "id": "onward_ticket_third_country", "label": "Confirmed onward ticket to the third country" }
+    ],
+    "optionalDocuments": [
+      { "id": "destination_country_visa", "label": "Visa for the onward destination country, where required" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "For direct transit only."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "tvoa.html: '30 Days from the date of first arrival in India, Multiple'. Page 'Last Updated' 2019-05-16."
+    },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "evisa.entry_x",
+    "applicationMode": "evisa",
+    "category": "entry_x",
+    "subCategory": "e-Miscellaneous",
+    "officialCode": "e-X1V",
+    "displayName": "e-Miscellaneous (X) Visa",
+    "purpose": ["family_visit", "other"],
+    "validity": { "amount": 3, "unit": "months", "from": "first_arrival" },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "Within the three-month validity from first entry." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "minLeadDays": 4, "maxLeadDays": 120, "notes": "Apply at least 4 days before arrival, and no more than 120 days ahead." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": true,
+      "portsOfEntry": null,
+      "notes": "Entry only through designated e-Visa airports and seaports (a limited list of land ports); exit from any authorised Immigration Check Post."
+    },
+    "requiredDocuments": [
+      { "id": "passport_bio_page", "label": "Scanned bio-data page of the passport showing the photograph and details" },
+      { "id": "photo", "label": "Recent front-facing colour photograph, white background (JPEG, 10 KB–1 MB)" }
+    ],
+    "optionalDocuments": [
+      { "id": "supporting_documents_for_purpose", "label": "Documents supporting the stated purpose of the visit" }
+    ],
+    "specialConditions": [
+      "Biometric details are mandatorily captured at Immigration on arrival in India.",
+      "The e-Visa fee is non-refundable once the application is submitted."
+    ],
+    "restrictions": [
+      "Non-extendable and non-convertible.",
+      "Not valid for visiting Protected, Restricted or Cantonment areas.",
+      "Not for employment, study for a qualification, journalism, or NGO work."
+    ],
+    "source": {
+      "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
+      "retrievedAt": "2026-09-03",
+      "documentDate": "2019-05-16",
+      "notes": "e-X1V (e-Miscellaneous) on tvoa.html: '3 months from the date of first entry in India, Multiple'. A separate e-Family (e-SXV, 1 year) variant also exists and is not seeded in this KB version. Page 'Last Updated' 2019-05-16."
+    },
+    "lastVerified": "2026-09-03"
+  }
+]

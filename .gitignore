@@ -1,6 +1,13 @@
 node_modules/
 data/
+# The visa-kb ships versioned JSON data as source, not runtime scratch.
+!src/shared/visa-kb/data/
 .env
 dist/
 coverage/
 *.log
+*.db
+playwright-report/
+
+# SDD execution scratch
+.superpowers/

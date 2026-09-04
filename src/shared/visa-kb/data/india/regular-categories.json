@@ -1,0 +1,386 @@
+[
+  {
+    "id": "regular.tourist",
+    "applicationMode": "regular",
+    "category": "tourist",
+    "subCategory": null,
+    "officialCode": "T",
+    "displayName": "Tourist Visa",
+    "purpose": ["recreation", "sightseeing", "casual_visit", "family_visit"],
+    "validity": { "amount": 5, "unit": "years", "from": "issue", "notes": "Missions may issue shorter validity (commonly single-entry 30–90 days for first-time Bangladesh applicants); up to 5 years multiple-entry is the ceiling." },
+    "entries": "multiple",
+    "stayLimitations": { "perVisitDays": 90, "notes": "Each stay up to 90 days for tourism, meeting relatives or pilgrimage." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "notes": "Requires an online appointment at an IVAC (Gulshan / Motijheel / Dhanmondi / Khulna)." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "address_proof", "label": "Proof of residential address in Bangladesh (recent utility bill)" },
+      { "id": "financial_proof", "label": "Proof of financial means (bank statement of the last 6 months and/or an international card)" }
+    ],
+    "optionalDocuments": [
+      { "id": "prior_visa_copy", "label": "Copy of any previous Indian visa" },
+      { "id": "invitation_relative", "label": "Invitation and ID of the relative in India, if visiting family" }
+    ],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "Bangladesh nationals aged 65 and above are eligible for a 5-year multiple-entry tourist visa under the India–Bangladesh bilateral travel arrangement, with a 90-day limit per visit.",
+      "Standard tourist-visa processing for Bangladesh nationals resumed on 28 June 2026 after a suspension that began in August 2024."
+    ],
+    "restrictions": [
+      "Not valid for employment, business, study for a qualification, journalism, research, or missionary work.",
+      "Cannot be extended or converted in India.",
+      "Not valid for Protected/Restricted Area Permit zones without a separate permit."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3). The bilateral 5-year (65+) provision and the June-2026 resumption are from MHA / bilateral guidance (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.business",
+    "applicationMode": "regular",
+    "category": "business",
+    "subCategory": null,
+    "officialCode": "B",
+    "displayName": "Business Visa",
+    "purpose": ["business"],
+    "validity": { "amount": 5, "unit": "years", "from": "issue", "notes": "Up to 5 years multiple-entry; missions commonly issue 1-year or double-entry for Bangladesh applicants." },
+    "entries": "multiple",
+    "stayLimitations": { "perVisitDays": 180, "notes": "Continuous stay per visit up to 180 days; FRRO/FRO registration if a single stay exceeds 180 days." },
+    "extendable": true,
+    "convertible": false,
+    "applicationTiming": { "notes": "Tourist visa applications require an online appointment at an IVAC; other categories are accepted walk-in at IVAC Dhaka (Gulshan / Motijheel / Dhanmondi) and IVAC Khulna." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "invitation_letter_indian_company", "label": "Invitation letter from the Indian company/organisation, on letterhead, with its full address and contact" },
+      { "id": "sponsor_letter_bd_company", "label": "Covering letter from the applicant's company in Bangladesh stating the purpose and duration" },
+      { "id": "proof_of_business_activity", "label": "Proof of the business (trade licence / company registration) of both parties" }
+    ],
+    "optionalDocuments": [
+      { "id": "financial_proof", "label": "Proof of financial standing" }
+    ],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "FRRO/FRO registration required if any single stay exceeds 180 days.",
+      "Double-entry business visas were among the first categories restored for Bangladesh nationals in early 2026."
+    ],
+    "restrictions": [
+      "Not for full-time employment, money-lending, petty trading, or full-time journalism.",
+      "Not valid for Protected/Restricted Area zones without a separate permit."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5) — the category-wise HCI Dhaka PDF was not machine-retrievable on 2026-09-03; re-verify before operational use. The early-2026 double-entry business restoration is from MHA / bilateral guidance (S6), which was not machine-retrievable on 2026-09-03." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.medical",
+    "applicationMode": "regular",
+    "category": "medical",
+    "subCategory": null,
+    "officialCode": "MED",
+    "displayName": "Medical Visa",
+    "purpose": ["medical_treatment"],
+    "validity": { "amount": 1, "unit": "years", "from": "issue", "notes": "Or the treatment period. Multiple entry — the paper Medical visa is commonly issued as triple-entry; further entries / longer validity on the treating hospital's recommendation." },
+    "entries": "multiple",
+    "stayLimitations": { "perVisitDays": 180, "notes": "Aligned to the treatment schedule; FRRO/FRO registration if the stay exceeds 180 days." },
+    "extendable": true,
+    "convertible": false,
+    "applicationTiming": { "notes": "Walk-in at an IVAC once the hospital appointment letter is available." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "hospital_letter_india", "label": "Letter from the hospital/treatment centre in India, on letterhead, with the (tentative) admission date" },
+      { "id": "local_doctor_referral", "label": "Referral / diagnosis letter from a registered medical practitioner in Bangladesh" },
+      { "id": "financial_proof", "label": "Proof of funds for the treatment and stay" }
+    ],
+    "optionalDocuments": [
+      { "id": "prior_medical_records", "label": "Prior medical reports and test results" }
+    ],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "Up to two Medical Attendant visas may be issued to accompanying family members.",
+      "Registration with the FRRO/FRO within 14 days of arrival if the stay exceeds 180 days."
+    ],
+    "restrictions": [
+      "For recognised, specialised treatment — not routine consultation.",
+      "No employment."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published HCI Dhaka / IVAC Bangladesh medical-visa guidance (S4/S5); category-wise HCI Dhaka PDF not machine-retrievable on 2026-09-03 — re-verify. Medical visas were among the first categories restored for Bangladesh nationals in early 2026." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.medical_attendant",
+    "applicationMode": "regular",
+    "category": "medical_attendant",
+    "subCategory": null,
+    "officialCode": "MED-X",
+    "displayName": "Medical Attendant Visa",
+    "purpose": ["medical_attendant"],
+    "validity": { "amount": 1, "unit": "years", "from": "issue", "notes": "Co-terminus with the Medical visa holder's visa." },
+    "entries": "multiple",
+    "stayLimitations": { "perVisitDays": 180, "notes": "Follows the patient's stay; FRRO registration if it exceeds 180 days." },
+    "extendable": true,
+    "convertible": false,
+    "applicationTiming": { "notes": "Tourist visa applications require an online appointment at an IVAC; other categories are accepted walk-in at IVAC Dhaka (Gulshan / Motijheel / Dhanmondi) and IVAC Khulna." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "copy_of_medical_visa", "label": "Copy of the patient's Medical visa / passport" },
+      { "id": "proof_of_relationship", "label": "Proof of relationship to the patient (max two attendants per patient)" }
+    ],
+    "optionalDocuments": [],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "A maximum of two Medical Attendant visas are granted against one Medical visa."
+    ],
+    "restrictions": [
+      "Issued only to close blood relatives or the spouse of the Medical visa holder.",
+      "No employment."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5); re-verify against hcidhaka.gov.in." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.employment",
+    "applicationMode": "regular",
+    "category": "employment",
+    "subCategory": null,
+    "officialCode": "E",
+    "displayName": "Employment Visa",
+    "purpose": ["employment"],
+    "validity": { "amount": 1, "unit": "years", "from": "issue", "notes": "One year or the contract period, whichever is less; extendable in India by the FRRO up to the contract term." },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "For the employment contract period; mandatory FRRO/FRO registration within 14 days of arrival." },
+    "extendable": true,
+    "convertible": false,
+    "applicationTiming": { "notes": "Tourist visa applications require an online appointment at an IVAC; other categories are accepted walk-in at IVAC Dhaka (Gulshan / Motijheel / Dhanmondi) and IVAC Khulna." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "appointment_letter_india", "label": "Employment contract / appointment letter from the Indian employer, with salary and terms" },
+      { "id": "employer_registration_india", "label": "Proof of registration of the Indian employer (incorporation / GST)" },
+      { "id": "qualification_proof", "label": "Proof of the applicant's qualifications and experience for the role" }
+    ],
+    "optionalDocuments": [
+      { "id": "tax_liability_letter", "label": "Undertaking on the employee's income-tax liability in India" }
+    ],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "Mandatory registration with the FRRO/FRO within 14 days of arrival.",
+      "The employment must be for a skilled/qualified professional; a minimum-salary threshold applies (with exemptions, e.g. for ethnic-cuisine chefs, language teachers, and staff of NGOs and diplomatic missions)."
+    ],
+    "restrictions": [
+      "Not for jobs for which qualified Indians are available.",
+      "Not for routine, clerical, or unskilled work.",
+      "Cannot be converted from any other visa category inside India."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); salary-threshold and registration rules per the MHA visa manual (S4) — re-verify current threshold before operational use." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.student",
+    "applicationMode": "regular",
+    "category": "student",
+    "subCategory": null,
+    "officialCode": "S",
+    "displayName": "Student Visa",
+    "purpose": ["study"],
+    "validity": { "amount": 5, "unit": "years", "from": "issue", "notes": "Up to the course duration or 5 years, whichever is less; extendable in India by the FRRO for the course term." },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "For the duration of the course; FRRO/FRO registration within 14 days of arrival if the stay exceeds 180 days." },
+    "extendable": true,
+    "convertible": false,
+    "applicationTiming": { "notes": "Tourist visa applications require an online appointment at an IVAC; other categories are accepted walk-in at IVAC Dhaka (Gulshan / Motijheel / Dhanmondi) and IVAC Khulna." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "admission_letter", "label": "Admission / bonafide letter from a recognised educational institution in India" },
+      { "id": "financial_proof", "label": "Proof of financial support — sponsor's affidavit with 6 months' bank statements" }
+    ],
+    "optionalDocuments": [
+      { "id": "noc_medical_paramedical", "label": "No Objection Certificate for medical / paramedical / nursing courses" },
+      { "id": "academic_transcripts", "label": "Previous academic certificates and transcripts" }
+    ],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "A minor below 18 travelling with parents where the parents are not themselves studying should apply under the Entry (X) category."
+    ],
+    "restrictions": [
+      "For full-time study at a recognised institution only.",
+      "No employment (part-time work is not permitted)."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC guidance (S4/S5) — re-verify." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.conference",
+    "applicationMode": "regular",
+    "category": "conference",
+    "subCategory": null,
+    "officialCode": "C",
+    "displayName": "Conference Visa",
+    "purpose": ["conference"],
+    "validity": { "amount": 90, "unit": "days", "from": "issue", "notes": "For the duration of the event. Issued single or double entry; `entries` records the conservative single-entry case — a double-entry conference visa is possible but must not be assumed." },
+    "entries": "single",
+    "stayLimitations": { "notes": "For the conference/seminar/workshop and directly associated travel only." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "notes": "Tourist visa applications require an online appointment at an IVAC; other categories are accepted walk-in at IVAC Dhaka (Gulshan / Motijheel / Dhanmondi) and IVAC Khulna." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "conference_invitation", "label": "Invitation from the conference organiser in India" },
+      { "id": "mea_political_clearance", "label": "Political clearance from the Ministry of External Affairs" },
+      { "id": "mha_event_clearance", "label": "Event clearance from the Ministry of Home Affairs" }
+    ],
+    "optionalDocuments": [],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "MEA political clearance and MHA event clearance are prerequisites and are obtained by the Indian organiser."
+    ],
+    "restrictions": [
+      "Attendance limited to the specified event; no other activity permitted.",
+      "Not extendable or convertible."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published MHA conference-visa guidance (S4); clearance requirements per the MHA visa manual — re-verify." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.transit",
+    "applicationMode": "regular",
+    "category": "transit",
+    "subCategory": null,
+    "officialCode": "TR",
+    "displayName": "Transit Visa",
+    "purpose": ["transit"],
+    "validity": { "amount": 15, "unit": "days", "from": "issue", "notes": "Strictly for transit. Issued single or double entry; `entries` records the conservative single-entry case — a double-entry transit visa is possible but must not be assumed." },
+    "entries": "single",
+    "stayLimitations": { "perVisitDays": 3, "notes": "Each transit stay must not exceed 72 hours / 3 days." },
+    "extendable": false,
+    "convertible": false,
+    "applicationTiming": { "notes": "Tourist visa applications require an online appointment at an IVAC; other categories are accepted walk-in at IVAC Dhaka (Gulshan / Motijheel / Dhanmondi) and IVAC Khulna." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "onward_ticket_third_country", "label": "Confirmed onward / return ticket to the third country" },
+      { "id": "destination_country_visa", "label": "Visa for the onward destination country, where required" }
+    ],
+    "optionalDocuments": [],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "Return / onward journey ticket is mandatory."
+    ],
+    "restrictions": [
+      "For direct transit through India to a third country only.",
+      "No sightseeing or other activity."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries from visa-provision.html (S3); the 72-hour per-transit limit per the MHA visa manual (S4)." },
+    "lastVerified": "2026-09-03"
+  },
+  {
+    "id": "regular.entry_x",
+    "applicationMode": "regular",
+    "category": "entry_x",
+    "subCategory": null,
+    "officialCode": "X",
+    "displayName": "Entry (X) Visa",
+    "purpose": ["family_visit", "other"],
+    "validity": { "amount": 5, "unit": "years", "from": "issue", "notes": "Up to 5 years multiple-entry; commonly issued for 1 year initially, extendable by the FRRO." },
+    "entries": "multiple",
+    "stayLimitations": { "notes": "For the stated purpose; FRRO/FRO registration if the stay exceeds 180 days." },
+    "extendable": true,
+    "convertible": false,
+    "applicationTiming": { "notes": "Tourist visa applications require an online appointment at an IVAC; other categories are accepted walk-in at IVAC Dhaka (Gulshan / Motijheel / Dhanmondi) and IVAC Khulna." },
+    "travelRequirements": {
+      "passportValidityMonthsMin": 6,
+      "passportBlankPagesMin": 2,
+      "onwardOrReturnTicket": false,
+      "portsOfEntry": null,
+      "notes": "Bangladesh nationals enter and leave India through authorised Immigration Check Posts, by air, land (road/rail) or sea."
+    },
+    "requiredDocuments": [
+      { "id": "passport", "label": "Original passport (min. 6 months validity, ≥2 blank pages) plus a photocopy of the bio-data page" },
+      { "id": "photo", "label": "Recent colour photograph to Indian visa specification (51×51 mm, white background)" },
+      { "id": "application_form", "label": "Printed and signed online visa application form" },
+      { "id": "indian_origin_or_relationship_proof", "label": "Proof of Indian origin of the spouse/relative, OR marriage certificate plus the Indian spouse's passport / OCI card / voter ID / Aadhaar" }
+    ],
+    "optionalDocuments": [
+      { "id": "sponsor_letter_india", "label": "Sponsorship / covering letter from the person in India" }
+    ],
+    "specialConditions": [
+      "No visa fee for Bangladeshi passport holders.",
+      "Used by: spouse and dependent family members of a person holding an Employment/Business/Student visa; persons of Indian origin and their family; a minor below 18 accompanying parents; and other cases not covered by a specific category.",
+      "Registration with the FRRO/FRO within 14 days of arrival if the stay exceeds 180 days."
+    ],
+    "restrictions": [
+      "No employment or business activity (the X visa is not a work visa).",
+      "Not for tourism as the primary purpose (use a Tourist visa)."
+    ],
+    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per the MHA visa manual X-visa provisions (S4) and generally-published HCI Dhaka guidance (S5) — re-verify against hcidhaka.gov.in." },
+    "lastVerified": "2026-09-03"
+  }
+]

@@ -25,8 +25,9 @@ in Settings* (spec §9a — the URL is read from SQLite at runtime, never hard-c
 
 - Portals configured: **0**
 - Portal appendices written: **0**
-- Live discovery runs completed: **0** (blocked: no configured portal; Phase 0
-  Settings foundation not yet built)
+- Live discovery runs completed: **0** (the Phase 0 Settings foundation +
+  navigate-only Test Connection are complete; discovery of a real portal begins
+  only once the user configures and activates a portal URL in Settings)
 
 ---
 

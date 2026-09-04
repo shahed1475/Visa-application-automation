@@ -218,3 +218,104 @@ describe('the real India form-model catalog (schema v2, Task 2)', () => {
     }
   });
 });
+
+describe('per-category formRules & conditionalDocuments (Task 3, spec §4.3/§4.4/§11.2/§11.3)', () => {
+  function byId(id: string) {
+    const kb = loadKnowledgeBase();
+    const c = kb.categories.find((x) => x.id === id);
+    if (!c) throw new Error(`missing category ${id}`);
+    return c;
+  }
+
+  it('every category has a non-empty formRules.applicableSections', () => {
+    const kb = loadKnowledgeBase();
+    for (const c of kb.categories) {
+      expect(c.formRules.applicableSections.length, c.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('regular.business names business_details/family/occupation, requires the 3 India-business fields, and requires 2 India references', () => {
+    const c = byId('regular.business');
+    for (const s of ['business_details', 'family', 'occupation']) {
+      expect(c.formRules.applicableSections, c.id).toContain(s);
+    }
+    const rule = (fieldId: string) =>
+      c.formRules.fieldRules.find((r) => r.sectionId === 'business_details' && r.fieldId === fieldId);
+    for (const fieldId of ['india_company_name', 'india_company_address', 'nature_of_business']) {
+      expect(rule(fieldId)?.requirement, fieldId).toBe('required');
+    }
+    const refRule = c.formRules.fieldRules.find(
+      (r) => r.sectionId === 'references' && r.fieldId === 'india_references_min',
+    );
+    expect(refRule?.requirement).toBe('required');
+    expect(refRule?.count).toBe(2);
+  });
+
+  it('regular.student names study_details and requires institution_name', () => {
+    const c = byId('regular.student');
+    expect(c.formRules.applicableSections).toContain('study_details');
+    const rule = c.formRules.fieldRules.find(
+      (r) => r.sectionId === 'study_details' && r.fieldId === 'institution_name',
+    );
+    expect(rule?.requirement).toBe('required');
+  });
+
+  it('regular.medical names medical_details and requires hospital_name', () => {
+    const c = byId('regular.medical');
+    expect(c.formRules.applicableSections).toContain('medical_details');
+    const rule = c.formRules.fieldRules.find(
+      (r) => r.sectionId === 'medical_details' && r.fieldId === 'hospital_name',
+    );
+    expect(rule?.requirement).toBe('required');
+  });
+
+  it('regular.transit stays minimal — no business_details/study_details/family/occupation', () => {
+    const c = byId('regular.transit');
+    for (const s of ['business_details', 'study_details', 'family', 'occupation']) {
+      expect(c.formRules.applicableSections, s).not.toContain(s);
+    }
+  });
+
+  it('evisa.tourist.30d keeps return_ticket in optionalDocuments and adds no redundant ticket conditionalDocuments entry', () => {
+    const c = byId('evisa.tourist.30d');
+    expect(c.optionalDocuments.some((d) => d.id === 'return_ticket')).toBe(true);
+    expect(c.conditionalDocuments.some((d) => d.id.includes('ticket'))).toBe(false);
+  });
+
+  it('regular.tourist and evisa.tourist.30d gate spouse_name on marriage and father_name on minor age', () => {
+    for (const id of ['regular.tourist', 'evisa.tourist.30d']) {
+      const c = byId(id);
+      const spouse = c.formRules.fieldRules.find(
+        (r) => r.sectionId === 'family' && r.fieldId === 'spouse_name',
+      );
+      expect(spouse?.requirement, id).toBe('conditional');
+      expect(spouse?.condition?.type, id).toBe('applicant_married');
+
+      const guardian = c.formRules.fieldRules.find(
+        (r) => r.sectionId === 'family' && r.fieldId === 'father_name',
+      );
+      expect(guardian?.requirement, id).toBe('conditional');
+      expect(guardian?.condition?.type, id).toBe('age_lt');
+      expect(guardian?.condition && 'value' in guardian.condition ? guardian.condition.value : undefined, id).toBe(18);
+    }
+  });
+
+  it('regular.tourist has a conditionalDocuments entry gated on purpose_in family_visit', () => {
+    const c = byId('regular.tourist');
+    const entry = c.conditionalDocuments.find((d) => d.condition.type === 'purpose_in');
+    expect(entry).toBeTruthy();
+    expect(entry?.condition.type === 'purpose_in' ? entry.condition.value : []).toContain('family_visit');
+  });
+
+  it('every FieldRule and conditionalDoc source.confidence is secondary_guidance (not a higher claim)', () => {
+    const kb = loadKnowledgeBase();
+    for (const c of kb.categories) {
+      for (const r of c.formRules.fieldRules) {
+        expect(r.source.confidence, `${c.id} fieldRule ${r.sectionId}.${r.fieldId}`).toBe('secondary_guidance');
+      }
+      for (const d of c.conditionalDocuments) {
+        expect(d.source.confidence, `${c.id} conditionalDoc ${d.id}`).toBe('secondary_guidance');
+      }
+    }
+  });
+});

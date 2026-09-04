@@ -41,7 +41,9 @@
       "Cannot be extended or converted in India.",
       "Not valid for Protected/Restricted Area Permit zones without a separate permit."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3). The bilateral 5-year (65+) provision and the June-2026 resumption are from MHA / bilateral guidance (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3). The bilateral 5-year (65+) provision and the June-2026 resumption are from MHA / bilateral guidance (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -85,7 +87,9 @@
       "Not for full-time employment, money-lending, petty trading, or full-time journalism.",
       "Not valid for Protected/Restricted Area zones without a separate permit."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5) — the category-wise HCI Dhaka PDF was not machine-retrievable on 2026-09-03; re-verify before operational use. The early-2026 double-entry business restoration is from MHA / bilateral guidance (S6), which was not machine-retrievable on 2026-09-03." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5) — the category-wise HCI Dhaka PDF was not machine-retrievable on 2026-09-03; re-verify before operational use. The early-2026 double-entry business restoration is from MHA / bilateral guidance (S6), which was not machine-retrievable on 2026-09-03." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -129,7 +133,9 @@
       "For recognised, specialised treatment — not routine consultation.",
       "No employment."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published HCI Dhaka / IVAC Bangladesh medical-visa guidance (S4/S5); category-wise HCI Dhaka PDF not machine-retrievable on 2026-09-03 — re-verify. Medical visas were among the first categories restored for Bangladesh nationals in early 2026." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published HCI Dhaka / IVAC Bangladesh medical-visa guidance (S4/S5); category-wise HCI Dhaka PDF not machine-retrievable on 2026-09-03 — re-verify. Medical visas were among the first categories restored for Bangladesh nationals in early 2026." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -169,7 +175,9 @@
       "Issued only to close blood relatives or the spouse of the Medical visa holder.",
       "No employment."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5); re-verify against hcidhaka.gov.in." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5); re-verify against hcidhaka.gov.in." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -214,7 +222,9 @@
       "Not for routine, clerical, or unskilled work.",
       "Cannot be converted from any other visa category inside India."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); salary-threshold and registration rules per the MHA visa manual (S4) — re-verify current threshold before operational use." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); salary-threshold and registration rules per the MHA visa manual (S4) — re-verify current threshold before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -257,7 +267,9 @@
       "For full-time study at a recognised institution only.",
       "No employment (part-time work is not permitted)."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC guidance (S4/S5) — re-verify." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC guidance (S4/S5) — re-verify." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -298,7 +310,9 @@
       "Attendance limited to the specified event; no other activity permitted.",
       "Not extendable or convertible."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published MHA conference-visa guidance (S4); clearance requirements per the MHA visa manual — re-verify." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per generally-published MHA conference-visa guidance (S4); clearance requirements per the MHA visa manual — re-verify." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -338,7 +352,9 @@
       "For direct transit through India to a third country only.",
       "No sightseeing or other activity."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries from visa-provision.html (S3); the 72-hour per-transit limit per the MHA visa manual (S4)." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries from visa-provision.html (S3); the 72-hour per-transit limit per the MHA visa manual (S4)." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -380,7 +396,9 @@
       "No employment or business activity (the X visa is not a work visa).",
       "Not for tourism as the primary purpose (use a Tourist visa)."
     ],
-    "source": { "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per the MHA visa manual X-visa provisions (S4) and generally-published HCI Dhaka guidance (S5) — re-verify against hcidhaka.gov.in." },
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-category.html", "retrievedAt": "2026-09-03", "notes": "Per the MHA visa manual X-visa provisions (S4) and generally-published HCI Dhaka guidance (S5) — re-verify against hcidhaka.gov.in." },
     "lastVerified": "2026-09-03"
   }
 ]

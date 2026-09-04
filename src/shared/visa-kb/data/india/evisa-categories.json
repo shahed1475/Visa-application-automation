@@ -37,7 +37,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -83,7 +85,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -129,7 +133,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -175,7 +181,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "Not permitted for employment, journalism, NGO activity, study for a formal qualification, or paid work."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -224,7 +232,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "Not permitted for money-lending, petty trading, full-time journalism, or running a business as a self-employed person on a small scale."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -271,7 +281,9 @@
       "Non-extendable and non-convertible.",
       "Not valid for visiting Protected, Restricted or Cantonment areas."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -318,7 +330,9 @@
       "Non-extendable and non-convertible.",
       "Not valid for visiting Protected, Restricted or Cantonment areas."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -366,7 +380,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "Attendance is limited to the specified event."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -413,7 +429,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "For study at recognised institutions only; not for employment."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -459,7 +477,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "For direct transit only."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",
@@ -504,7 +524,9 @@
       "Not valid for visiting Protected, Restricted or Cantonment areas.",
       "Not for employment, study for a qualification, journalism, or NGO work."
     ],
-    "source": {
+    "formRules": { "applicableSections": [], "fieldRules": [] },
+    "conditionalDocuments": [],
+    "source": { "confidence": "secondary_guidance",
       "officialUrl": "https://indianvisaonline.gov.in/evisa/tvoa.html",
       "retrievedAt": "2026-09-03",
       "documentDate": "2019-05-16",

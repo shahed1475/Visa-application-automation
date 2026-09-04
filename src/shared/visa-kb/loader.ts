@@ -2,6 +2,8 @@ import evisaCategories from './data/india/evisa-categories.json' with { type: 'j
 import regularCategories from './data/india/regular-categories.json' with { type: 'json' };
 import eligibilityBgd from './data/india/eligibility.bgd.json' with { type: 'json' };
 import meta from './data/india/meta.json' with { type: 'json' };
+import formModel from './data/india/form-model.json' with { type: 'json' };
+import { isValidFieldPath } from '../applicant/fieldPaths.js';
 import { knowledgeBaseSchema, KNOWN_SCHEMA_VERSIONS, type KnowledgeBase } from './schema.js';
 
 export class KnowledgeBaseError extends Error {
@@ -72,6 +74,58 @@ export function parseKnowledgeBase(raw: unknown): KnowledgeBase {
     seenTuples.add(tuple);
   }
 
+  // ---- schema v2: form model + form rules cross-checks ----
+  // Field ids the KB may reference in a fieldRule without listing them in a section
+  // (count-based / section-level requirements the engine synthesises).
+  const SYNTHETIC_FIELD_IDS = new Set(['india_references_min']);
+
+  const sectionIds = new Set<string>();
+  const fieldIdsBySection = new Map<string, Set<string>>();
+  for (const s of kb.formModel.sections) {
+    if (sectionIds.has(s.id)) throw new KnowledgeBaseError(`visa-kb: duplicate form section id "${s.id}"`);
+    sectionIds.add(s.id);
+    const fieldIds = new Set<string>();
+    for (const f of s.fields) {
+      if (fieldIds.has(f.id)) {
+        throw new KnowledgeBaseError(`visa-kb: duplicate field id "${f.id}" in form section "${s.id}"`);
+      }
+      fieldIds.add(f.id);
+      if (f.appliesTo !== null) {
+        // Task 5: tighten to PROFILE_FIELD_PATHS (a real applicant path, not just a well-formed one).
+        const ok = f.appliesTo.startsWith('application.') || isValidFieldPath(f.appliesTo);
+        if (!ok) {
+          throw new KnowledgeBaseError(
+            `visa-kb: form field "${s.id}.${f.id}" has an invalid appliesTo "${f.appliesTo}"`,
+          );
+        }
+      }
+    }
+    fieldIdsBySection.set(s.id, fieldIds);
+  }
+
+  for (const c of kb.categories) {
+    for (const sid of c.formRules.applicableSections) {
+      if (!sectionIds.has(sid)) {
+        throw new KnowledgeBaseError(
+          `visa-kb: category "${c.id}" formRules.applicableSections names unknown section "${sid}"`,
+        );
+      }
+    }
+    for (const r of c.formRules.fieldRules) {
+      const known = fieldIdsBySection.get(r.sectionId);
+      if (!known) {
+        throw new KnowledgeBaseError(
+          `visa-kb: category "${c.id}" fieldRule names unknown section "${r.sectionId}"`,
+        );
+      }
+      if (!known.has(r.fieldId) && !SYNTHETIC_FIELD_IDS.has(r.fieldId)) {
+        throw new KnowledgeBaseError(
+          `visa-kb: category "${c.id}" fieldRule names unknown field "${r.sectionId}.${r.fieldId}"`,
+        );
+      }
+    }
+  }
+
   return deepFreeze(kb);
 }
 
@@ -83,6 +137,7 @@ export function loadKnowledgeBase(): KnowledgeBase {
       meta,
       categories: [...evisaCategories, ...regularCategories],
       eligibility: eligibilityBgd,
+      formModel,
     });
   }
   return cached;

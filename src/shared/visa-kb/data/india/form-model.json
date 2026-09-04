@@ -1,0 +1,27 @@
+{
+  "sections": [
+    {
+      "id": "personal_particulars",
+      "label": "Personal particulars",
+      "fields": [
+        {
+          "id": "standard_personal_block",
+          "label": "Standard personal particulars",
+          "appliesTo": null,
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-04",
+            "confidence": "official_derived"
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-04",
+        "confidence": "official_derived"
+      }
+    }
+  ]
+}

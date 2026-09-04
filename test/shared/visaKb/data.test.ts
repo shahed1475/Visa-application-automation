@@ -3,7 +3,7 @@ import evisa from '../../../src/shared/visa-kb/data/india/evisa-categories.json'
 import regular from '../../../src/shared/visa-kb/data/india/regular-categories.json' with { type: 'json' };
 import { visaCategorySchema } from '../../../src/shared/visa-kb/schema.js';
 import { loadKnowledgeBase, reload } from '../../../src/shared/visa-kb/loader.js';
-import { getVersion } from '../../../src/shared/visa-kb/queries.js';
+import { getFormModel, getVersion } from '../../../src/shared/visa-kb/queries.js';
 
 describe('e-Visa seed data', () => {
   it('is a non-empty array of schema-valid categories, all applicationMode "evisa"', () => {
@@ -59,6 +59,23 @@ afterEach(() => reload());
 describe('the shipped India KB — integrity & versioning', () => {
   it('loads without error (all cross-checks pass)', () => {
     expect(() => loadKnowledgeBase()).not.toThrow();
+  });
+
+  it('is schema v2 and ships a form model with at least one section', () => {
+    expect(loadKnowledgeBase().meta.schemaVersion).toBe(2);
+    expect(getFormModel().sections.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('every category carries formRules and conditionalDocuments, and every source a confidence', () => {
+    const kb = loadKnowledgeBase();
+    for (const c of kb.categories) {
+      expect(Array.isArray(c.formRules.applicableSections), c.id).toBe(true);
+      expect(Array.isArray(c.formRules.fieldRules), c.id).toBe(true);
+      expect(Array.isArray(c.conditionalDocuments), c.id).toBe(true);
+    }
+    for (const entry of [...kb.categories, ...kb.eligibility]) {
+      expect(entry.source.confidence).toBeTruthy();
+    }
   });
 
   it('every category has exactly one Bangladesh eligibility record', () => {

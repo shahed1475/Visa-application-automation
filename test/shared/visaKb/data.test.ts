@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import evisa from '../../../src/shared/visa-kb/data/india/evisa-categories.json' with { type: 'json' };
 import regular from '../../../src/shared/visa-kb/data/india/regular-categories.json' with { type: 'json' };
-import { visaCategorySchema } from '../../../src/shared/visa-kb/schema.js';
+import { visaCategorySchema, FORM_SECTION_IDS, SOURCE_CONFIDENCE } from '../../../src/shared/visa-kb/schema.js';
 import { loadKnowledgeBase, reload } from '../../../src/shared/visa-kb/loader.js';
 import { getFormModel, getVersion } from '../../../src/shared/visa-kb/queries.js';
+import { isValidFieldPath } from '../../../src/shared/applicant/fieldPaths.js';
 
 describe('e-Visa seed data', () => {
   it('is a non-empty array of schema-valid categories, all applicationMode "evisa"', () => {
@@ -129,6 +130,91 @@ describe('the shipped India KB — integrity & versioning', () => {
     const recorded = new Set(kb.eligibility.map((e) => `${e.nationality}|${e.applicationMode}|${e.categoryId}`));
     for (const c of kb.categories) {
       expect(recorded.has(`BGD|${c.applicationMode}|${c.id}`)).toBe(true);
+    }
+  });
+});
+
+describe('the real India form-model catalog (schema v2, Task 2)', () => {
+  it('has all 11 canonical sections, each with at least one field', () => {
+    const { sections } = getFormModel();
+    const ids = sections.map((s) => s.id);
+    for (const id of FORM_SECTION_IDS) {
+      expect(ids, `missing section ${id}`).toContain(id);
+    }
+    expect(ids.length).toBe(FORM_SECTION_IDS.length);
+    for (const s of sections) {
+      expect(s.fields.length, `${s.id} has no fields`).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('every FormField.appliesTo is null, an application.* path, or a syntactically valid profile path', () => {
+    const { sections } = getFormModel();
+    for (const s of sections) {
+      for (const f of s.fields) {
+        if (f.appliesTo === null) continue;
+        const ok = f.appliesTo.startsWith('application.') || isValidFieldPath(f.appliesTo);
+        expect(ok, `${s.id}.${f.id} appliesTo "${f.appliesTo}"`).toBe(true);
+      }
+    }
+  });
+
+  it('every section and field source.confidence is a member of SOURCE_CONFIDENCE', () => {
+    const { sections } = getFormModel();
+    for (const s of sections) {
+      expect(SOURCE_CONFIDENCE, s.id).toContain(s.source.confidence);
+      for (const f of s.fields) {
+        expect(SOURCE_CONFIDENCE, `${s.id}.${f.id}`).toContain(f.source.confidence);
+      }
+    }
+  });
+
+  it('the form model never claims official_verbatim (Phase-4 ceiling is official_derived)', () => {
+    const { sections } = getFormModel();
+    for (const s of sections) {
+      expect(s.source.confidence, s.id).not.toBe('official_verbatim');
+      for (const f of s.fields) {
+        expect(f.source.confidence, `${s.id}.${f.id}`).not.toBe('official_verbatim');
+      }
+    }
+  });
+
+  it('the plan-named representative fields exist with the right appliesTo', () => {
+    const byId = new Map(getFormModel().sections.map((s) => [s.id, s]));
+
+    const family = byId.get('family');
+    const spouseName = family?.fields.find((f) => f.id === 'spouse_name');
+    expect(spouseName?.appliesTo).toBe('family.spouseName');
+
+    const business = byId.get('business_details');
+    const indiaCompanyName = business?.fields.find((f) => f.id === 'india_company_name');
+    expect(indiaCompanyName?.appliesTo).toBe('application.indiaCompanyName');
+
+    const references = byId.get('references');
+    const minCount = references?.fields.find((f) => f.id === 'india_references_min');
+    expect(minCount?.appliesTo).toBeNull();
+    expect(minCount?.standardBlock).toBe(false);
+
+    const personal = byId.get('personal_particulars');
+    const standardBlock = personal?.fields.find((f) => f.id === 'standard_personal_block');
+    expect(standardBlock?.appliesTo).toBeNull();
+    expect(standardBlock?.standardBlock).toBe(true);
+
+    const visaDetails = byId.get('visa_details');
+    const purpose = visaDetails?.fields.find((f) => f.id === 'purpose');
+    expect(purpose?.appliesTo).toBe('application.purpose');
+
+    const previousVisits = byId.get('previous_visits');
+    const visitedBefore = previousVisits?.fields.find((f) => f.id === 'visited_india_before');
+    expect(visitedBefore?.appliesTo).toBe('application.visitedIndiaBefore');
+  });
+
+  it('every source across the whole KB (categories + eligibility) has a confidence in the enum', () => {
+    const kb = loadKnowledgeBase();
+    for (const c of kb.categories) {
+      expect(SOURCE_CONFIDENCE, c.id).toContain(c.source.confidence);
+    }
+    for (const e of kb.eligibility) {
+      expect(SOURCE_CONFIDENCE, `${e.categoryId}(${e.nationality})`).toContain(e.source.confidence);
     }
   });
 });

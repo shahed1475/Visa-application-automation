@@ -75,3 +75,40 @@ Bangladesh eligibility is recorded as one explicit record per seeded category (2
 category is offered but gated on an external prerequisite (organiser clearance, remuneration
 threshold) the record status is `conditional`, not `eligible`. No seeded category is `ineligible`
 or `not_offered` for Bangladesh in this KB version.
+
+## Phase 4 — form model (schema v2)
+
+`form-model.json` (the 11-section India-application section & field catalog — personal
+particulars, passport details, address, family, occupation, visa details, previous visits,
+references, business/study/medical details) was authored `2026-09-05` from the well-known
+structure of the India Regular/e-Visa online application forms. Every section and field carries a
+`source`:
+
+| officialUrl | used for |
+|---|---|
+| `https://indianvisaonline.gov.in/visa/` | the Regular-form-visible sections/fields (personal, passport, address, family, occupation, visa details, previous visits, references, business, study) |
+| `https://indianvisaonline.gov.in/evisa/` | the e-Visa base for form-adjacent declarations (e.g. `family.pakistan_ancestry`, `occupation.military_police` — the universal e-Visa exclusion declarations) and the medical-details section |
+| `https://hcidhaka.gov.in/` | the one field resting on HCI Dhaka supporting-document guidance rather than a visible form field (`business_details.bd_company_name`) |
+
+**Confidence ceiling.** Phase-4 form-model entries never claim `official_verbatim` — the online
+forms are inspectable (field labels, page structure) but no per-field wording was captured
+verbatim, so `official_derived` is the ceiling. A field is `official_derived` when it mirrors a
+field visibly present on the online form; it drops to `secondary_guidance` when the requirement
+rests on HCI Dhaka / IVAC guidance rather than a labelled form field (`family.pakistan_ancestry`,
+`occupation.military_police`, `references.india_references_min`, `business_details.bd_company_name`).
+
+**`source.confidence` refinement (Task 2, applied to the Task-1-seeded category/eligibility
+data).** Task 1 defaulted every category and eligibility `source.confidence` to
+`secondary_guidance`. Reviewed against the honesty already carried in each record's own
+`source.notes` (and this file):
+- e-Visa categories (`evisa-categories.json`) — all 11 sourced to `tvoa.html` (S1) with a
+  `documentDate` → raised to `official_derived`.
+- e-Visa eligibility records (`eligibility.bgd.json`) — all 11 sourced to the e-Visa portal (S2)
+  with the same `documentDate` → raised to `official_derived`.
+- Regular categories (`regular-categories.json`) sourced to `visa-provision.html` (S3) — tourist,
+  business, employment, student, transit (5) → raised to `official_derived`. Regular categories
+  sourced to `visa-category.html` (medical, medical_attendant, conference, entry_x) stay
+  `secondary_guidance` — their `notes` explicitly say the category-wise HCI Dhaka PDF was not
+  machine-retrievable and to re-verify.
+- Regular eligibility records — all 9 stay `secondary_guidance` (sourced to `hcidhaka.gov.in`,
+  each with the "NOT A LIVE CATEGORY FETCH … re-verify" disclosure `data.test.ts` enforces).

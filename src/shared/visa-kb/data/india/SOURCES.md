@@ -105,10 +105,15 @@ data).** Task 1 defaulted every category and eligibility `source.confidence` to
   `documentDate` → raised to `official_derived`.
 - e-Visa eligibility records (`eligibility.bgd.json`) — all 11 sourced to the e-Visa portal (S2)
   with the same `documentDate` → raised to `official_derived`.
-- Regular categories (`regular-categories.json`) sourced to `visa-provision.html` (S3) — tourist,
-  business, employment, student, transit (5) → raised to `official_derived`. Regular categories
-  sourced to `visa-category.html` (medical, medical_attendant, conference, entry_x) stay
-  `secondary_guidance` — their `notes` explicitly say the category-wise HCI Dhaka PDF was not
-  machine-retrievable and to re-verify.
+- Regular categories (`regular-categories.json`) — `source.confidence` is one field covering the
+  *whole* category record (validity, documents, specialConditions, restrictions — everything), so
+  a record was only raised when its own `source.notes` carry no unverified-content caveat for any
+  part of it. Only `regular.transit` (sourced to `visa-provision.html`, S3) qualifies → raised to
+  `official_derived`. `regular.tourist`, `regular.business`, `regular.employment` and
+  `regular.student` are also sourced to `visa-provision.html`, but each one's own `notes` disclose
+  that part of the record (a bilateral provision, a document list, a salary threshold — respectively)
+  rests on guidance that was "not machine-retrievable" and needs "re-verify"; they stay
+  `secondary_guidance`. Regular categories sourced to `visa-category.html` (medical,
+  medical_attendant, conference, entry_x) also stay `secondary_guidance` for the same reason.
 - Regular eligibility records — all 9 stay `secondary_guidance` (sourced to `hcidhaka.gov.in`,
   each with the "NOT A LIVE CATEGORY FETCH … re-verify" disclosure `data.test.ts` enforces).

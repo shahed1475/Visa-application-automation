@@ -43,7 +43,7 @@
     ],
     "formRules": { "applicableSections": [], "fieldRules": [] },
     "conditionalDocuments": [],
-    "source": { "confidence": "official_derived", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3). The bilateral 5-year (65+) provision and the June-2026 resumption are from MHA / bilateral guidance (S6) — re-verify against hcidhaka.gov.in before operational use." },
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3). The bilateral 5-year (65+) provision and the June-2026 resumption are from MHA / bilateral guidance (S6) — re-verify against hcidhaka.gov.in before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -89,7 +89,7 @@
     ],
     "formRules": { "applicableSections": [], "fieldRules": [] },
     "conditionalDocuments": [],
-    "source": { "confidence": "official_derived", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5) — the category-wise HCI Dhaka PDF was not machine-retrievable on 2026-09-03; re-verify before operational use. The early-2026 double-entry business restoration is from MHA / bilateral guidance (S6), which was not machine-retrievable on 2026-09-03." },
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC Bangladesh guidance (S4/S5) — the category-wise HCI Dhaka PDF was not machine-retrievable on 2026-09-03; re-verify before operational use. The early-2026 double-entry business restoration is from MHA / bilateral guidance (S6), which was not machine-retrievable on 2026-09-03." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -224,7 +224,7 @@
     ],
     "formRules": { "applicableSections": [], "fieldRules": [] },
     "conditionalDocuments": [],
-    "source": { "confidence": "official_derived", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); salary-threshold and registration rules per the MHA visa manual (S4) — re-verify current threshold before operational use." },
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); salary-threshold and registration rules per the MHA visa manual (S4) — re-verify current threshold before operational use." },
     "lastVerified": "2026-09-03"
   },
   {
@@ -269,7 +269,7 @@
     ],
     "formRules": { "applicableSections": [], "fieldRules": [] },
     "conditionalDocuments": [],
-    "source": { "confidence": "official_derived", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC guidance (S4/S5) — re-verify." },
+    "source": { "confidence": "secondary_guidance", "officialUrl": "https://indianvisaonline.gov.in/visa/visa-provision.html", "retrievedAt": "2026-09-03", "notes": "Validity/entries/extension from visa-provision.html (S3); document list per generally-published HCI Dhaka / IVAC guidance (S4/S5) — re-verify." },
     "lastVerified": "2026-09-03"
   },
   {

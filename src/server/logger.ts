@@ -25,6 +25,14 @@ export const REDACT_PATHS = [
   // catches exactly one level deep — deliberate belt-and-suspenders scope.
   'ocrText', 'mrzLine', 'mrzLines', 'extractedFields', 'text', 'lines', 'fields',
   '*.ocrText', '*.mrzLine', '*.mrzLines', '*.extractedFields', '*.text', '*.lines', '*.fields',
+  // Phase 4 — family/occupation
+  'fatherName', 'father_name', 'motherName', 'mother_name', 'spouseName', 'spouse_name',
+  'employerName', 'employer_name', 'employerAddress', 'employer_address',
+  'nationalId', 'national_id', 'visibleMarks', 'visible_marks',
+  'nationalityAtBirth', 'nationality_at_birth',
+  '*.fatherName', '*.father_name', '*.motherName', '*.mother_name',
+  '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
+  '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
 ];
 
 /**

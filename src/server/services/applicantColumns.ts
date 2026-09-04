@@ -13,6 +13,14 @@ export const SECTION_TABLES = {
       placeOfBirth: 'place_of_birth',
       nationality: 'nationality',
       otherNationalities: 'other_nationalities',
+      // Task 5: 5 columns migration 4 added to applicant_identity but never
+      // mapped here — without this, readSection/writeSection could never
+      // reach them, defeating the whole point of the identity extension.
+      religion: 'religion',
+      education: 'education',
+      nationalId: 'national_id',
+      visibleMarks: 'visible_marks',
+      nationalityAtBirth: 'nationality_at_birth',
     },
   },
   passport: {

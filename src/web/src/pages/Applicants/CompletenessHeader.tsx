@@ -5,6 +5,8 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   passport: 'Passport',
   contact: 'Contact',
   address: 'Address',
+  family: 'Family',
+  occupation: 'Occupation',
   travel: 'Travel',
   references: 'References',
 };

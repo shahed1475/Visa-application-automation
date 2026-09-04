@@ -8,14 +8,14 @@ import type {
 
 type CompletenessInput = Pick<
   ApplicantDetail,
-  'identity' | 'passport' | 'contact' | 'address' | 'travel' | 'references'
+  'identity' | 'passport' | 'contact' | 'address' | 'family' | 'occupation' | 'travel' | 'references'
 >;
 type VerificationInput = Pick<
   ApplicantDetail,
-  'identity' | 'passport' | 'contact' | 'address' | 'fieldMeta'
+  'identity' | 'passport' | 'contact' | 'address' | 'family' | 'occupation' | 'fieldMeta'
 >;
 
-const ONE_TO_ONE = ['identity', 'passport', 'contact', 'address'] as const;
+const ONE_TO_ONE = ['identity', 'passport', 'contact', 'address', 'family', 'occupation'] as const;
 
 function isSet(value: unknown): boolean {
   return value != null && value !== '';

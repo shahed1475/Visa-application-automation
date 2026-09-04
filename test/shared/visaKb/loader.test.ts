@@ -125,6 +125,16 @@ describe('parseKnowledgeBase — v2 form model cross-checks', () => {
     }))).not.toThrow();
   });
 
+  it('rejects an appliesTo that is well-formed but not a real applicant field path', () => {
+    // 'family.bogusField' passes isValidFieldPath (well-formed dotted path) but is
+    // not in PROFILE_FIELD_PATHS — the Task 5 retrofit must reject it.
+    expect(() => parseKnowledgeBase(rawKb({
+      formModel: formModel({ sections: [section({ fields: [
+        field({ id: 'a', appliesTo: 'family.bogusField' }),
+      ] })] }),
+    }))).toThrow(/appliesTo/i);
+  });
+
   it('rejects formRules.applicableSections naming an unknown section', () => {
     expect(() => parseKnowledgeBase(rawKb({
       categories: [cat({ formRules: { applicableSections: ['occupation'], fieldRules: [] } })],

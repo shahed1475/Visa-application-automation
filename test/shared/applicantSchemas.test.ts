@@ -6,9 +6,11 @@ import {
   isOcrSource,
   isValidFieldPath,
   PROFILE_SECTIONS,
+  PROFILE_FIELD_PATHS,
 } from '../../src/shared/applicant/fieldPaths.js';
 import {
   identitySchema, passportSchema, contactSchema, addressSchema,
+  familySchema, occupationSchema,
   travelSchema, referenceSchema, fieldMetaInputSchema,
   applicantCreateSchema, applicantPutSchema,
 } from '../../src/shared/applicant/schemas.js';
@@ -59,8 +61,10 @@ describe('isValidFieldPath', () => {
         expect(isValidFieldPath(path), `${path} should be a valid field path`).toBe(true);
       }
     }
-    // Guards against the map silently shrinking: 8 + 7 + 3 + 6 + 14 + 5 columns.
-    expect(seen).toHaveLength(43);
+    // Guards against the map silently shrinking: 13 + 7 + 3 + 6 + 14 + 5 columns
+    // (identity carries 5 more since Task 5: religion/education/nationalId/
+    // visibleMarks/nationalityAtBirth).
+    expect(seen).toHaveLength(48);
     expect(seen).toContain('identity.givenNames');
     expect(seen).toContain('passport.expiryDate');
     expect(seen).toContain('address.postalCode');
@@ -81,9 +85,27 @@ describe('PROFILE_SECTIONS', () => {
     expect(PROFILE_SECTIONS.passport).toContain('number');
     expect(PROFILE_SECTIONS.contact).toContain('email');
     expect(PROFILE_SECTIONS.address).toContain('city');
-    for (const k of ['identity', 'passport', 'contact', 'address'] as const) {
+    expect(PROFILE_SECTIONS.family).toEqual(['fatherName', 'motherName', 'maritalStatus']);
+    expect(PROFILE_SECTIONS.occupation).toEqual(['occupation']);
+    for (const k of ['identity', 'passport', 'contact', 'address', 'family', 'occupation'] as const) {
       expect(PROFILE_SECTIONS[k].length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('PROFILE_FIELD_PATHS', () => {
+  it('is the authoritative real-applicant-path allow-list: 48 entries covering every 1:1 section', () => {
+    expect(PROFILE_FIELD_PATHS.size).toBe(48);
+    expect(PROFILE_FIELD_PATHS.has('identity.religion')).toBe(true);
+    expect(PROFILE_FIELD_PATHS.has('identity.nationalityAtBirth')).toBe(true);
+    expect(PROFILE_FIELD_PATHS.has('family.fatherName')).toBe(true);
+    expect(PROFILE_FIELD_PATHS.has('family.pakistanAncestry')).toBe(true);
+    expect(PROFILE_FIELD_PATHS.has('occupation.militaryPolice')).toBe(true);
+    // deliberately excludes travel/references — list items keyed by UUID
+    expect(PROFILE_FIELD_PATHS.has('travel.arrivalDate')).toBe(false);
+    expect(PROFILE_FIELD_PATHS.has('references.name')).toBe(false);
+    // and rejects a well-formed but non-real path
+    expect(PROFILE_FIELD_PATHS.has('family.bogusField')).toBe(false);
   });
 });
 
@@ -109,6 +131,25 @@ describe('section schemas', () => {
     expect(identitySchema.safeParse({ dateOfBirth: '01/02/2000' }).success).toBe(false);
     expect(identitySchema.safeParse({ dateOfBirth: '2000-02-01' }).success).toBe(true);
   });
+  it('identity: accepts the 5 new fields, blank -> null, omitted -> absent', () => {
+    const parsed = identitySchema.parse({
+      religion: 'Islam',
+      education: 'BSc',
+      nationalId: '1234567890',
+      visibleMarks: 'Scar on left hand',
+      nationalityAtBirth: 'Bangladeshi',
+    });
+    expect(parsed).toEqual({
+      religion: 'Islam',
+      education: 'BSc',
+      nationalId: '1234567890',
+      visibleMarks: 'Scar on left hand',
+      nationalityAtBirth: 'Bangladeshi',
+    });
+    expect(identitySchema.parse({ religion: '  ' }).religion).toBeNull();
+    expect(identitySchema.parse({})).not.toHaveProperty('nationalId');
+    expect(identitySchema.parse({ nationalityAtBirth: null }).nationalityAtBirth).toBeNull();
+  });
   it('passport: valid dates ok, garbage rejected', () => {
     expect(passportSchema.safeParse({ issueDate: '2020-01-01', expiryDate: '2030-01-01' }).success).toBe(true);
     expect(passportSchema.safeParse({ expiryDate: 'soon' }).success).toBe(false);
@@ -130,6 +171,33 @@ describe('section schemas', () => {
     // real dates, including a genuine leap day, still pass
     expect(identitySchema.safeParse({ dateOfBirth: '2024-02-29' }).success).toBe(true);
     expect(passportSchema.safeParse({ expiryDate: '2026-02-28' }).success).toBe(true);
+  });
+});
+
+describe('familySchema / occupationSchema', () => {
+  it('family: accepts valid input; omitted keys absent, blank -> null', () => {
+    expect(familySchema.parse({})).toEqual({});
+    expect(familySchema.parse({ fatherName: '  ' }).fatherName).toBeNull();
+    expect(familySchema.parse({ fatherName: 'Karim', maritalStatus: 'married', pakistanAncestry: 'no' })).toEqual({
+      fatherName: 'Karim',
+      maritalStatus: 'married',
+      pakistanAncestry: 'no',
+    });
+  });
+  it('family: enum fields accept null and reject unknown values', () => {
+    expect(familySchema.parse({ maritalStatus: null }).maritalStatus).toBeNull();
+    expect(familySchema.safeParse({ maritalStatus: 'engaged' }).success).toBe(false);
+    expect(familySchema.parse({ pakistanAncestry: null }).pakistanAncestry).toBeNull();
+    expect(familySchema.safeParse({ pakistanAncestry: 'maybe' }).success).toBe(false);
+  });
+  it('occupation: accepts valid input; enum enforced', () => {
+    expect(occupationSchema.parse({})).toEqual({});
+    expect(occupationSchema.parse({ occupation: 'Engineer', militaryPolice: 'no' })).toEqual({
+      occupation: 'Engineer',
+      militaryPolice: 'no',
+    });
+    expect(occupationSchema.safeParse({ militaryPolice: 'sometimes' }).success).toBe(false);
+    expect(occupationSchema.parse({ employerName: '  ' }).employerName).toBeNull();
   });
 });
 
@@ -191,6 +259,15 @@ describe('applicantCreateSchema / applicantPutSchema', () => {
   it('create: optional nested sections validated', () => {
     expect(applicantCreateSchema.safeParse({ displayName: 'A', identity: { sex: 'bad' } }).success).toBe(false);
     expect(applicantCreateSchema.parse({ displayName: 'A', identity: { surname: 'A' } }).identity?.surname).toBe('A');
+  });
+  it('create/put: accept family and occupation sections', () => {
+    expect(applicantCreateSchema.safeParse({ displayName: 'A', family: { maritalStatus: 'bad' } }).success).toBe(false);
+    expect(
+      applicantCreateSchema.parse({ displayName: 'A', family: { fatherName: 'K' }, occupation: { occupation: 'Engineer' } })
+        .family?.fatherName,
+    ).toBe('K');
+    expect(applicantPutSchema.safeParse({ occupation: { militaryPolice: 'bad' } }).success).toBe(false);
+    expect(applicantPutSchema.parse({ family: { pakistanAncestry: 'yes' } }).family?.pakistanAncestry).toBe('yes');
   });
   it('put: every key optional, status enum enforced', () => {
     expect(applicantPutSchema.parse({}).displayName).toBeUndefined();

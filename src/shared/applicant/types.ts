@@ -2,7 +2,17 @@ export type ApplicantStatus = 'draft' | 'archived';
 export type Sex = 'M' | 'F' | 'X';
 export type ReferenceKind = 'emergency_contact' | 'employer' | 'in_country_host' | 'sponsor' | 'other';
 export type FieldSource = 'manual' | 'imported' | 'system' | 'passport_mrz' | 'passport_ocr' | 'document_ocr';
-export type SectionKey = 'identity' | 'passport' | 'contact' | 'address' | 'travel' | 'references';
+export type SectionKey =
+  | 'identity'
+  | 'passport'
+  | 'contact'
+  | 'address'
+  | 'family'
+  | 'occupation'
+  | 'travel'
+  | 'references';
+export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
+export type YesNo = 'yes' | 'no';
 
 export interface Identity {
   surname: string | null;
@@ -13,6 +23,36 @@ export interface Identity {
   placeOfBirth: string | null;
   nationality: string | null;
   otherNationalities: string | null;
+  religion: string | null;
+  education: string | null;
+  nationalId: string | null;
+  visibleMarks: string | null;
+  nationalityAtBirth: string | null;
+}
+
+export interface Family {
+  fatherName: string | null;
+  fatherNationality: string | null;
+  fatherPrevNationality: string | null;
+  fatherPlaceOfBirth: string | null;
+  motherName: string | null;
+  motherNationality: string | null;
+  motherPrevNationality: string | null;
+  motherPlaceOfBirth: string | null;
+  maritalStatus: MaritalStatus | null;
+  spouseName: string | null;
+  spouseNationality: string | null;
+  spousePrevNationality: string | null;
+  spousePlaceOfBirth: string | null;
+  pakistanAncestry: YesNo | null;
+}
+
+export interface Occupation {
+  occupation: string | null;
+  employerName: string | null;
+  employerAddress: string | null;
+  designation: string | null;
+  militaryPolice: YesNo | null;
 }
 
 export interface Passport {
@@ -121,6 +161,8 @@ export interface ApplicantDetail extends Applicant {
   passport: Passport;
   contact: Contact;
   address: Address;
+  family: Family;
+  occupation: Occupation;
   travel: TravelRecord[];
   references: Reference[];
   fieldMeta: FieldMeta[];

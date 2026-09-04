@@ -42,6 +42,16 @@ const PHASE_3_MUST_INCLUDE = [
   '*.fields',
 ];
 
+const PHASE_4_MUST_INCLUDE = [
+  'fatherName', 'father_name', 'motherName', 'mother_name', 'spouseName', 'spouse_name',
+  'employerName', 'employer_name', 'employerAddress', 'employer_address',
+  'nationalId', 'national_id', 'visibleMarks', 'visible_marks',
+  'nationalityAtBirth', 'nationality_at_birth',
+  '*.fatherName', '*.father_name', '*.motherName', '*.mother_name',
+  '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
+  '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
+];
+
 it('redacts every applicant PII key we care about', () => {
   for (const key of MUST_INCLUDE) {
     expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
@@ -50,6 +60,12 @@ it('redacts every applicant PII key we care about', () => {
 
 it('redacts every document-extraction PII key we care about', () => {
   for (const key of PHASE_3_MUST_INCLUDE) {
+    expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
+  }
+});
+
+it('redacts every family/occupation PII key we care about', () => {
+  for (const key of PHASE_4_MUST_INCLUDE) {
     expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
   }
 });

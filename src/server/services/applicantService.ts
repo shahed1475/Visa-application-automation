@@ -7,8 +7,10 @@ import type {
   ApplicantStatus,
   ApplicantSummary,
   Contact,
+  Family,
   FieldMeta,
   Identity,
+  Occupation,
   Passport,
   Reference,
   TravelRecord,
@@ -181,12 +183,24 @@ function assembleDetail(db: DatabaseSync, row: ApplicantRow): ApplicantDetail {
     SECTION_TABLES.address.cols,
     row.id,
   );
+  const family = readSection<Family>(
+    db,
+    SECTION_TABLES.family.table,
+    SECTION_TABLES.family.cols,
+    row.id,
+  );
+  const occupation = readSection<Occupation>(
+    db,
+    SECTION_TABLES.occupation.table,
+    SECTION_TABLES.occupation.cols,
+    row.id,
+  );
   const travel = listTravel(db, row.id);
   const references = listReferences(db, row.id);
   const fieldMeta = listFieldMeta(db, row.id);
 
-  const completeness = computeCompleteness({ identity, passport, contact, address, travel, references });
-  const verification = computeVerification({ identity, passport, contact, address, fieldMeta });
+  const completeness = computeCompleteness({ identity, passport, contact, address, family, occupation, travel, references });
+  const verification = computeVerification({ identity, passport, contact, address, family, occupation, fieldMeta });
   const warnings = collectWarnings({ passport, travel });
 
   return {
@@ -195,6 +209,8 @@ function assembleDetail(db: DatabaseSync, row: ApplicantRow): ApplicantDetail {
     passport,
     contact,
     address,
+    family,
+    occupation,
     travel,
     references,
     fieldMeta,
@@ -217,7 +233,9 @@ export function createApplicant(db: DatabaseSync, input: ApplicantCreate): Appli
     db.prepare('INSERT INTO applicant_passport (applicant_id) VALUES (?)').run(id);
     db.prepare('INSERT INTO applicant_contact (applicant_id) VALUES (?)').run(id);
     db.prepare('INSERT INTO applicant_address (applicant_id) VALUES (?)').run(id);
-    for (const key of ['identity', 'passport', 'contact', 'address'] as const) {
+    db.prepare('INSERT INTO applicant_family (applicant_id) VALUES (?)').run(id);
+    db.prepare('INSERT INTO applicant_occupation (applicant_id) VALUES (?)').run(id);
+    for (const key of ['identity', 'passport', 'contact', 'address', 'family', 'occupation'] as const) {
       const patch = input[key];
       if (patch) {
         writeSection(
@@ -258,7 +276,7 @@ export function updateApplicant(
         id,
       );
     }
-    for (const key of ['identity', 'passport', 'contact', 'address'] as const) {
+    for (const key of ['identity', 'passport', 'contact', 'address', 'family', 'occupation'] as const) {
       const sectionPatch = patch[key] as Record<string, unknown> | undefined;
       if (!sectionPatch) continue;
       const { table, cols } = SECTION_TABLES[key];

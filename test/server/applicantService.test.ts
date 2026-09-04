@@ -19,7 +19,7 @@ afterEach(() => {
   cleanupTempDb(dbPath);
 });
 
-it('creates an applicant with four empty satellite sections', () => {
+it('creates an applicant with six empty satellite sections', () => {
   const a = svc.createApplicant(db, { displayName: 'Aisha' });
   expect(a.id).toMatch(/[0-9a-f-]{36}/);
   expect(a.displayName).toBe('Aisha');
@@ -33,6 +33,80 @@ it('creates an applicant with four empty satellite sections', () => {
   expect(a.fieldMeta).toEqual([]);
   expect(a.completeness.overall).toBe(0);
   expect(a.verification.label).toBe('unverified');
+});
+
+it('creates an applicant with empty family/occupation sections (all fields null)', () => {
+  const a = svc.createApplicant(db, { displayName: 'Fam' });
+  expect(a.family).toEqual({
+    fatherName: null,
+    fatherNationality: null,
+    fatherPrevNationality: null,
+    fatherPlaceOfBirth: null,
+    motherName: null,
+    motherNationality: null,
+    motherPrevNationality: null,
+    motherPlaceOfBirth: null,
+    maritalStatus: null,
+    spouseName: null,
+    spouseNationality: null,
+    spousePrevNationality: null,
+    spousePlaceOfBirth: null,
+    pakistanAncestry: null,
+  });
+  expect(a.occupation).toEqual({
+    occupation: null,
+    employerName: null,
+    employerAddress: null,
+    designation: null,
+    militaryPolice: null,
+  });
+  // the 5 new identity fields are present (and null) too
+  expect(a.identity.religion).toBeNull();
+  expect(a.identity.education).toBeNull();
+  expect(a.identity.nationalId).toBeNull();
+  expect(a.identity.visibleMarks).toBeNull();
+  expect(a.identity.nationalityAtBirth).toBeNull();
+});
+
+it('accepts nested family/occupation sections at create time', () => {
+  const a = svc.createApplicant(db, {
+    displayName: 'FamCreate',
+    family: { fatherName: 'Karim', maritalStatus: 'married' },
+    occupation: { occupation: 'Engineer', militaryPolice: 'no' },
+  });
+  expect(a.family.fatherName).toBe('Karim');
+  expect(a.family.maritalStatus).toBe('married');
+  expect(a.occupation.occupation).toBe('Engineer');
+  expect(a.occupation.militaryPolice).toBe('no');
+});
+
+it('a family patch touches only the sent field, and reconciles an existing field-meta row for it', () => {
+  const a = svc.createApplicant(db, {
+    displayName: 'FamPatch',
+    family: { fatherName: 'Karim', motherName: 'Amina' },
+  });
+  svc.upsertFieldMeta(db, a.id, { fieldPath: 'family.fatherName', verified: true });
+  svc.upsertFieldMeta(db, a.id, { fieldPath: 'family.motherName', verified: true });
+
+  const up = svc.updateApplicant(db, a.id, { family: { fatherName: 'Rahim' } });
+  expect(up?.family.fatherName).toBe('Rahim');
+  expect(up?.family.motherName).toBe('Amina'); // sibling untouched
+
+  // Changing a verified value un-verifies it and resets source to manual,
+  // mirroring the identity/passport reconciliation behaviour exactly.
+  const detail = svc.getApplicantDetail(db, a.id)!;
+  const fatherMeta = detail.fieldMeta.find((m) => m.fieldPath === 'family.fatherName')!;
+  expect(fatherMeta.source).toBe('manual');
+  expect(fatherMeta.verified).toBe(false);
+  const motherMeta = detail.fieldMeta.find((m) => m.fieldPath === 'family.motherName')!;
+  expect(motherMeta.verified).toBe(true); // sibling meta untouched
+
+  const a2 = svc.createApplicant(db, { displayName: 'OccPatch', occupation: { occupation: 'Engineer' } });
+  svc.upsertFieldMeta(db, a2.id, { fieldPath: 'occupation.occupation', verified: true });
+  svc.updateApplicant(db, a2.id, { occupation: { occupation: 'Doctor' } });
+  const occMeta = svc.getApplicantDetail(db, a2.id)!.fieldMeta.find((m) => m.fieldPath === 'occupation.occupation')!;
+  expect(occMeta.source).toBe('manual');
+  expect(occMeta.verified).toBe(false);
 });
 
 it('accepts nested sections at create time', () => {

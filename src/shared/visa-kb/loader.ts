@@ -3,7 +3,7 @@ import regularCategories from './data/india/regular-categories.json' with { type
 import eligibilityBgd from './data/india/eligibility.bgd.json' with { type: 'json' };
 import meta from './data/india/meta.json' with { type: 'json' };
 import formModel from './data/india/form-model.json' with { type: 'json' };
-import { isValidFieldPath } from '../applicant/fieldPaths.js';
+import { PROFILE_FIELD_PATHS } from '../applicant/fieldPaths.js';
 import { knowledgeBaseSchema, KNOWN_SCHEMA_VERSIONS, type KnowledgeBase } from './schema.js';
 
 export class KnowledgeBaseError extends Error {
@@ -91,8 +91,7 @@ export function parseKnowledgeBase(raw: unknown): KnowledgeBase {
       }
       fieldIds.add(f.id);
       if (f.appliesTo !== null) {
-        // Task 5: tighten to PROFILE_FIELD_PATHS (a real applicant path, not just a well-formed one).
-        const ok = f.appliesTo.startsWith('application.') || isValidFieldPath(f.appliesTo);
+        const ok = f.appliesTo.startsWith('application.') || PROFILE_FIELD_PATHS.has(f.appliesTo);
         if (!ok) {
           throw new KnowledgeBaseError(
             `visa-kb: form field "${s.id}.${f.id}" has an invalid appliesTo "${f.appliesTo}"`,

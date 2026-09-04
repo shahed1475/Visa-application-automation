@@ -2,20 +2,14 @@ import { useState } from 'react';
 import type {
   DocumentDetail,
   DocumentExtractedFieldView,
-  ExtractionSource,
 } from '../../../../shared/documents/types';
 import { api } from '../../api/client';
+import { FIELD_SOURCE_LABELS } from '../../lib/applicantOptions';
 
 interface Props {
   detail: DocumentDetail;
   onChange: () => void | Promise<void>;
 }
-
-const SOURCE_LABEL: Record<ExtractionSource, string> = {
-  passport_mrz: 'Passport MRZ',
-  passport_ocr: 'Passport OCR',
-  document_ocr: 'OCR',
-};
 
 const STATUS_LABEL: Record<DocumentExtractedFieldView['status'], string> = {
   applied: 'Applied',
@@ -94,7 +88,7 @@ export function ExtractedFieldsTable({ detail, onChange }: Props) {
                     </span>
                   )}
                 </td>
-                <td>{SOURCE_LABEL[f.source]}</td>
+                <td>{FIELD_SOURCE_LABELS[f.source]}</td>
                 <td>
                   {f.confidence.toFixed(2)}{' '}
                   <span className="confidence-chip" title={CONFIDENCE_TITLE}>

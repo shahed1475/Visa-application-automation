@@ -345,6 +345,12 @@ table.applicants th {
 .section-card__view dd {
   margin: 0;
 }
+.provenance-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
 .section-card__form label {
   display: block;
   margin-bottom: 0.7rem;

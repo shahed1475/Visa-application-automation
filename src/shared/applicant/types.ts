@@ -83,6 +83,7 @@ export interface FieldMeta {
   rawValue: string | null;
   verified: boolean;
   verifiedAt: string | null;
+  documentId: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -7,6 +7,7 @@ import { CompletenessHeader } from './CompletenessHeader';
 import { SectionCard, type SectionField } from './SectionCard';
 import { TravelSection } from './TravelSection';
 import { ReferenceSection } from './ReferenceSection';
+import { DocumentsSubsection } from './DocumentsSubsection';
 
 const IDENTITY_FIELDS: SectionField[] = [
   { key: 'surname', label: 'Surname' },
@@ -126,6 +127,7 @@ export function ApplicantDetailPage() {
 
       <TravelSection applicantId={id} records={detail.travel} onChange={reload} />
       <ReferenceSection applicantId={id} records={detail.references} onChange={reload} />
+      <DocumentsSubsection applicantId={id} />
     </section>
   );
 }

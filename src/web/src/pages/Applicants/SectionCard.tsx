@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { FieldMeta } from '../../../../shared/applicant/types';
+import { FIELD_SOURCE_LABELS } from '../../lib/applicantOptions';
 
 export interface SectionField {
   key: string;
@@ -114,10 +116,22 @@ export function SectionCard({ title, sectionKey, fields, values, fieldMeta, onSa
             const value = values[f.key];
             const path = `${sectionKey}.${f.key}`;
             const isVerified = verifiedPaths.has(path);
+            const meta = fieldMeta.find((m) => m.fieldPath === path);
             return (
               <div key={f.key} className="section-card__row">
                 <dt>{f.label}</dt>
-                <dd>{value ?? '—'}</dd>
+                <dd>
+                  {value ?? '—'}
+                  {meta && meta.source !== 'manual' && value != null && (
+                    <span className="provenance-hint">
+                      {FIELD_SOURCE_LABELS[meta.source]}
+                      {meta.confidence != null && ` · ${meta.confidence.toFixed(2)}`}
+                      {meta.documentId != null && (
+                        <> · <Link to={`/documents/${meta.documentId}`}>source document</Link></>
+                      )}
+                    </span>
+                  )}
+                </dd>
                 <dd className="section-card__verify">
                   {value == null ? null : (
                     <button

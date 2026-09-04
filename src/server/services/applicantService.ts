@@ -149,6 +149,7 @@ function listFieldMeta(db: DatabaseSync, applicantId: string): FieldMeta[] {
     rawValue: (r.raw_value as string) ?? null,
     verified: r.verified === 1,
     verifiedAt: (r.verified_at as string) ?? null,
+    documentId: (r.document_id as string) ?? null,
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   }));

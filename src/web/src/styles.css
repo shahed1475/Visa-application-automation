@@ -428,6 +428,66 @@ p.hint {
   margin: 0.25rem 0 0.75rem;
 }
 
+/* document detail / review UI */
+.doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+.doc-original {
+  margin: 0.5rem 0 1.25rem;
+}
+.doc-runs {
+  margin: 0 0 1.25rem;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.doc-runs li {
+  margin-bottom: 0.2rem;
+}
+
+table.extracted-fields {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+table.extracted-fields th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+table.extracted-fields .row--dismissed {
+  color: var(--muted);
+}
+.muted {
+  color: var(--muted);
+}
+.confidence-chip {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.badge--applied {
+  color: #15803d;
+  background: #dcfce7;
+}
+.badge--held {
+  color: #b45309;
+  background: #fef3c7;
+}
+.badge--dismissed,
+.badge--proposed {
+  color: var(--muted);
+  background: #f0f0f0;
+}
+
 /* ---- Visa rules reference page (Phase 1) --------------------------------- */
 .visa-rules__modes { display: flex; gap: 0.5rem; margin: 0.75rem 0; }
 .visa-rules__modes button { padding: 0.35rem 0.9rem; }

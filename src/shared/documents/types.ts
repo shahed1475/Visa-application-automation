@@ -40,6 +40,13 @@ export interface DocumentExtractedFieldView extends ExtractedField {
   status: DocumentFieldStatus;
   extractionRunId: string;
   inProfile: boolean;
+  /**
+   * `true` only when the field is `applied` AND the value currently sitting in
+   * the applicant's section table still equals what was extracted (trimmed
+   * string compare, both non-null). Goes `false` once the user edits the
+   * profile value away — the Confirm gate keys off this.
+   */
+  profileMatches: boolean;
   verified: boolean;
 }
 

@@ -283,6 +283,23 @@ describe('getDocument — fields ↔ live meta join', () => {
     const after = getDocument(db, docId)!.fields.find((f) => f.fieldPath === 'passport.number')!;
     expect(after.verified).toBe(true);
   });
+
+  it('reports profileMatches true while the applied value is unchanged, false after a raw edit', async () => {
+    const applicantId = makeApplicant(db);
+    const docId = mkDoc(applicantId);
+    await runExtraction(db, docId, { ocr: new SeqOcrEngine([specimenOcr()]), engineDetail: ENGINE, now: NOW });
+
+    const applied = getDocument(db, docId)!.fields.find((f) => f.fieldPath === 'passport.number')!;
+    expect(applied.status).toBe('applied');
+    expect(applied.profileMatches).toBe(true);
+
+    db.prepare('UPDATE applicant_passport SET number = ? WHERE applicant_id = ?').run(
+      'CHANGED',
+      applicantId,
+    );
+    const edited = getDocument(db, docId)!.fields.find((f) => f.fieldPath === 'passport.number')!;
+    expect(edited.profileMatches).toBe(false);
+  });
 });
 
 describe('applyHeldField', () => {

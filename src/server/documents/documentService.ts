@@ -33,7 +33,7 @@ import { sha256Hex, storeOriginal, readOriginal, deleteOriginal } from './storag
 import { runExtraction as runPipeline } from './extractionPipeline.js';
 import { ExtractionError } from './pdfImage.js';
 import { applyExtractedField } from './documentApply.js';
-import { SECTION_TABLES, writeSection } from '../services/applicantColumns.js';
+import { SECTION_TABLES, readSection, writeSection } from '../services/applicantColumns.js';
 import type { OcrEngine } from './ocrEngine.js';
 
 export class DocumentServiceError extends Error {
@@ -221,6 +221,23 @@ function sectionColumn(fieldPath: string): { table: string; cols: Record<string,
   ];
   if (!def || !Object.hasOwn(def.cols, key)) return null;
   return { table: def.table, cols: def.cols, key };
+}
+
+/**
+ * The value currently stored in the applicant's section table for `fieldPath`,
+ * as a string (or `null` when unset / not a mapped column). Reuses `readSection`
+ * so the column mapping stays in one place.
+ */
+function currentSectionValue(
+  db: DatabaseSync,
+  applicantId: string,
+  fieldPath: string,
+): string | null {
+  const target = sectionColumn(fieldPath);
+  if (!target) return null;
+  const section = readSection<Record<string, unknown>>(db, target.table, target.cols, applicantId);
+  const v = section[target.key];
+  return typeof v === 'string' ? v : null;
 }
 
 // --- public API -------------------------------------------------------------
@@ -423,6 +440,11 @@ export function getDocument(db: DatabaseSync, id: string): DocumentDetail | null
               'SELECT verified FROM applicant_field_meta WHERE applicant_id = ? AND field_path = ?',
             )
             .get(r.applicant_id, df.field_path) as { verified: number } | undefined);
+    let profileMatches = false;
+    if (r.applicant_id != null && df.status === 'applied' && df.value != null) {
+      const current = currentSectionValue(db, r.applicant_id, df.field_path);
+      profileMatches = current != null && current.trim() === df.value.trim();
+    }
     return {
       id: df.id,
       fieldPath: df.field_path,
@@ -435,6 +457,7 @@ export function getDocument(db: DatabaseSync, id: string): DocumentDetail | null
       status: df.status,
       extractionRunId: df.extraction_run_id,
       inProfile: df.status === 'applied',
+      profileMatches,
       verified: meta?.verified === 1,
     };
   });

@@ -42,6 +42,26 @@ export const SECTION_TABLES = {
       country: 'country',
     },
   },
+  family: {
+    table: 'applicant_family',
+    cols: {
+      fatherName: 'father_name', fatherNationality: 'father_nationality',
+      fatherPrevNationality: 'father_prev_nationality', fatherPlaceOfBirth: 'father_place_of_birth',
+      motherName: 'mother_name', motherNationality: 'mother_nationality',
+      motherPrevNationality: 'mother_prev_nationality', motherPlaceOfBirth: 'mother_place_of_birth',
+      maritalStatus: 'marital_status',
+      spouseName: 'spouse_name', spouseNationality: 'spouse_nationality',
+      spousePrevNationality: 'spouse_prev_nationality', spousePlaceOfBirth: 'spouse_place_of_birth',
+      pakistanAncestry: 'pakistan_ancestry',
+    },
+  },
+  occupation: {
+    table: 'applicant_occupation',
+    cols: {
+      occupation: 'occupation', employerName: 'employer_name', employerAddress: 'employer_address',
+      designation: 'designation', militaryPolice: 'military_police',
+    },
+  },
 } as const;
 
 export type SectionName = keyof typeof SECTION_TABLES;

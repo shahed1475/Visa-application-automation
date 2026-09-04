@@ -59,8 +59,8 @@ describe('isValidFieldPath', () => {
         expect(isValidFieldPath(path), `${path} should be a valid field path`).toBe(true);
       }
     }
-    // Guards against the map silently shrinking: 8 + 7 + 3 + 6 columns.
-    expect(seen).toHaveLength(24);
+    // Guards against the map silently shrinking: 8 + 7 + 3 + 6 + 14 + 5 columns.
+    expect(seen).toHaveLength(43);
     expect(seen).toContain('identity.givenNames');
     expect(seen).toContain('passport.expiryDate');
     expect(seen).toContain('address.postalCode');

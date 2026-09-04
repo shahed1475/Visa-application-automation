@@ -192,6 +192,61 @@ const migrations: Migration[] = [
       ALTER TABLE applicant_field_meta ADD COLUMN document_id TEXT REFERENCES documents(id) ON DELETE SET NULL;
     `,
   },
+  {
+    version: 4,
+    up: `
+      CREATE TABLE applicant_family (
+        applicant_id            TEXT PRIMARY KEY REFERENCES applicants(id) ON DELETE CASCADE,
+        father_name TEXT, father_nationality TEXT, father_prev_nationality TEXT, father_place_of_birth TEXT,
+        mother_name TEXT, mother_nationality TEXT, mother_prev_nationality TEXT, mother_place_of_birth TEXT,
+        marital_status TEXT CHECK (marital_status IN ('single','married','divorced','widowed') OR marital_status IS NULL),
+        spouse_name TEXT, spouse_nationality TEXT, spouse_prev_nationality TEXT, spouse_place_of_birth TEXT,
+        pakistan_ancestry TEXT CHECK (pakistan_ancestry IN ('yes','no') OR pakistan_ancestry IS NULL)
+      );
+      CREATE TABLE applicant_occupation (
+        applicant_id     TEXT PRIMARY KEY REFERENCES applicants(id) ON DELETE CASCADE,
+        occupation TEXT, employer_name TEXT, employer_address TEXT, designation TEXT,
+        military_police TEXT CHECK (military_police IN ('yes','no') OR military_police IS NULL)
+      );
+      ALTER TABLE applicant_identity ADD COLUMN religion TEXT;
+      ALTER TABLE applicant_identity ADD COLUMN education TEXT;
+      ALTER TABLE applicant_identity ADD COLUMN national_id TEXT;
+      ALTER TABLE applicant_identity ADD COLUMN visible_marks TEXT;
+      ALTER TABLE applicant_identity ADD COLUMN nationality_at_birth TEXT;
+
+      CREATE TABLE visa_applications (
+        id                    TEXT PRIMARY KEY,
+        applicant_id          TEXT NOT NULL REFERENCES applicants(id) ON DELETE CASCADE,
+        destination           TEXT NOT NULL DEFAULT 'IND',
+        application_mode      TEXT NOT NULL CHECK (application_mode IN ('evisa','regular')),
+        category_id           TEXT NOT NULL,
+        purpose               TEXT,
+        entry_type            TEXT CHECK (entry_type IN ('single','double','multiple') OR entry_type IS NULL),
+        intended_arrival_date TEXT,
+        intended_stay_days    INTEGER,
+        port_of_arrival       TEXT,
+        status                TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','ready','archived')),
+        kb_version            TEXT NOT NULL,
+        created_at            TEXT NOT NULL,
+        updated_at            TEXT NOT NULL
+      );
+      CREATE INDEX idx_visa_applications_applicant ON visa_applications(applicant_id);
+
+      CREATE TABLE application_field_values (
+        id             TEXT PRIMARY KEY,
+        application_id TEXT NOT NULL REFERENCES visa_applications(id) ON DELETE CASCADE,
+        field_path     TEXT NOT NULL,
+        value          TEXT,
+        verified       INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0,1)),
+        verified_at    TEXT,
+        source         TEXT NOT NULL DEFAULT 'manual',
+        created_at     TEXT NOT NULL,
+        updated_at     TEXT NOT NULL,
+        UNIQUE (application_id, field_path)
+      );
+      CREATE INDEX idx_application_field_values_app ON application_field_values(application_id);
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations[migrations.length - 1]!.version;

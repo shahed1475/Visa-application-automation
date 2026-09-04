@@ -51,6 +51,23 @@ it('requests with a body still declare application/json', async () => {
   expect(new Headers(init.headers).get('content-type')).toBe('application/json');
 });
 
+it('a FormData body does NOT get content-type: application/json (the browser sets the boundary)', async () => {
+  await api.uploadDocument(new File(['x'], 'p.jpg', { type: 'image/jpeg' }));
+  const init = lastInit();
+  expect(init.body instanceof FormData).toBe(true);
+  expect(new Headers(init.headers).has('content-type')).toBe(false);
+});
+
+it('uploadDocument appends applicantId BEFORE the file part', async () => {
+  await api.uploadDocument(new File(['x'], 'p.jpg', { type: 'image/jpeg' }), 'a1');
+  const fd = lastInit().body as FormData;
+  expect([...fd.entries()].map((e) => e[0])).toEqual(['applicantId', 'file']);
+});
+
+it('documentFileUrl builds the raw-bytes path', () => {
+  expect(api.documentFileUrl('x')).toBe('/api/documents/x/file');
+});
+
 it('throws the server error message on non-2xx', async () => {
   fetchMock.mockResolvedValueOnce(
     new Response(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'portal not found' } }), {

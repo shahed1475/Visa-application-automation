@@ -6,6 +6,8 @@ import { PortalsPage } from './pages/Settings/PortalsPage';
 import { ApplicantsPage } from './pages/Applicants/ApplicantsPage';
 import { ApplicantDetailPage } from './pages/Applicants/ApplicantDetailPage';
 import { VisaRulesPage } from './pages/VisaRules/VisaRulesPage';
+import { DocumentsPage } from './pages/Documents/DocumentsPage';
+import { DocumentDetailPage } from './pages/Documents/DocumentDetailPage';
 import './styles.css';
 
 const router = createBrowserRouter([
@@ -17,6 +19,8 @@ const router = createBrowserRouter([
       { path: 'settings/portals', element: <PortalsPage /> },
       { path: 'applicants', element: <ApplicantsPage /> },
       { path: 'applicants/:id', element: <ApplicantDetailPage /> },
+      { path: 'documents', element: <DocumentsPage /> },
+      { path: 'documents/:id', element: <DocumentDetailPage /> },
       { path: 'visa-rules', element: <VisaRulesPage /> },
     ],
   },

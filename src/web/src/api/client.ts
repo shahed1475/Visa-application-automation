@@ -17,13 +17,17 @@ import type {
   ReferencePatchInput,
   FieldMetaPatchInput,
 } from '../../../shared/applicant/schemas';
+import type { DocumentSummary, DocumentDetail } from '../../../shared/documents/types';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  // Only declare a JSON body when we actually send one. A body-less POST/DELETE
-  // that still carries `content-type: application/json` trips Fastify's
-  // empty-JSON-body guard (FST_ERR_CTP_EMPTY_JSON_BODY) — e.g. test-connection.
-  if (init.body != null && !headers.has('content-type')) {
+  if (init.body instanceof FormData) {
+    // Leave content-type unset: the browser adds `multipart/form-data` with the
+    // boundary parameter itself. Setting it here would break the boundary.
+  } else if (init.body != null && !headers.has('content-type')) {
+    // Only declare a JSON body when we actually send one. A body-less POST/DELETE
+    // that still carries `content-type: application/json` trips Fastify's
+    // empty-JSON-body guard (FST_ERR_CTP_EMPTY_JSON_BODY) — e.g. test-connection.
     headers.set('content-type', 'application/json');
   }
   const res = await fetch(`/api${path}`, { ...init, headers });
@@ -111,4 +115,35 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+
+  // ---- Documents (Phase 3) ------------------------------------------------
+  uploadDocument: (file: File, applicantId?: string) => {
+    const fd = new FormData();
+    // order matters: @fastify/multipart's req.file() only buffers form fields
+    // it sees BEFORE the file part, so applicantId must be appended first.
+    if (applicantId) fd.append('applicantId', applicantId);
+    fd.append('file', file);
+    return request<{ document: DocumentSummary }>('/documents', { method: 'POST', body: fd });
+  },
+  extractDocument: (id: string) =>
+    request<{ document: DocumentDetail }>(`/documents/${id}/extract`, { method: 'POST' }),
+  listDocuments: (applicantId?: string) =>
+    request<{ documents: DocumentSummary[] }>(
+      `/documents${applicantId ? `?applicantId=${encodeURIComponent(applicantId)}` : ''}`,
+    ),
+  getDocument: (id: string) =>
+    request<{ document: DocumentDetail }>(`/documents/${id}`),
+  documentFileUrl: (id: string) => `/api/documents/${id}/file`,
+  applyDocumentField: (id: string, fieldPath: string) =>
+    request<{ document: DocumentDetail }>(`/documents/${id}/fields/apply`, {
+      method: 'POST',
+      body: JSON.stringify({ fieldPath }),
+    }),
+  dismissDocumentField: (id: string, fieldPath: string) =>
+    request<{ document: DocumentDetail }>(`/documents/${id}/fields/dismiss`, {
+      method: 'POST',
+      body: JSON.stringify({ fieldPath }),
+    }),
+  deleteDocument: (id: string) =>
+    request<{ deleted: true }>(`/documents/${id}`, { method: 'DELETE' }),
 };

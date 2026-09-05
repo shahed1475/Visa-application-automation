@@ -4,9 +4,12 @@ import type { ApplicationPlan, VisaApplication } from '../../../../shared/applic
 import { api } from '../../api/client';
 import {
   Chip,
-  STUB_CHIP,
   chipForEligibility,
+  chipForMissingInfo,
+  chipForReadyForAutomation,
+  chipForRequiredDocuments,
   chipForRequiredInfo,
+  chipForVerification,
   chipForVisaSelection,
   type StatusChip,
 } from './chips';
@@ -14,6 +17,10 @@ import { SourceLine } from './provenance';
 import { VisaSelectionSection } from './VisaSelectionSection';
 import { EligibilitySection } from './EligibilitySection';
 import { RequiredInfoSection } from './RequiredInfoSection';
+import { RequiredDocumentsSection } from './RequiredDocumentsSection';
+import { MissingInfoSection } from './MissingInfoSection';
+import { VerificationSection } from './VerificationSection';
+import { ReadyForAutomationSection } from './ReadyForAutomationSection';
 
 interface Loaded {
   application: VisaApplication;
@@ -134,20 +141,46 @@ export function ApplicationDashboardPage() {
         />
       </DashboardSection>
 
-      <DashboardSection id="required-documents" title="Required documents" chip={STUB_CHIP}>
-        <p className="hint">Added in Task 18.</p>
+      <DashboardSection
+        id="required-documents"
+        title="Required documents"
+        chip={chipForRequiredDocuments(plan.documents)}
+      >
+        <RequiredDocumentsSection
+          documents={plan.documents}
+          applicantId={application.applicantId}
+          onChanged={reload}
+        />
       </DashboardSection>
 
-      <DashboardSection id="missing-information" title="Missing information" chip={STUB_CHIP}>
-        <p className="hint">Added in Task 18.</p>
+      <DashboardSection
+        id="missing-information"
+        title="Missing information"
+        chip={chipForMissingInfo(plan.missing)}
+      >
+        <MissingInfoSection missing={plan.missing} />
       </DashboardSection>
 
-      <DashboardSection id="verification" title="Verification" chip={STUB_CHIP}>
-        <p className="hint">Added in Task 18.</p>
+      <DashboardSection
+        id="verification"
+        title="Verification"
+        chip={chipForVerification(plan.verification)}
+      >
+        <VerificationSection
+          verification={plan.verification}
+          sections={plan.sections}
+          applicationId={application.id}
+          applicantId={application.applicantId}
+          onChanged={reload}
+        />
       </DashboardSection>
 
-      <DashboardSection id="ready-for-automation" title="Ready for automation" chip={STUB_CHIP}>
-        <p className="hint">Added in Task 18.</p>
+      <DashboardSection
+        id="ready-for-automation"
+        title="Ready for automation"
+        chip={chipForReadyForAutomation(plan.readyForAutomation)}
+      >
+        <ReadyForAutomationSection readyForAutomation={plan.readyForAutomation} />
       </DashboardSection>
     </section>
   );

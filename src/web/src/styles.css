@@ -689,6 +689,90 @@ table.extracted-fields .row--dismissed {
   text-transform: capitalize;
 }
 
+/* ---- Application dashboard sections 4–7 (Phase 4, Task 18) ------------- */
+.doc-rows,
+.verify-rows,
+.missing-list,
+.blocker-list {
+  list-style: none;
+  margin: 0.5rem 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.doc-row,
+.verify-row,
+.missing-item,
+.blocker {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+}
+.doc-row__head,
+.verify-row__head,
+.missing-item__head,
+.blocker__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.doc-row__label,
+.verify-row__label,
+.missing-item__label,
+.blocker__text {
+  font-weight: 600;
+}
+.doc-row__flag {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.doc-row__flag--missing {
+  color: #b45309;
+}
+.doc-row__flag--present {
+  color: #15803d;
+}
+.doc-row__match,
+.missing-item__where {
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+.blocker__kind {
+  font-size: 0.72rem;
+  text-transform: capitalize;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+}
+.ready-line {
+  font-weight: 600;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+}
+.ready-line--ready {
+  color: #15803d;
+  background: #dcfce7;
+}
+.ready-line--blocked {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+.start-automation {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.verification__by-section {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 /* ---- Visa rules reference page (Phase 1) --------------------------------- */
 .visa-rules__modes { display: flex; gap: 0.5rem; margin: 0.75rem 0; }
 .visa-rules__modes button { padding: 0.35rem 0.9rem; }

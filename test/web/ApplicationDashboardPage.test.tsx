@@ -11,6 +11,9 @@ vi.mock('../../src/web/src/api/client', () => ({
     getApplication: vi.fn(),
     updateApplication: vi.fn(),
     setApplicationFieldValue: vi.fn(),
+    setFieldMeta: vi.fn(),
+    uploadDocument: vi.fn(),
+    extractDocument: vi.fn(),
   },
 }));
 
@@ -162,7 +165,15 @@ function makePlan(overrides: Partial<ApplicationPlan> = {}): ApplicationPlan {
 
 async function client() {
   const { api } = await import('../../src/web/src/api/client');
-  return api as unknown as Record<'getApplication' | 'updateApplication' | 'setApplicationFieldValue', ReturnType<typeof vi.fn>>;
+  return api as unknown as Record<
+    | 'getApplication'
+    | 'updateApplication'
+    | 'setApplicationFieldValue'
+    | 'setFieldMeta'
+    | 'uploadDocument'
+    | 'extractDocument',
+    ReturnType<typeof vi.fn>
+  >;
 }
 
 function renderAt(id = 'app1') {
@@ -182,6 +193,9 @@ beforeEach(async () => {
   api.getApplication.mockResolvedValue({ application: makeApplication(), plan: makePlan() });
   api.updateApplication.mockResolvedValue({ application: makeApplication(), plan: makePlan() });
   api.setApplicationFieldValue.mockResolvedValue({ application: makeApplication(), plan: makePlan() });
+  api.setFieldMeta.mockResolvedValue({ fieldMeta: {} });
+  api.uploadDocument.mockResolvedValue({ document: { id: 'newdoc1' } });
+  api.extractDocument.mockResolvedValue({ document: { id: 'newdoc1' } });
 });
 afterEach(() => cleanup());
 
@@ -214,15 +228,18 @@ it('renders a conditionMet:null eligibility condition as review, not a failure',
 it('shows the review note only on an unresolved conditional Required-information row', async () => {
   renderAt();
   await waitFor(() => expect(screen.getByText('Spouse name')).toBeTruthy());
+  // Scope to the Required-information section — Task 18's Verification section
+  // repeats some field labels.
+  const ri = within(document.getElementById('required-information')!);
 
   // (a) conditional + conditionMet:null -> the note is shown
-  const conditionalRow = screen.getByText('Spouse name').closest('li')!;
+  const conditionalRow = ri.getByText('Spouse name').closest('li')!;
   expect(within(conditionalRow).getByText(/Review required — the app cannot determine this/i)).toBeTruthy();
 
   // (b) plain required + conditionMet:null -> NO note (null is the engine default there)
-  const requiredRow = screen.getByText('Surname').closest('li')!;
+  const requiredRow = ri.getByText('Surname').closest('li')!;
   expect(within(requiredRow).queryByText(/Review required/i)).toBeNull();
-  const appRow = screen.getByText('India company name').closest('li')!;
+  const appRow = ri.getByText('India company name').closest('li')!;
   expect(within(appRow).queryByText(/Review required/i)).toBeNull();
 });
 
@@ -242,7 +259,7 @@ it('an application-scoped field input calls setApplicationFieldValue', async () 
 
 it('a profile-mapped field shows "Edit in profile" linking to the applicant page', async () => {
   renderAt();
-  await waitFor(() => expect(screen.getByText('Surname')).toBeTruthy());
+  await waitFor(() => expect(screen.getAllByText('Surname').length).toBeGreaterThan(0));
   const links = screen.getAllByRole('link', { name: /edit in profile/i });
   expect(links.length).toBeGreaterThan(0);
   for (const link of links) {
@@ -274,4 +291,187 @@ it('shows a not-found message when the application does not exist', async () => 
   api.getApplication.mockRejectedValueOnce(new Error('not found'));
   renderAt('missing');
   await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+});
+
+// ---- Task 18: sections 4–7 ------------------------------------------------
+
+const DOC_REQUIRED = {
+  id: 'photo',
+  label: 'Passport photograph',
+  requirement: 'required' as const,
+  condition: null,
+  conditionMet: null,
+  effectiveRequirement: 'required' as const,
+  uploaded: false,
+  matchedDocumentId: null,
+  source: SRC,
+};
+const DOC_MATCHED = {
+  id: 'passport_bio',
+  label: 'Passport bio page',
+  requirement: 'required' as const,
+  condition: null,
+  conditionMet: null,
+  effectiveRequirement: 'required' as const,
+  uploaded: true,
+  matchedDocumentId: 'doc1',
+  source: SRC,
+};
+
+it('renders each required document with its requirement and uploaded state; a matched doc links to /documents/:id', async () => {
+  const api = await client();
+  api.getApplication.mockResolvedValue({
+    application: makeApplication(),
+    plan: makePlan({ documents: [DOC_REQUIRED, DOC_MATCHED] }),
+  });
+  renderAt();
+  await waitFor(() => expect(screen.getByText('Passport photograph')).toBeTruthy());
+
+  const notUploaded = screen.getByText('Passport photograph').closest('li')!;
+  expect(within(notUploaded).getByText(/required/i)).toBeTruthy();
+  expect(within(notUploaded).getByText(/not uploaded/i)).toBeTruthy();
+
+  const matched = screen.getByText('Passport bio page').closest('li')!;
+  const link = within(matched).getByRole('link', { name: /view document/i });
+  expect(link.getAttribute('href')).toBe('/documents/doc1');
+});
+
+it('the required-documents upload control reuses the Phase 3 upload + extract, then reloads', async () => {
+  const api = await client();
+  api.getApplication.mockResolvedValue({
+    application: makeApplication(),
+    plan: makePlan({ documents: [DOC_REQUIRED] }),
+  });
+  renderAt();
+  await waitFor(() => expect(screen.getByText('Passport photograph')).toBeTruthy());
+
+  const file = new File(['x'], 'photo.png', { type: 'image/png' });
+  const input = screen.getByLabelText(/add a document/i) as HTMLInputElement;
+  fireEvent.change(input, { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: /^upload$/i }));
+
+  await waitFor(() => expect(api.uploadDocument).toHaveBeenCalledWith(file, 'a1'));
+  await waitFor(() => expect(api.extractDocument).toHaveBeenCalledWith('newdoc1'));
+  await waitFor(() => expect(api.getApplication).toHaveBeenCalledTimes(2));
+});
+
+it('renders each missing item with its kind and an anchor link to the owning section', async () => {
+  const api = await client();
+  api.getApplication.mockResolvedValue({
+    application: makeApplication(),
+    plan: makePlan({
+      missing: [
+        { kind: 'field', id: 'india_company_name', label: 'India company name', sectionId: 'business_details', appliesTo: 'application.indiaCompanyName', source: SRC },
+        { kind: 'document', id: 'photo', label: 'Passport photograph', source: SRC },
+      ],
+    }),
+  });
+  renderAt();
+  await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Missing information' })).toBeTruthy());
+  const mi = within(document.getElementById('missing-information')!);
+
+  const fieldItem = mi.getByText('India company name').closest('li')!;
+  expect(within(fieldItem).getByText('field')).toBeTruthy();
+  expect(
+    within(fieldItem).getByRole('link', { name: 'Required information' }).getAttribute('href'),
+  ).toBe('#required-information');
+
+  const docItem = mi.getByText('Passport photograph').closest('li')!;
+  expect(within(docItem).getByText('document')).toBeTruthy();
+  expect(
+    within(docItem).getByRole('link', { name: 'Required documents' }).getAttribute('href'),
+  ).toBe('#required-documents');
+});
+
+it('renders the verification rollup and per-field verify buttons for profile and application fields', async () => {
+  const api = await client();
+  const sections = [
+    {
+      id: 'personal_particulars',
+      label: 'Personal particulars',
+      applicable: true,
+      source: SRC,
+      fields: [
+        {
+          id: 'surname', label: 'Surname', sectionId: 'personal_particulars',
+          requirement: 'required' as const, condition: null, conditionMet: null,
+          effectiveRequirement: 'required' as const, appliesTo: 'identity.surname',
+          value: 'JONES', present: true, verified: false, source: SRC,
+        },
+        {
+          id: 'india_company_name', label: 'India company name', sectionId: 'personal_particulars',
+          requirement: 'required' as const, condition: null, conditionMet: null,
+          effectiveRequirement: 'required' as const, appliesTo: 'application.indiaCompanyName',
+          value: 'Acme', present: true, verified: false, source: SRC,
+        },
+      ],
+    },
+  ];
+  api.getApplication.mockResolvedValue({
+    application: makeApplication(),
+    plan: makePlan({
+      sections,
+      verification: { requiredVerified: 1, requiredTotal: 3, ratio: 1 / 3, label: 'partial', bySection: { personal_particulars: { verified: 1, total: 3 } } },
+    }),
+  });
+  renderAt();
+  await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Verification' })).toBeTruthy());
+
+  const rollup = screen.getByRole('heading', { level: 2, name: 'Verification' }).closest('section')!;
+  expect(rollup.textContent ?? '').toMatch(/1\s*(of|\/)\s*3/);
+  expect(rollup.textContent ?? '').toMatch(/partial/i);
+
+  const verifyBtns = within(rollup).getAllByRole('button', { name: /verify/i });
+  const surnameRow = within(rollup).getByText('Surname').closest('li')!;
+  fireEvent.click(within(surnameRow).getByRole('button', { name: /verify/i }));
+  await waitFor(() =>
+    expect(api.setFieldMeta).toHaveBeenCalledWith('a1', { fieldPath: 'identity.surname', verified: true }),
+  );
+
+  const companyRow = within(rollup).getByText('India company name').closest('li')!;
+  fireEvent.click(within(companyRow).getByRole('button', { name: /verify/i }));
+  await waitFor(() =>
+    expect(api.setApplicationFieldValue).toHaveBeenCalledWith('app1', {
+      fieldPath: 'application.indiaCompanyName',
+      verified: true,
+    }),
+  );
+  expect(verifyBtns.length).toBeGreaterThanOrEqual(2);
+});
+
+it('the Start automation (Phase 5) button is present, disabled, inert, with verbatim helper text', async () => {
+  renderAt();
+  await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Ready for automation' })).toBeTruthy());
+  const btn = screen.getByRole('button', { name: /start automation \(phase 5\)/i }) as HTMLButtonElement;
+  expect(btn.disabled).toBe(true);
+  expect(btn.onclick).toBeNull();
+  fireEvent.click(btn); // no-op
+  expect(
+    screen.getByText(
+      'Available in Phase 5. This does not submit anything, and does not mean the visa is approved.',
+    ),
+  ).toBeTruthy();
+});
+
+it('when readiness is false the blockers list renders, each with a source or "no recorded source"', async () => {
+  const api = await client();
+  api.getApplication.mockResolvedValue({
+    application: makeApplication(),
+    plan: makePlan({
+      readyForAutomation: {
+        ready: false,
+        blockers: [
+          { text: 'Passport must be valid for at least 6 months', kind: 'eligibility', source: SRC },
+          { text: 'A warning without a source', kind: 'warning', source: null },
+        ],
+      },
+    }),
+  });
+  renderAt();
+  await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Ready for automation' })).toBeTruthy());
+  const ready = screen.getByRole('heading', { level: 2, name: 'Ready for automation' }).closest('section')!;
+  const withSource = within(ready).getByText('Passport must be valid for at least 6 months').closest('li')!;
+  expect(within(withSource).getByRole('link', { name: /official source/i })).toBeTruthy();
+  const noSource = within(ready).getByText('A warning without a source').closest('li')!;
+  expect(within(noSource).getByText(/no recorded source/i)).toBeTruthy();
 });

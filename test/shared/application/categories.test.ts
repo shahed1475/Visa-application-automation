@@ -209,15 +209,16 @@ describe('categories (spec §11.2)', () => {
       expect(doc?.effectiveRequirement).toBe('required');
     });
 
-    it('does not promote optional tickets for a category whose onwardOrReturnTicket flag is false', () => {
-      // regular.tourist has onwardOrReturnTicket === false — contrast case for the promotion rule.
+    it('does not promote any optional document for a category whose onwardOrReturnTicket flag is false', () => {
+      // regular.tourist has onwardOrReturnTicket === false — negative control for the promotion
+      // rule. Assert real engine output: with the flag off, NO optional document is ever lifted
+      // to effective-required (would catch a documentRules.ts regression that promoted
+      // regardless of the flag). regular.tourist does carry optional docs, so this bites.
       expect(getCategory('regular.tourist', kb)!.travelRequirements.onwardOrReturnTicket).toBe(false);
       const plan = buildApplicationPlan(baseInput());
-      for (const doc of plan.documents) {
-        if (doc.requirement === 'optional' && doc.id.toLowerCase().includes('ticket')) {
-          expect(doc.effectiveRequirement).toBe('optional');
-        }
-      }
+      const optionalDocs = plan.documents.filter((d) => d.requirement === 'optional');
+      expect(optionalDocs.length).toBeGreaterThan(0);
+      expect(optionalDocs.every((d) => d.effectiveRequirement === 'optional')).toBe(true);
     });
   });
 });

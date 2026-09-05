@@ -91,7 +91,7 @@ describe('conditional requirements (spec §11.3)', () => {
       const plan = buildApplicationPlan(baseInput({ selection }));
       const father = findField(plan.sections, 'family', 'father_name');
       expect(father?.conditionMet).toBe(false);
-      expect(father?.effectiveRequirement).not.toBe('required');
+      expect(father?.effectiveRequirement).toBe('not_applicable');
       expect(plan.missing.some((m) => m.id === 'father_name')).toBe(false);
     });
   });

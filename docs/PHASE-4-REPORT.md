@@ -2,10 +2,10 @@
 
 **Status:** Complete. Gate green. Whole-branch review (opus) pending.
 **Branch:** `phase-0-portal-settings` (established non-main working branch for all phases).
-**Range:** `4a6154d..cb5e96b` — spec `116f0ff`, plan `599b2be`, 25 implementation /
-fix / test commits across the 21 tasks (several took a fix round; Task 12 also took
-a pre-review critical fix). This docs commit adds the report + the `ARCHITECTURE.md`
-paragraph, with no `src/` or `test/` change.
+**Range:** `4a6154d … cb5e96b` (`4a6154d^..cb5e96b`) — spec `116f0ff`, plan
+`599b2be`, 25 implementation / fix / test commits across the 21 tasks (several took a
+fix round; Task 12 also took a pre-review critical fix). This docs commit adds the
+report + the `ARCHITECTURE.md` paragraph, with no `src/` or `test/` change.
 **Last verified:** 2026-09-06 — `npm run typecheck` (4 tsc projects), `npm run lint`
 (0 warnings), `npm test` (**767 passed / 66 files**), `npm run build` (web bundle
 **435.98 kB JS / 110.36 kB gzip**, css 11.19 kB / 2.59 kB gzip) all green. Baseline
@@ -172,8 +172,8 @@ plan and walks every source. `assertSource` checks `officialUrl` matches
 a plan-level non-blocker warning whose text is on a 2-entry allow-list
 (`/was not found in the knowledge base/i`, `/knowledge base is pinned to/i`);
 `eligibility.source` only when `status === 'unknown'`; a `Blocker` only when
-`kind === 'warning'`. 41 category×applicant cases, all green — no engine or KB
-provenance gap surfaced.
+`kind === 'warning'`. 40 category×applicant cases (+1 non-vacuity guard), all
+green — no engine or KB provenance gap surfaced.
 
 ---
 
@@ -300,7 +300,7 @@ duplicated) is a review confirmation — see the §12 table.
 | **No passport / applicant data logged** | The engine is pure and logs nothing; the service passes no field values to any logger; error envelopes are code + sanitized message only (`errorBody` / `notFoundError` / `validationError`) | `test/server/applicationRoutes.test.ts` (sanitized envelopes); engine purity test |
 | **`REDACT_PATHS` extended** | `logger.ts` "Phase 4 — family/occupation" block adds `fatherName` / `father_name` / `motherName` / `mother_name` / `spouseName` / `spouse_name` / `employerName` / `employer_name` / `employerAddress` / `employer_address` / `nationalId` / `national_id` / `visibleMarks` / `visible_marks` / `nationalityAtBirth` / `nationality_at_birth` and their `*.` wildcard variants | `test/server/loggerRedaction.test.ts` — `PHASE_4_MUST_INCLUDE` list, `'redacts every family/occupation PII key we care about'` (fix `df1f2d3` closed the `*.visibleMarks` / `*.nationalityAtBirth` omission) |
 | **Synthetic-only fixtures** | Every fixture applicant is invented ("RANA MITHU", "RANA / MITHU", `BG1234567`) — `test/helpers/applicationFixtures.ts`, and the smoke below | no real passport number / name / address in any test or log |
-| **Phase 5 control disabled + inert** | `ReadyForAutomationSection.tsx` renders `<button type="button" className="start-automation" disabled>Start automation (Phase 5)</button>` — no `onClick`, verbatim helper text "Available in Phase 5. This does not submit anything, and does not mean the visa is approved." | `test/web/ApplicationDashboardPage.test.tsx` `'the Start automation (Phase 5) button is present, disabled, inert, with verbatim helper text'` (:442) — asserts `btn.disabled === true`, `btn.onclick === null`, `fireEvent.click` is a no-op |
+| **Phase 5 control disabled + inert** | `ReadyForAutomationSection.tsx` renders `<button type="button" className="start-automation" disabled>Start automation (Phase 5)</button>` — no `onClick` handler, verbatim helper text "Available in Phase 5. This does not submit anything, and does not mean the visa is approved." | `test/web/ApplicationDashboardPage.test.tsx` `'the Start automation (Phase 5) button is present, disabled, inert, with verbatim helper text'` (:442) — asserts `btn.disabled === true` and `btn.onclick === null`, and fires a click that, by construction, can do nothing (no post-click assertion) |
 | **No Phase 5 code** | No Playwright / portal / OTP / CAPTCHA / submission / appointment / payment anywhere in the Phase 4 diff | `architectureGuard.test.ts`; controller constraint audit (ledger, Task 18 recovery) |
 
 ---
@@ -428,16 +428,16 @@ Full Phases 0–3 regression is included in the 767 (baseline entering Phase 4: 
 | 7 | Eligibility deterministic; passport-validity insufficiency → unmet condition + blocker + source + not-ready, computed by the engine | **PASS** | §5–6 — `eligibility.test.ts`; `readinessScenarios.test.ts:33` (`'passport expiring inside the required validity window → unmet condition + sourced eligibility blocker + not ready'`) |
 | 8 | `missing[]` generated automatically; excludes optional and unknown-conditional; every entry sourced | **PASS** | `readiness.ts` `computeMissing` (`!== 'required'` skip covers optional + `not_applicable`); `provenanceGuard.test.ts` walks `plan.missing` sources; smoke §9.1 (fields leave `missing` as filled) |
 | 9 | Verification rollup works for profile + application fields; NOT part of the default readiness gate | **PASS** | §6 — `computeVerification`; smoke §9.1 (`ready: true` with `verification.label: "unverified"`); `applicationService.test.ts` `'a verify-only call does not clear the value'` |
-| 10 | Provenance guard passes across every category; no `ApplicationPlan` contains an empty source | **PASS** | §2 Rule 3 — `provenanceGuard.test.ts` (41 category×applicant cases) |
+| 10 | Provenance guard passes across every category; no `ApplicationPlan` contains an empty source | **PASS** | §2 Rule 3 — `provenanceGuard.test.ts` (40 category×applicant cases + 1 non-vacuity guard) |
 | 11 | `regular.business` / `.student` / `.medical` / `.transit` / `evisa.tourist.30d` category tests pass (§11.2) | **PASS** | `categories.test.ts` (14 tests, one `describe` per category); smoke §9.1–9.2 (business + transit end-to-end) |
 | 12 | Conditional tests pass: married → spouse applicable; minor → guardian applicable; unknown → `null` review | **PASS** | `conditionalRequirements.test.ts` (`:41` married→spouse required, `:55` single→not_applicable & absent from missing, `:73` minor→father_name required, `:89` adult→not forced, `:104` custom→null review) |
 | 13 | Fully-populated → `ready === true, blockers === []`; remove one required field → not ready naming it; remove one required document → not ready naming it | **PASS** | `readinessScenarios.test.ts:107/:113/:130`; smoke §9.1 (full build → `{ ready: true, blockers: [] }`; and each field/document individually named in `missing`/`blockers` before it is supplied) |
-| 14 | No Phase 5 code; "Start automation" control disabled and inert; a test asserts it | **PASS** | §8 — `ApplicationDashboardPage.test.tsx:442` (`disabled === true`, `onclick === null`, click is a no-op, verbatim helper text); `architectureGuard.test.ts`; no Playwright/portal/OTP/CAPTCHA/submission/payment in the diff |
+| 14 | No Phase 5 code; "Start automation" control disabled and inert; a test asserts it | **PASS** | §8 — `ApplicationDashboardPage.test.tsx:442` asserts `disabled === true` and `onclick === null` (no handler; a click is fired that by construction can do nothing), verbatim helper text; `architectureGuard.test.ts`; no Playwright/portal/OTP/CAPTCHA/submission/payment in the diff |
 | 15 | Applicant/Application boundary respected — no profile data duplicated into `visa_applications` / `application_field_values`; a review confirms it | **PASS** | §7 — migration 4 has no profile columns on either table; `applicationService.ts` copies nothing from the profile (create/update write only `Selection` + `application.*` values); Task 13 + Task 16 reviews (ledger) both confirmed the boundary; whole-branch review (opus) is the final confirmation |
-| 16 | Structured, sanitized errors for missing applicant/application, invalid category, mode/category mismatch, invalid application field, malformed/unsourced KB, stale KB pin, DB constraint failures | **PASS** | `applicationRoutes.test.ts` (15 tests — 400 validation, 404 applicant/application, 400 `INVALID_CATEGORY`, 409 `MODE_MISMATCH`, 400 `INVALID_FIELD`, sanitized envelopes); `applicationService.test.ts` `'a stale kb_version surfaces as an info warning'`; KB loader `.strict()` union rejection + provenance cross-checks (Phase 1/Task 1) |
+| 16 | Structured, sanitized errors for missing applicant/application, invalid category, mode/category mismatch, invalid application field, malformed/unsourced KB, stale KB pin, DB constraint failures | **PASS** | `applicationRoutes.test.ts` (15 tests — 400 validation, 404 applicant/application, 400 `INVALID_CATEGORY`, 409 `MODE_MISMATCH`, 400 `INVALID_FIELD`, sanitized envelopes); `applicationService.test.ts` `'a stale kb_version surfaces as an info warning'`; KB loader `.strict()` union rejection + provenance cross-checks (Phase 1/Task 1). The DB-constraint sub-case has no dedicated test — it is covered by the generic sanitized-envelope path (`mapApplicationError` returns `undefined` for a non-`ApplicationServiceError`, the route `try/catch` rethrows, and `app.ts`'s `setErrorHandler` logs the real error and returns `{ error: { code: 'INTERNAL', … } }`). |
 | 17 | PII: no passport numbers / full profiles / addresses / document contents / OCR text / sensitive application values in logs; redaction test extended | **PASS** | §8 — `loggerRedaction.test.ts` `PHASE_4_MUST_INCLUDE` (16 keys + `*.` variants), fix `df1f2d3`; engine logs nothing; synthetic fixtures only |
 | 18 | `docs/PHASE-4-REPORT.md` exists with per-criterion evidence; `docs/ARCHITECTURE.md` gains a Phase 4 paragraph | **PASS** | this file; `ARCHITECTURE.md` §3 Phase 4 paragraph + §6 migration-4 note (this commit) |
-| 19 | Whole-branch review (spec §41) passes; legitimate findings fixed; full gate re-run | **PARTIAL** | The whole-branch opus review runs **after** this task (per the plan and Task 21 brief). Everything it needs is in place: gate green (767), smoke green, 25 commits each task-reviewed (Task 18's task-review was skipped by explicit user decision, with the diff + reconstructed report retained on disk). Marked PARTIAL only because that review has not yet been executed — no known blocker. |
+| 19 | Whole-branch review (spec §41) passes; legitimate findings fixed; full gate re-run | **PARTIAL** | The whole-branch opus review runs **after** this task (per the plan and Task 21 brief). Everything it needs is in place: gate green (767), smoke green. Of the 25 commits, **23 had a dedicated task-review**; the 2 exceptions are Task 18 (`8cf1587` — task-review skipped by explicit user decision, diff + reconstructed report retained on disk) and Task 19 (`45b16c1` — the guard-test files, controller-executed without a separate task-review). Task 21's own review is not counted here (it is this review). Marked PARTIAL only because the whole-branch review has not yet been executed — no known blocker. |
 
 **18 PASS, 1 PARTIAL (item 19 — the whole-branch review is the next step, not part of
 this task).**
@@ -493,7 +493,8 @@ gate for deciding whether any is worth a pre-merge fix.
 - Task 9 — report overstates the schema guarantee for the `india_references_min`
   missing-`count` throw (the throw is genuinely reachable, so the loud behaviour is
   right; only the characterisation is imprecise); a couple of narrower
-  `resolveValue` argument assertions.
+  `resolveValue` argument assertions; the synthetic-field success test doesn't
+  assert `condition` / `conditionMet` are `null` for the non-conditional case.
 - Task 10 — no test for simultaneous multi-doc ticket promotion (structurally
   generic); the promotion pass mutates the plans array in place vs the `.push()`
   style elsewhere.
@@ -511,6 +512,11 @@ gate for deciding whether any is worth a pre-merge fix.
   hygiene).
 - Task 15 — test 3 doesn't also assert unrelated sections stay untouched (covered by
   an existing cross-section test).
+- Task 16 — shared structural boilerplate between `ApplicationsSubsection` and
+  `DocumentsSubsection` not extracted (appropriately shallow "same shape, different
+  content" similarity); the `creating` state is not reset on the success path
+  (harmless — `navigate()` unmounts the component; same pattern in
+  `DocumentsSubsection`).
 - Task 17 — `humanize()` local helper; chip label casing vs lowercase tokens;
   `task-17-report.md:28` stale prose.
 - Task 20 — a renamed test title slightly broader than its body (comment scopes it).

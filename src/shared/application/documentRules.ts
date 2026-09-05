@@ -99,11 +99,20 @@ export function resolveDocumentPlans(input: {
 
   // Return-ticket promotion (spec's KB-driven rule): reads `travelRequirements.onwardOrReturnTicket`
   // (a KB field, not a category-id literal) and promotes every ticket-like document -- by `id`
-  // substring, not a hardcoded doc id -- from 'conditional'/'optional' to effectiveRequirement
-  // 'required'. Additive: it never rewrites the document's own condition/conditionMet.
+  // substring, not a hardcoded doc id -- to effectiveRequirement 'required'. Additive: it never
+  // rewrites the document's own condition/conditionMet.
+  //
+  // A 'conditional' doc is only promotable when its condition actually evaluated `true`. An
+  // unmet (`false`) or unknown (`null`) condition must stay `not_applicable` per spec
+  // §4.4/§5: `null` is never `false`, never lands in `missing`, and is never a blocker --
+  // promoting it would turn a "needs review" state into a hard gate on unknown data.
   if (category.travelRequirements.onwardOrReturnTicket === true) {
     for (const plan of plans) {
-      if (plan.id.toLowerCase().includes('ticket') && (plan.requirement === 'conditional' || plan.requirement === 'optional')) {
+      if (!plan.id.toLowerCase().includes('ticket')) continue;
+      const promotable =
+        plan.requirement === 'optional' ||
+        (plan.requirement === 'conditional' && plan.conditionMet === true);
+      if (promotable) {
         plan.effectiveRequirement = 'required';
       }
     }

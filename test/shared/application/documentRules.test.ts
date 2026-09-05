@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { matchDocument, resolveDocumentPlans } from '../../../src/shared/application/documentRules.js';
+import { computeMissing, computeReadiness } from '../../../src/shared/application/readiness.js';
 import type { ConditionContext } from '../../../src/shared/application/conditions.js';
-import type { DocumentCoverage, DocumentCoverageEntry, FlatApplicant, Selection } from '../../../src/shared/application/types.js';
+import type { DocumentCoverage, DocumentCoverageEntry, EligibilityPlan, FlatApplicant, Selection } from '../../../src/shared/application/types.js';
 import type { Source, VisaCategory } from '../../../src/shared/visa-kb/schema.js';
 
 // ---- fixtures -----------------------------------------------------------------------------
@@ -16,6 +17,17 @@ function src(tag: string): Source {
 
 const CATEGORY_SOURCE = src('category');
 const MARRIAGE_CERT_SOURCE = src('doc-marriage-cert');
+
+/** An eligibility plan that contributes no blockers of its own, so a `computeReadiness` call
+ *  below reflects exactly what the document plans contributed. */
+const ELIGIBLE: EligibilityPlan = {
+  status: 'eligible',
+  conditions: [],
+  unmetConditions: [],
+  warnings: [],
+  basis: null,
+  source: null,
+};
 
 function makeCategory(overrides: {
   requiredDocuments?: VisaCategory['requiredDocuments'];
@@ -252,8 +264,8 @@ describe('resolveDocumentPlans', () => {
   });
 
   describe('return-ticket promotion', () => {
-    it('conditional ticket doc whose own condition is false/null is still promoted to required when onwardOrReturnTicket:true', () => {
-      const category = makeCategory({
+    const ticketConditionalCategory = () =>
+      makeCategory({
         conditionalDocuments: [
           {
             id: 'onward_return_ticket',
@@ -264,14 +276,47 @@ describe('resolveDocumentPlans', () => {
         ],
         travelRequirements: { onwardOrReturnTicket: true },
       });
+
+    // Spec §4.4/§5: `null` is never `false` and never a blocker. Promotion must not coerce an
+    // unknown condition past the "review required" state into a hard gate.
+    it('conditional ticket doc whose condition is unknown (null) is NOT promoted', () => {
+      const category = ticketConditionalCategory();
       const ctx = makeCtx({ category, maritalStatus: null });
       const plans = resolveDocumentPlans({ category, ctx, documentCoverage: makeCoverage([]) });
       const plan = plans.find((p) => p.id === 'onward_return_ticket');
+      expect(plan?.conditionMet).toBeNull();
+      expect(plan?.requirement).toBe('conditional');
+      expect(plan?.effectiveRequirement).toBe('not_applicable');
+      // and therefore neither missing nor a blocker
+      expect(computeMissing([], plans).map((m) => m.id)).not.toContain('onward_return_ticket');
+      expect(computeReadiness(ELIGIBLE, computeMissing([], plans), []).blockers).toEqual([]);
+    });
+
+    it('conditional ticket doc whose condition is unmet (false) is NOT promoted', () => {
+      const category = ticketConditionalCategory();
+      const ctx = makeCtx({ category, maritalStatus: 'single' });
+      const plans = resolveDocumentPlans({ category, ctx, documentCoverage: makeCoverage([]) });
+      const plan = plans.find((p) => p.id === 'onward_return_ticket');
+      expect(plan?.conditionMet).toBe(false);
+      expect(plan?.effectiveRequirement).toBe('not_applicable');
+      expect(computeMissing([], plans).map((m) => m.id)).not.toContain('onward_return_ticket');
+    });
+
+    it('conditional ticket doc whose condition is met (true) IS promoted to required', () => {
+      const category = ticketConditionalCategory();
+      const ctx = makeCtx({ category, maritalStatus: 'married' });
+      const plans = resolveDocumentPlans({ category, ctx, documentCoverage: makeCoverage([]) });
+      const plan = plans.find((p) => p.id === 'onward_return_ticket');
+      expect(plan?.conditionMet).toBe(true);
       expect(plan?.effectiveRequirement).toBe('required');
       // promotion is additive -- it must not rewrite the condition's own truth value
-      expect(plan?.conditionMet).toBeNull();
       expect(plan?.condition).toEqual({ type: 'applicant_married' });
       expect(plan?.requirement).toBe('conditional');
+      const missing = computeMissing([], plans);
+      expect(missing.map((m) => m.id)).toContain('onward_return_ticket');
+      expect(computeReadiness(ELIGIBLE, missing, []).blockers).toEqual([
+        { kind: 'document', text: 'Onward or return ticket is required', source: MARRIAGE_CERT_SOURCE },
+      ]);
     });
 
     it('optionalDocuments-sourced ticket doc is promoted to required (requirement itself stays optional)', () => {

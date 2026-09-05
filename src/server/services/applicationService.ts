@@ -266,6 +266,35 @@ export function updateApplication(
   const row = getApplicationRow(db, id);
   if (!row) return null;
 
+  // `applicationPutSchema` is `selectionSchema.partial()`, so every nullable selection column
+  // accepts an explicit `null` meaning "clear this". `??` would read that as "absent" and
+  // re-write the old value, making a cleared control impossible to persist — the six nullable
+  // columns must therefore branch on `undefined`, not on nullishness.
+  const pick = <T>(patched: T | null | undefined, current: T | null): T | null =>
+    patched !== undefined ? patched : current;
+
+  // Revalidate the *resulting* category/mode whenever either is patched, with the same
+  // typed errors `createApplication` throws — otherwise a PUT could persist an unknown
+  // category or a mode/category mismatch that POST would have rejected.
+  if (patch.categoryId !== undefined || patch.applicationMode !== undefined) {
+    const kb = loadKnowledgeBase();
+    const nextCategoryId = patch.categoryId ?? row.category_id;
+    const nextMode = (patch.applicationMode ?? row.application_mode) as ApplicationMode;
+    if (!getCategory(nextCategoryId, kb)) {
+      throw new ApplicationServiceError('invalid_category', `no visa category "${nextCategoryId}"`);
+    }
+    const validation = validateCombination(
+      { applicationMode: nextMode, categoryId: nextCategoryId },
+      kb,
+    );
+    if (!validation.valid) {
+      if (validation.code === 'MODE_MISMATCH') {
+        throw new ApplicationServiceError('mode_mismatch', validation.message);
+      }
+      throw new ApplicationServiceError('invalid_category', validation.message);
+    }
+  }
+
   db.exec('BEGIN');
   try {
     db.prepare(
@@ -274,22 +303,20 @@ export function updateApplication(
              intended_arrival_date = ?, intended_stay_days = ?, port_of_arrival = ?, updated_at = ?
        WHERE id = ?`,
     ).run(
-      patch.destination ?? row.destination,
+      // `destination` is NOT NULL with a DEFAULT of 'IND'; an explicit null therefore means
+      // "back to the default", exactly as `createApplication` reads `input.destination ?? 'IND'`.
+      patch.destination !== undefined ? (patch.destination ?? 'IND') : row.destination,
       patch.applicationMode ?? row.application_mode,
       patch.categoryId ?? row.category_id,
-      patch.purpose ?? row.purpose,
-      patch.entryType ?? row.entry_type,
-      patch.intendedArrivalDate ?? row.intended_arrival_date,
-      patch.intendedStayDays ?? row.intended_stay_days,
-      patch.portOfArrival ?? row.port_of_arrival,
+      pick(patch.purpose, row.purpose),
+      pick(patch.entryType, row.entry_type),
+      pick(patch.intendedArrivalDate, row.intended_arrival_date),
+      pick(patch.intendedStayDays, row.intended_stay_days),
+      pick(patch.portOfArrival, row.port_of_arrival),
       new Date().toISOString(),
       id,
     );
 
-    // This task does not re-validate categoryId/applicationMode on update:
-    // buildApplicationPlan already degrades gracefully (a category: null plan with a
-    // blocker) if a caller patches to a nonexistent category, and the brief's test
-    // list doesn't ask for update-time category validation.
     const { plan } = getApplication(db, id)!;
 
     if (row.status !== 'archived') {

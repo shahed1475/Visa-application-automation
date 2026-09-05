@@ -320,4 +320,115 @@ describe('applicationService', () => {
     const result = appSvc.updateApplication(db, created.id, {});
     expect(result?.application.status).toBe('archived');
   });
+
+  describe('updateApplication — nullable selection fields are clearable', () => {
+    const seed = () => {
+      const applicantId = createSyntheticApplicant();
+      return appSvc.createApplication(db, applicantId, {
+        applicationMode: 'regular',
+        categoryId: 'regular.tourist',
+        purpose: 'sightseeing',
+        entryType: 'single',
+        intendedArrivalDate: '2027-01-15',
+        intendedStayDays: 30,
+        portOfArrival: 'Delhi',
+      });
+    };
+
+    // `applicationPutSchema` is `selectionSchema.partial()`, so an explicit `null` is a valid
+    // patch and VisaSelectionSection sends one for a cleared control. `?? row.X` would read it
+    // as "absent" and silently rewrite the old value.
+    it('an explicit null clears the field and leaves siblings untouched', () => {
+      const created = seed();
+      const result = appSvc.updateApplication(db, created.id, { purpose: null });
+      expect(result?.application.purpose).toBeNull();
+      expect(result?.application.portOfArrival).toBe('Delhi');
+      expect(result?.application.entryType).toBe('single');
+      expect(result?.application.intendedArrivalDate).toBe('2027-01-15');
+      expect(result?.application.intendedStayDays).toBe(30);
+      // and it is really gone from the row, not just from this response
+      expect(appSvc.getApplication(db, created.id)?.application.purpose).toBeNull();
+    });
+
+    it('clears every nullable selection column when each is explicitly nulled', () => {
+      const created = seed();
+      const result = appSvc.updateApplication(db, created.id, {
+        purpose: null,
+        entryType: null,
+        intendedArrivalDate: null,
+        intendedStayDays: null,
+        portOfArrival: null,
+      });
+      expect(result?.application.purpose).toBeNull();
+      expect(result?.application.entryType).toBeNull();
+      expect(result?.application.intendedArrivalDate).toBeNull();
+      expect(result?.application.intendedStayDays).toBeNull();
+      expect(result?.application.portOfArrival).toBeNull();
+    });
+
+    it('an omitted field is still preserved', () => {
+      const created = seed();
+      const result = appSvc.updateApplication(db, created.id, { portOfArrival: 'Kolkata' });
+      expect(result?.application.portOfArrival).toBe('Kolkata');
+      expect(result?.application.purpose).toBe('sightseeing');
+      expect(result?.application.intendedStayDays).toBe(30);
+    });
+
+    it('destination is NOT NULL, so an explicit null falls back to the IND default', () => {
+      const created = seed();
+      const result = appSvc.updateApplication(db, created.id, { destination: null });
+      expect(result?.application.destination).toBe('IND');
+    });
+  });
+
+  describe('updateApplication — category/mode revalidation', () => {
+    const seed = () => {
+      const applicantId = createSyntheticApplicant();
+      return appSvc.createApplication(db, applicantId, {
+        applicationMode: 'regular',
+        categoryId: 'regular.tourist',
+      });
+    };
+
+    it('rejects an unknown categoryId with invalid_category', () => {
+      const created = seed();
+      expect(() => appSvc.updateApplication(db, created.id, { categoryId: 'regular.nope' })).toThrow(
+        ApplicationServiceError,
+      );
+      try {
+        appSvc.updateApplication(db, created.id, { categoryId: 'regular.nope' });
+      } catch (err) {
+        expect((err as ApplicationServiceError).code).toBe('invalid_category');
+      }
+      // and nothing was persisted
+      expect(appSvc.getApplication(db, created.id)?.application.categoryId).toBe('regular.tourist');
+    });
+
+    it('rejects a mode/category mismatch with mode_mismatch', () => {
+      const created = seed();
+      try {
+        appSvc.updateApplication(db, created.id, { applicationMode: 'evisa' });
+        throw new Error('expected updateApplication to throw');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ApplicationServiceError);
+        expect((err as ApplicationServiceError).code).toBe('mode_mismatch');
+      }
+      expect(appSvc.getApplication(db, created.id)?.application.applicationMode).toBe('regular');
+    });
+
+    it('accepts a consistent category+mode change', () => {
+      const created = seed();
+      const result = appSvc.updateApplication(db, created.id, {
+        applicationMode: 'evisa',
+        categoryId: 'evisa.tourist.30d',
+      });
+      expect(result?.application.applicationMode).toBe('evisa');
+      expect(result?.application.categoryId).toBe('evisa.tourist.30d');
+    });
+
+    it('a patch touching neither field skips revalidation entirely', () => {
+      const created = seed();
+      expect(() => appSvc.updateApplication(db, created.id, { portOfArrival: 'Delhi' })).not.toThrow();
+    });
+  });
 });

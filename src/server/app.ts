@@ -14,6 +14,7 @@ import { runMigrations } from './db/migrations.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerPortalRoutes } from './routes/portals.js';
 import { registerApplicantRoutes } from './routes/applicants.js';
+import { registerApplicationRoutes } from './routes/applications.js';
 import { registerDocumentRoutes } from './routes/documents.js';
 import { errorBody, notFoundError } from './routes/errors.js';
 import { createTesseractEngine } from './documents/tesseractEngine.js';
@@ -78,6 +79,7 @@ export async function buildServer(
   await registerHealthRoutes(app);
   await registerPortalRoutes(app);
   await registerApplicantRoutes(app);
+  await registerApplicationRoutes(app);
   await app.register(multipart, {
     // Signal an oversize file via `file.truncated` (→ route returns a sanitized
     // 400) rather than letting the plugin throw its own 413.

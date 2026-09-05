@@ -95,7 +95,9 @@ function buildFieldPlan(args: {
 }
 
 /** Builds the synthetic `india_references_min` `FieldPlan` from its `FieldRule` alone -- there
- *  is no backing `FormField`, so the field/standardBlock precedence steps don't apply here. The
+ *  is deliberately no backing `FormField` in `form-model.json` (the loader's
+ *  `SYNTHETIC_FIELD_IDS` allow-list exists for exactly this), so this is the field's *sole*
+ *  producer and `plan.sections` can never carry two entries under the same id. The
  *  rule's `count` is guaranteed present per the KB's authoring convention for this rule; a
  *  missing `count` is a KB data defect, not a runtime input this pure function should paper
  *  over, so it throws rather than silently defaulting. */

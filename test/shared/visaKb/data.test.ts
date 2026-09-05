@@ -190,9 +190,12 @@ describe('the real India form-model catalog (schema v2, Task 2)', () => {
     expect(indiaCompanyName?.appliesTo).toBe('application.indiaCompanyName');
 
     const references = byId.get('references');
-    const minCount = references?.fields.find((f) => f.id === 'india_references_min');
-    expect(minCount?.appliesTo).toBeNull();
-    expect(minCount?.standardBlock).toBe(false);
+    expect(references?.fields.find((f) => f.id === 'home_country_reference')?.appliesTo).toBeNull();
+    // `india_references_min` is count-driven, has no visible form field, and is synthesised by
+    // the engine from its FieldRule alone. Listing it here too produced two plan entries under
+    // one id (duplicate React key, verification rollup disagreeing with the rendered rows), so
+    // form-model.json must NOT carry it.
+    expect(references?.fields.map((f) => f.id)).not.toContain('india_references_min');
 
     const personal = byId.get('personal_particulars');
     const standardBlock = personal?.fields.find((f) => f.id === 'standard_personal_block');

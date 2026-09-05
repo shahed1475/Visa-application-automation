@@ -9,14 +9,12 @@ import type {
   Warning,
 } from './types.js';
 
-/** Task 9 (unmodified, already reviewed) emits two identical `FieldPlan` entries under the
- *  same `id` within `regular.business`'s `references` section (one from the ordinary
- *  per-`FormField` loop, one from the explicit `india_references_min` synthetic push -- both
- *  resolve from the same `FieldRule`, so the two entries are always identical). Both counting
- *  functions below must dedupe by `(sectionId, id)` before tallying so that one category's
- *  required-field count and missing list aren't silently doubled. This does not mutate
- *  `section.fields` itself -- the returned `ApplicationPlan.sections` still (harmlessly)
- *  contains the duplicate; only this module's own counting logic dedupes. */
+/** Defence in depth against a duplicate `(sectionId, id)` pair reaching the tallies. The
+ *  `india_references_min` duplicate that originally motivated this is now fixed at source --
+ *  the field has no `FormField` in `form-model.json`, so `resolveFieldPlans`'s synthetic push
+ *  is its only producer -- but a KB edit that re-adds a field id already emitted synthetically
+ *  would otherwise silently double a category's required-field count and its missing list.
+ *  This does not mutate `section.fields`; only this module's own counting logic dedupes. */
 function uniqueFields(section: SectionPlan): FieldPlan[] {
   const seen = new Set<string>();
   const out: FieldPlan[] = [];

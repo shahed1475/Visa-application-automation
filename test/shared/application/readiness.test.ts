@@ -156,7 +156,7 @@ describe('computeMissing', () => {
     expect(computeMissing([section], [])).toEqual([]);
   });
 
-  it('dedup: a section with two FieldPlans sharing the same id (regular.business duplicate case) yields exactly one MissingItem', () => {
+  it('dedup (defensive): a section with two FieldPlans sharing the same id yields exactly one MissingItem', () => {
     const dup1 = makeField({ id: 'india_references_min', present: false });
     const dup2 = makeField({ id: 'india_references_min', present: false });
     const section = makeSection('references', [dup1, dup2]);
@@ -228,7 +228,7 @@ describe('computeVerification', () => {
     expect(rollup.bySection.empty_section).toEqual({ verified: 0, total: 0 });
   });
 
-  it('dedup: the duplicate-id fixture counts the field once, not twice', () => {
+  it('dedup (defensive): the duplicate-id fixture counts the field once, not twice', () => {
     const dup1 = makeField({ id: 'india_references_min', present: true, verified: true });
     const dup2 = makeField({ id: 'india_references_min', present: true, verified: true });
     const section = makeSection('references', [dup1, dup2]);

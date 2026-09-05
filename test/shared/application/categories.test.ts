@@ -75,6 +75,27 @@ describe('categories (spec §11.2)', () => {
       }
     });
 
+    it('emits exactly ONE india_references_min field plan (no duplicate id in plan.sections)', () => {
+      const plan = buildApplicationPlan(baseInput({ selection }));
+      const references = plan.sections.find((s) => s.id === 'references');
+      expect(references).toBeDefined();
+      const dupes = references!.fields.filter((f) => f.id === 'india_references_min');
+      expect(dupes.length).toBe(1);
+      // and no id repeats anywhere in the section (duplicate React keys / rollup-vs-row mismatch)
+      const ids = references!.fields.map((f) => f.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      // the surviving entry is the count-derived one
+      expect(dupes[0]?.label).toContain('2');
+      expect(dupes[0]?.appliesTo).toBeNull();
+      expect(dupes[0]?.value).toBe('1'); // the synthetic applicant has one in_country_host ref
+      expect(dupes[0]?.present).toBe(false); // ...which is below the KB-defined minimum of 2
+      // the rendered required-row count agrees with the verification rollup
+      const requiredRows = plan.sections.flatMap((s) =>
+        s.fields.filter((f) => f.effectiveRequirement === 'required'),
+      );
+      expect(requiredRows.length).toBe(plan.verification.requiredTotal);
+    });
+
     it('carries an india_references_min field whose presence flips at the KB-defined count (2)', () => {
       const rule = getCategory('regular.business', kb)!.formRules.fieldRules.find(
         (r) => r.sectionId === 'references' && r.fieldId === 'india_references_min',

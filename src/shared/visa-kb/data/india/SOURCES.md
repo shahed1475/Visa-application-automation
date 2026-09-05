@@ -82,7 +82,10 @@ or `not_offered` for Bangladesh in this KB version.
 particulars, passport details, address, family, occupation, visa details, previous visits,
 references, business/study/medical details) was authored `2026-09-05` from the well-known
 structure of the India Regular/e-Visa online application forms. Every section and field carries a
-`source`:
+`source`. It deliberately holds no `references.india_references_min` field: that requirement is
+count-based (N India references, set per category in `formRules`) rather than a visible form
+field, so the engine synthesises it from the `FieldRule` alone and the loader allow-lists the id.
+Listing it here as well produced two plan entries under one id.
 
 | officialUrl | used for |
 |---|---|
@@ -90,12 +93,21 @@ structure of the India Regular/e-Visa online application forms. Every section an
 | `https://indianvisaonline.gov.in/evisa/` | the e-Visa base for form-adjacent declarations (e.g. `family.pakistan_ancestry`, `occupation.military_police` — the universal e-Visa exclusion declarations) and the medical-details section |
 | `https://hcidhaka.gov.in/` | the one field resting on HCI Dhaka supporting-document guidance rather than a visible form field (`business_details.bd_company_name`) |
 
-**Confidence ceiling.** Phase-4 form-model entries never claim `official_verbatim` — the online
-forms are inspectable (field labels, page structure) but no per-field wording was captured
-verbatim, so `official_derived` is the ceiling. A field is `official_derived` when it mirrors a
-field visibly present on the online form; it drops to `secondary_guidance` when the requirement
-rests on HCI Dhaka / IVAC guidance rather than a labelled form field (`family.pakistan_ancestry`,
-`occupation.military_police`, `references.india_references_min`, `business_details.bd_company_name`).
+**Confidence ceiling — corrected (Phase 4 whole-branch review).** Every `form-model.json`
+`source` is now `secondary_guidance`, section sources included. The file was authored from the
+well-known structure of the India Regular/e-Visa online application forms (see the paragraph
+above), not from a retrieved form document: every entry cites the bare landing page
+`https://indianvisaonline.gov.in/visa/` (or the e-Visa / HCI Dhaka equivalent) with no
+`documentDate` and no captured per-field wording. `official_derived` requires a specific
+retrieved document behind the claim, so no form-model entry earns it — this is the same
+downgrade Task 2's review applied to the `visa-provision.html`-sourced regular categories.
+`official_verbatim` remains out of reach for the same reason.
+
+This does **not** change the e-Visa category/eligibility records in `evisa-categories.json` and
+`eligibility.bgd.json`: those cite `tvoa.html` / the e-Visa portal with a real "Last Updated"
+`documentDate` and keep `official_derived` (see the refinement note below). Raising any
+form-model entry back to `official_derived` requires first capturing the actual form page (or a
+published field list) with a `documentDate`, then re-citing it per field.
 
 **`source.confidence` refinement (Task 2, applied to the Task-1-seeded category/eligibility
 data).** Task 1 defaulted every category and eligibility `source.confidence` to

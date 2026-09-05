@@ -158,11 +158,12 @@ export function buildApplicationPlan(input: BuildApplicationPlanInput): Applicat
       const rule = category.formRules.fieldRules.find(
         (r) => r.sectionId === section.id && r.fieldId === 'india_references_min',
       );
-      // The `india_references_min` FormField is listed in every applicable `references`
-      // section regardless of whether the category defines a count-bearing FieldRule for it
-      // (e.g. regular.tourist has none). Only a category with such a rule makes this field
-      // meaningful; absent one, leave Task 9's default resolution (value: null, present: false)
-      // untouched rather than fabricate a count threshold that doesn't exist.
+      // The plan entry only exists when the category defines this count-bearing FieldRule
+      // (it has no backing `FormField`; `resolveFieldPlans` synthesises it from the rule), and
+      // `buildReferencesFieldPlan` already rejects a rule with no `count`. This guard is
+      // therefore a type narrowing plus a defence against a future KB shape, not a live branch:
+      // absent a count, leave the default resolution (value: null, present: false) untouched
+      // rather than fabricate a threshold that doesn't exist.
       if (rule?.count === undefined) return field;
       return {
         ...field,
@@ -189,6 +190,8 @@ export function buildApplicationPlan(input: BuildApplicationPlanInput): Applicat
   // engine-level plan warning is the category-not-found case, which already returned above).
   // A local variable (not two separate `[]` literals) keeps this and the returned `warnings`
   // field from drifting apart if a future change ever needs to populate it here.
+  // Intentionally unreachable-as-populated today: no engine-level warning source exists on this
+  // path, so `computeReadiness`'s warning handling is dead code by design, not by oversight.
   const warnings: Warning[] = [];
   const readyForAutomation = computeReadiness(eligibility, missing, warnings);
 

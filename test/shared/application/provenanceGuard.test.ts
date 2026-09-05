@@ -27,11 +27,18 @@ const ARRIVAL = new Date(NOW.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString()
 
 const CONFIDENCE_VALUES = new Set<string>(SOURCE_CONFIDENCE);
 
-/** Plan-level warnings that are legitimately allowed to have `source: null`. */
-const NULL_SOURCE_WARNING_ALLOWLIST: RegExp[] = [
-  /was not found in the knowledge base/i,
-  /knowledge base is pinned to/i,
-];
+/**
+ * Plan-level warnings that are legitimately allowed to have `source: null`.
+ *
+ * There is exactly one: the category-not-found warning `buildApplicationPlan` emits before it
+ * has a category to source from. A `/knowledge base is pinned to/i` entry used to sit here too,
+ * but nothing in the repo ever produced that text — the real stale-pin warning ("plan computed
+ * against KB X; current KB is Y") is appended by `applicationService.getApplication`, outside
+ * the engine, so this guard never sees it. A dead allow-list entry is not free: it silently
+ * pre-authorises a future unsourced warning matching that phrase, which is exactly what this
+ * guard exists to catch. Removed rather than re-pointed.
+ */
+const NULL_SOURCE_WARNING_ALLOWLIST: RegExp[] = [/was not found in the knowledge base/i];
 
 function assertSource(source: Source, where: string): void {
   expect(source, `${where}: source must be an object`).toBeTruthy();

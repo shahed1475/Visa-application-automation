@@ -51,6 +51,27 @@ const PHASE_4_MUST_INCLUDE = [
   '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
   '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
   '*.visibleMarks', '*.visible_marks', '*.nationalityAtBirth', '*.nationality_at_birth',
+  // review follow-up: the remaining sensitive columns migration 4 added
+  'religion', 'education', 'maritalStatus', 'marital_status',
+  'pakistanAncestry', 'pakistan_ancestry', 'militaryPolice', 'military_police',
+  'fatherPlaceOfBirth', 'father_place_of_birth', 'motherPlaceOfBirth', 'mother_place_of_birth',
+  'spousePlaceOfBirth', 'spouse_place_of_birth',
+  'fatherNationality', 'father_nationality', 'motherNationality', 'mother_nationality',
+  'spouseNationality', 'spouse_nationality',
+  'fatherPrevNationality', 'father_prev_nationality',
+  'motherPrevNationality', 'mother_prev_nationality',
+  'spousePrevNationality', 'spouse_prev_nationality',
+  '*.religion', '*.education', '*.maritalStatus', '*.marital_status',
+  '*.pakistanAncestry', '*.pakistan_ancestry', '*.militaryPolice', '*.military_police',
+  '*.fatherPlaceOfBirth', '*.father_place_of_birth',
+  '*.motherPlaceOfBirth', '*.mother_place_of_birth',
+  '*.spousePlaceOfBirth', '*.spouse_place_of_birth',
+  '*.fatherNationality', '*.father_nationality',
+  '*.motherNationality', '*.mother_nationality',
+  '*.spouseNationality', '*.spouse_nationality',
+  '*.fatherPrevNationality', '*.father_prev_nationality',
+  '*.motherPrevNationality', '*.mother_prev_nationality',
+  '*.spousePrevNationality', '*.spouse_prev_nationality',
 ];
 
 it('redacts every applicant PII key we care about', () => {

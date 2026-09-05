@@ -34,6 +34,30 @@ export const REDACT_PATHS = [
   '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
   '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
   '*.visibleMarks', '*.visible_marks', '*.nationalityAtBirth', '*.nationality_at_birth',
+  // Phase 4 (review follow-up) — the rest of the sensitive columns migration 4 added.
+  // Religion, education, marital status, the Pakistan-ancestry and military/police
+  // declarations, and every parent/spouse place-of-birth and nationality are all
+  // special-category personal data that Phase 4 now stores; they were missed above.
+  'religion', 'education', 'maritalStatus', 'marital_status',
+  'pakistanAncestry', 'pakistan_ancestry', 'militaryPolice', 'military_police',
+  'fatherPlaceOfBirth', 'father_place_of_birth', 'motherPlaceOfBirth', 'mother_place_of_birth',
+  'spousePlaceOfBirth', 'spouse_place_of_birth',
+  'fatherNationality', 'father_nationality', 'motherNationality', 'mother_nationality',
+  'spouseNationality', 'spouse_nationality',
+  'fatherPrevNationality', 'father_prev_nationality',
+  'motherPrevNationality', 'mother_prev_nationality',
+  'spousePrevNationality', 'spouse_prev_nationality',
+  '*.religion', '*.education', '*.maritalStatus', '*.marital_status',
+  '*.pakistanAncestry', '*.pakistan_ancestry', '*.militaryPolice', '*.military_police',
+  '*.fatherPlaceOfBirth', '*.father_place_of_birth',
+  '*.motherPlaceOfBirth', '*.mother_place_of_birth',
+  '*.spousePlaceOfBirth', '*.spouse_place_of_birth',
+  '*.fatherNationality', '*.father_nationality',
+  '*.motherNationality', '*.mother_nationality',
+  '*.spouseNationality', '*.spouse_nationality',
+  '*.fatherPrevNationality', '*.father_prev_nationality',
+  '*.motherPrevNationality', '*.mother_prev_nationality',
+  '*.spousePrevNationality', '*.spouse_prev_nationality',
 ];
 
 /**

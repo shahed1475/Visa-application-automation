@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDatabase } from '../../src/server/db/connection.js';
 import { runMigrations, LATEST_SCHEMA_VERSION } from '../../src/server/db/migrations.js';
+import { updateApplicant } from '../../src/server/services/applicantService.js';
 import { makeTempDbPath, cleanupTempDb } from '../helpers/tempDb.js';
 
 describe('migration 4 — applicant family/occupation/identity + visa_applications', () => {
@@ -270,5 +271,88 @@ describe('migration 4 — applicant family/occupation/identity + visa_applicatio
     });
     d4.close();
     cleanupTempDb(p3);
+  });
+});
+
+/** A genuine v3 database (migrations 1-3 only, applicant + v3-era satellite rows already
+ *  present) upgraded by migration 4 alone. The `PRAGMA user_version = 0` + run-everything
+ *  style above never has a v3 database, so it cannot see the backfill at all. */
+describe('migration 4 — real v3 -> v4 upgrade of an existing applicant', () => {
+  let db: DatabaseSync;
+  let dbPath: string;
+  const now = 't';
+
+  beforeEach(() => {
+    dbPath = makeTempDbPath();
+    db = openDatabase(dbPath);
+    // Stop at v3: the DB now looks exactly like one written by the previous release.
+    runMigrations(db, 3);
+    expect(
+      (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
+    ).toBe(3);
+
+    db.prepare(
+      `INSERT INTO applicants (id, display_name, status, created_at, updated_at)
+       VALUES ('legacy', 'Legacy Applicant', 'draft', ?, ?)`,
+    ).run(now, now);
+    db.prepare(
+      `INSERT INTO applicant_identity (applicant_id, surname, given_names) VALUES ('legacy', 'Rai', 'Asha')`,
+    ).run();
+    db.prepare(`INSERT INTO applicant_passport (applicant_id, number) VALUES ('legacy', 'P123')`).run();
+    db.prepare(`INSERT INTO applicant_contact (applicant_id, email) VALUES ('legacy', 'a@b.c')`).run();
+    db.prepare(`INSERT INTO applicant_address (applicant_id, city) VALUES ('legacy', 'Dhaka')`).run();
+    db.prepare(
+      `INSERT INTO applicant_field_meta (id, applicant_id, field_path, source, verified, created_at, updated_at)
+       VALUES ('m1', 'legacy', 'identity.surname', 'manual', 1, ?, ?)`,
+    ).run(now, now);
+
+    // The upgrade under test.
+    runMigrations(db);
+  });
+  afterEach(() => {
+    db.close();
+    cleanupTempDb(dbPath);
+  });
+
+  const count = (t: string) =>
+    (db.prepare(`SELECT COUNT(*) AS n FROM ${t} WHERE applicant_id = 'legacy'`).get() as { n: number }).n;
+
+  it('reaches schema version 4 and keeps the v3-era data', () => {
+    expect(
+      (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
+    ).toBe(4);
+    expect(db.prepare(`SELECT surname FROM applicant_identity WHERE applicant_id='legacy'`).get()).toEqual({
+      surname: 'Rai',
+    });
+    expect(count('applicant_field_meta')).toBe(1);
+  });
+
+  it('backfills applicant_family and applicant_occupation for the pre-existing applicant', () => {
+    expect(count('applicant_family')).toBe(1);
+    expect(count('applicant_occupation')).toBe(1);
+  });
+
+  it('persists a family/occupation patch on the upgraded applicant', () => {
+    const detail = updateApplicant(db, 'legacy', {
+      family: { fatherName: 'X' },
+      occupation: { occupation: 'Y' },
+    });
+    expect(detail).not.toBeNull();
+    expect(detail!.family.fatherName).toBe('X');
+    expect(detail!.occupation.occupation).toBe('Y');
+
+    // Read back straight from SQL, so a service-layer cache could not mask a lost write.
+    expect(
+      db.prepare(`SELECT father_name FROM applicant_family WHERE applicant_id='legacy'`).get(),
+    ).toEqual({ father_name: 'X' });
+    expect(
+      db.prepare(`SELECT occupation FROM applicant_occupation WHERE applicant_id='legacy'`).get(),
+    ).toEqual({ occupation: 'Y' });
+  });
+
+  it('does not double-insert satellite rows when migrations are re-run', () => {
+    runMigrations(db);
+    expect(count('applicant_family')).toBe(1);
+    expect(count('applicant_occupation')).toBe(1);
   });
 });

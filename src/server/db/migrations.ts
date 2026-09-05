@@ -208,6 +208,13 @@ const migrations: Migration[] = [
         occupation TEXT, employer_name TEXT, employer_address TEXT, designation TEXT,
         military_police TEXT CHECK (military_police IN ('yes','no') OR military_police IS NULL)
       );
+      -- Backfill the two new 1:1 satellite rows for applicants that already exist.
+      -- writeSection is a bare UPDATE ... WHERE applicant_id = ?, so without a row here a
+      -- family/occupation patch on a pre-migration-4 applicant would affect zero rows and
+      -- silently drop the data. On a fresh DB "applicants" is empty at this point, so these
+      -- INSERTs are no-ops and createApplicant remains the sole producer for new applicants.
+      INSERT INTO applicant_family (applicant_id) SELECT id FROM applicants;
+      INSERT INTO applicant_occupation (applicant_id) SELECT id FROM applicants;
       ALTER TABLE applicant_identity ADD COLUMN religion TEXT;
       ALTER TABLE applicant_identity ADD COLUMN education TEXT;
       ALTER TABLE applicant_identity ADD COLUMN national_id TEXT;
@@ -251,12 +258,16 @@ const migrations: Migration[] = [
 
 export const LATEST_SCHEMA_VERSION = migrations[migrations.length - 1]!.version;
 
-export function runMigrations(db: DatabaseSync): void {
+/** Applies every pending migration. `upTo` stops after that schema version — it exists so
+ *  tests can materialise a genuine older database (e.g. v3) and then exercise the real
+ *  upgrade path; production callers omit it and get everything. */
+export function runMigrations(db: DatabaseSync, upTo?: number): void {
   const { user_version: current } = db
     .prepare('PRAGMA user_version')
     .get() as { user_version: number };
   for (const migration of migrations) {
     if (migration.version <= current) continue;
+    if (upTo !== undefined && migration.version > upTo) break;
     db.exec('BEGIN');
     try {
       db.exec(migration.up);

@@ -12,7 +12,7 @@ export interface SectionField {
 
 interface Props {
   title: string;
-  sectionKey: 'identity' | 'passport' | 'contact' | 'address';
+  sectionKey: 'identity' | 'passport' | 'contact' | 'address' | 'family' | 'occupation';
   fields: SectionField[];
   values: Record<string, string | null>;
   fieldMeta: FieldMeta[];

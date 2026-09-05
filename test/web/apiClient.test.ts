@@ -77,3 +77,31 @@ it('throws the server error message on non-2xx', async () => {
   );
   await expect(api.getActivePortal()).rejects.toThrow('portal not found');
 });
+
+// ---- Applications (Phase 4) -------------------------------------------------
+
+it('createApplication posts to the applicant applications collection', async () => {
+  await api.createApplication('a1', { applicationMode: 'regular', categoryId: 'regular.tourist' });
+  const init = lastInit();
+  expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/applicants/a1/applications');
+  expect(init.method).toBe('POST');
+  expect(JSON.parse(init.body as string)).toEqual(
+    expect.objectContaining({ categoryId: 'regular.tourist' }),
+  );
+});
+
+it('setApplicationFieldValue puts to the field-values endpoint', async () => {
+  await api.setApplicationFieldValue('app1', { fieldPath: 'application.purpose', value: 'recreation' });
+  const init = lastInit();
+  expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/applications/app1/field-values');
+  expect(init.method).toBe('PUT');
+});
+
+it('deleteApplication sends DELETE with no body', async () => {
+  await api.deleteApplication('app1');
+  const init = lastInit();
+  expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/applications/app1');
+  expect(init.method).toBe('DELETE');
+  expect(init.body).toBeUndefined();
+  expect(new Headers(init.headers).has('content-type')).toBe(false);
+});

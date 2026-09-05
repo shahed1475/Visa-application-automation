@@ -18,6 +18,12 @@ import type {
   FieldMetaPatchInput,
 } from '../../../shared/applicant/schemas';
 import type { DocumentSummary, DocumentDetail } from '../../../shared/documents/types';
+import type { ApplicationPlan, VisaApplication, VisaApplicationSummary } from '../../../shared/application/types';
+import type {
+  ApplicationCreate,
+  ApplicationFieldValueInput,
+  ApplicationPut,
+} from '../../../shared/application/schemas';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -146,4 +152,27 @@ export const api = {
     }),
   deleteDocument: (id: string) =>
     request<{ deleted: true }>(`/documents/${id}`, { method: 'DELETE' }),
+
+  // ---- Applications (Phase 4) ----------------------------------------------
+  createApplication: (applicantId: string, input: ApplicationCreate) =>
+    request<{ application: VisaApplicationSummary }>(`/applicants/${applicantId}/applications`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  listApplications: (applicantId: string) =>
+    request<{ applications: VisaApplicationSummary[] }>(`/applicants/${applicantId}/applications`),
+  getApplication: (id: string) =>
+    request<{ application: VisaApplication; plan: ApplicationPlan }>(`/applications/${id}`),
+  updateApplication: (id: string, patch: ApplicationPut) =>
+    request<{ application: VisaApplication; plan: ApplicationPlan }>(`/applications/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
+  setApplicationFieldValue: (id: string, input: ApplicationFieldValueInput) =>
+    request<{ application: VisaApplication; plan: ApplicationPlan }>(`/applications/${id}/field-values`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  deleteApplication: (id: string) =>
+    request<{ deleted: true }>(`/applications/${id}`, { method: 'DELETE' }),
 };

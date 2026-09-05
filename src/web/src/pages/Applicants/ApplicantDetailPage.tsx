@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { ApplicantDetail } from '../../../../shared/applicant/types';
 import { api } from '../../api/client';
-import { SEX_OPTIONS } from '../../lib/applicantOptions';
+import { SEX_OPTIONS, MARITAL_STATUS_OPTIONS, YES_NO_OPTIONS } from '../../lib/applicantOptions';
 import { CompletenessHeader } from './CompletenessHeader';
 import { SectionCard, type SectionField } from './SectionCard';
 import { TravelSection } from './TravelSection';
 import { ReferenceSection } from './ReferenceSection';
 import { DocumentsSubsection } from './DocumentsSubsection';
+import { ApplicationsSubsection } from './ApplicationsSubsection';
 
 const IDENTITY_FIELDS: SectionField[] = [
   { key: 'surname', label: 'Surname' },
@@ -41,6 +42,29 @@ const ADDRESS_FIELDS: SectionField[] = [
   { key: 'postalCode', label: 'Postal code' },
   { key: 'country', label: 'Country' },
 ];
+const FAMILY_FIELDS: SectionField[] = [
+  { key: 'fatherName', label: "Father's name" },
+  { key: 'fatherNationality', label: "Father's nationality" },
+  { key: 'fatherPrevNationality', label: "Father's previous nationality" },
+  { key: 'fatherPlaceOfBirth', label: "Father's place of birth" },
+  { key: 'motherName', label: "Mother's name" },
+  { key: 'motherNationality', label: "Mother's nationality" },
+  { key: 'motherPrevNationality', label: "Mother's previous nationality" },
+  { key: 'motherPlaceOfBirth', label: "Mother's place of birth" },
+  { key: 'maritalStatus', label: 'Marital status', type: 'select', options: MARITAL_STATUS_OPTIONS },
+  { key: 'spouseName', label: "Spouse's name" },
+  { key: 'spouseNationality', label: "Spouse's nationality" },
+  { key: 'spousePrevNationality', label: "Spouse's previous nationality" },
+  { key: 'spousePlaceOfBirth', label: "Spouse's place of birth" },
+  { key: 'pakistanAncestry', label: 'Pakistan ancestry', type: 'select', options: YES_NO_OPTIONS },
+];
+const OCCUPATION_FIELDS: SectionField[] = [
+  { key: 'occupation', label: 'Occupation' },
+  { key: 'employerName', label: 'Employer name' },
+  { key: 'employerAddress', label: 'Employer address' },
+  { key: 'designation', label: 'Designation' },
+  { key: 'militaryPolice', label: 'Military / police background', type: 'select', options: YES_NO_OPTIONS },
+];
 
 export function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -71,7 +95,7 @@ export function ApplicantDetailPage() {
   if (error) return <p className="error" role="alert">{error}</p>;
   if (!detail || !id) return <p>Applicant not found.</p>;
 
-  const saveSection = (key: 'identity' | 'passport' | 'contact' | 'address') =>
+  const saveSection = (key: 'identity' | 'passport' | 'contact' | 'address' | 'family' | 'occupation') =>
     async (patch: Record<string, string | null>) => {
       await api.updateApplicant(id, { [key]: patch });
       await reload();
@@ -124,10 +148,17 @@ export function ApplicantDetailPage() {
       <SectionCard title="Address" sectionKey="address" fields={ADDRESS_FIELDS}
         values={detail.address as unknown as Record<string, string | null>}
         fieldMeta={detail.fieldMeta} onSave={saveSection('address')} onVerify={verifyField} />
+      <SectionCard title="Family" sectionKey="family" fields={FAMILY_FIELDS}
+        values={detail.family as unknown as Record<string, string | null>}
+        fieldMeta={detail.fieldMeta} onSave={saveSection('family')} onVerify={verifyField} />
+      <SectionCard title="Occupation" sectionKey="occupation" fields={OCCUPATION_FIELDS}
+        values={detail.occupation as unknown as Record<string, string | null>}
+        fieldMeta={detail.fieldMeta} onSave={saveSection('occupation')} onVerify={verifyField} />
 
       <TravelSection applicantId={id} records={detail.travel} onChange={reload} />
       <ReferenceSection applicantId={id} records={detail.references} onChange={reload} />
       <DocumentsSubsection applicantId={id} />
+      <ApplicationsSubsection applicantId={id} />
     </section>
   );
 }

@@ -12,6 +12,8 @@ vi.mock('../../src/web/src/api/client', () => {
     passport: { documentType: 'P', number: 'AB1234567', issuingState: 'BGD', issueDate: '2020-01-01', expiryDate: '2030-01-01', placeOfIssue: 'Dhaka', issuingAuthority: null },
     contact: { email: 'a@b.co', phone: null, altPhone: null },
     address: { line1: null, line2: null, city: null, region: null, postalCode: null, country: null },
+    family: { fatherName: null, fatherNationality: null, fatherPrevNationality: null, fatherPlaceOfBirth: null, motherName: null, motherNationality: null, motherPrevNationality: null, motherPlaceOfBirth: null, maritalStatus: 'married', spouseName: null, spouseNationality: null, spousePrevNationality: null, spousePlaceOfBirth: null, pakistanAncestry: null },
+    occupation: { occupation: 'Engineer', employerName: null, employerAddress: null, designation: null, militaryPolice: null },
     travel: [], references: [],
     fieldMeta: [
       { id: 'm1', applicantId: 'a1', fieldPath: 'passport.number', source: 'passport_mrz', confidence: 0.99, rawValue: null, verified: false, verifiedAt: null, documentId: 'doc1', createdAt: 't', updatedAt: 't' },
@@ -33,6 +35,7 @@ vi.mock('../../src/web/src/api/client', () => {
       listDocuments: vi.fn().mockResolvedValue({ documents: [{ id: 'doc1', applicantId: 'a1', kind: 'passport', originalName: 'passport.jpg', status: 'extracted', fieldCount: 6, runCount: 1, mimeType: 'image/jpeg', createdAt: 't', updatedAt: 't' }] }),
       uploadDocument: vi.fn().mockResolvedValue({ document: { id: 'doc9' } }),
       extractDocument: vi.fn().mockResolvedValue({ document: { id: 'doc9' } }),
+      listApplications: vi.fn().mockResolvedValue({ applications: [] }),
     },
   };
 });
@@ -46,6 +49,8 @@ const detail = {
   passport: { documentType: 'P', number: 'AB1234567', issuingState: 'BGD', issueDate: '2020-01-01', expiryDate: '2030-01-01', placeOfIssue: 'Dhaka', issuingAuthority: null },
   contact: { email: 'a@b.co', phone: null, altPhone: null },
   address: { line1: null, line2: null, city: null, region: null, postalCode: null, country: null },
+  family: { fatherName: null, fatherNationality: null, fatherPrevNationality: null, fatherPlaceOfBirth: null, motherName: null, motherNationality: null, motherPrevNationality: null, motherPlaceOfBirth: null, maritalStatus: 'married', spouseName: null, spouseNationality: null, spousePrevNationality: null, spousePlaceOfBirth: null, pakistanAncestry: null },
+  occupation: { occupation: 'Engineer', employerName: null, employerAddress: null, designation: null, militaryPolice: null },
   travel: [], references: [],
   fieldMeta: [
     { id: 'm1', applicantId: 'a1', fieldPath: 'passport.number', source: 'passport_mrz', confidence: 0.99, rawValue: null, verified: false, verifiedAt: null, documentId: 'doc1', createdAt: 't', updatedAt: 't' },
@@ -145,6 +150,17 @@ it('surfaces a failed verify toggle instead of floating the rejection', async ()
   } finally {
     window.removeEventListener('unhandledrejection', onUnhandled);
   }
+});
+
+it('renders Family and Occupation section cards', async () => {
+  renderAt();
+  await waitFor(() => expect(screen.getByText('Aisha Khan')).toBeTruthy());
+  expect(screen.getByRole('heading', { name: 'Family' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Occupation' })).toBeTruthy();
+  expect(screen.getByText('Engineer')).toBeTruthy();
+  // View mode renders the raw stored value (SectionCard has no label lookup in
+  // view mode, only in the edit-mode <select>) -- 'married', not 'Married'.
+  expect(screen.getByText('married')).toBeTruthy();
 });
 
 describe('document provenance', () => {

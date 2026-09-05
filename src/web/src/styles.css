@@ -428,6 +428,16 @@ table.documents th {
   color: var(--muted);
   background: #f0f0f0;
 }
+
+/* ---- Applications (Phase 4) ----------------------------------------------- */
+table.applications {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+table.applications th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
 p.hint {
   color: var(--muted);
   font-size: 0.9rem;

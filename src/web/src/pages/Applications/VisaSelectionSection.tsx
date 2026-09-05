@@ -168,8 +168,8 @@ export function VisaSelectionSection({ application, onSaved }: Props) {
       </div>
 
       <p className="hint">
-        Purpose, port of arrival and the intended dates set here also answer the matching questions in
-        Required information.
+        Purpose, port of arrival and the intended dates are also asked in Required information below;
+        enter them there as well until a later version links the two.
       </p>
 
       {error && (

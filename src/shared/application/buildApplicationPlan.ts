@@ -18,6 +18,36 @@ import { getCategory, getFormModel } from '../visa-kb/queries.js';
  *  which are list-keyed, not static paths). */
 const FLAT_SECTIONS = ['identity', 'passport', 'contact', 'address', 'family', 'occupation'] as const;
 
+/** Presence predicates for the `appliesTo: null`, `standardBlock: true` "block" `FormField`s
+ *  (spec design doc lines 110-111: a block field is "satisfied when its mapped profile fields
+ *  are present; not individually gating"). `formRules.ts`'s `resolveValuePart` never calls
+ *  `resolveValue` for an `appliesTo: null` field -- by design, there is no single applicant path
+ *  to resolve -- so every such field defaults to `present: false` regardless of applicant data
+ *  unless special-cased here. `standard_personal_block`'s field list mirrors
+ *  `PROFILE_SECTIONS.identity` (`../applicant/fieldPaths.ts`) exactly, for consistency with the
+ *  existing completeness convention. `standard_passport_block`'s and `standard_address_block`'s
+ *  lists come from the Phase-4 plan's Task 2 authoring table instead (they deliberately differ
+ *  from `PROFILE_SECTIONS.passport`/`.address` -- e.g. `placeOfIssue` is part of this block but
+ *  not of `PROFILE_SECTIONS.passport`). `india_references_min` (also `appliesTo: null`, in the
+ *  same `references` section as `home_country_reference`) is count-driven, not a simple
+ *  presence check, and is handled separately below (unchanged from Task 11). */
+const BLOCK_FIELD_PRESENCE: Record<string, (applicant: FlatApplicant) => boolean> = {
+  standard_personal_block: (a) =>
+    a.identity.surname !== null &&
+    a.identity.givenNames !== null &&
+    a.identity.dateOfBirth !== null &&
+    a.identity.sex !== null &&
+    a.identity.placeOfBirth !== null &&
+    a.identity.nationality !== null,
+  standard_passport_block: (a) =>
+    a.passport.number !== null &&
+    a.passport.issueDate !== null &&
+    a.passport.expiryDate !== null &&
+    a.passport.placeOfIssue !== null,
+  standard_address_block: (a) => a.address.line1 !== null && a.address.city !== null && a.address.country !== null,
+  home_country_reference: (a) => a.references.length > 0,
+};
+
 /** Projects the six 1:1 profile sections of a `FlatApplicant` into a flat
  *  `<section>.<camelField>` -> { value, present, verified } map, matching `PROFILE_FIELD_PATHS`
  *  exactly. `verified` is true iff either `fieldMeta` records that path as verified (same
@@ -120,6 +150,10 @@ export function buildApplicationPlan(input: BuildApplicationPlanInput): Applicat
   const sections: SectionPlan[] = rawSections.map((section) => ({
     ...section,
     fields: section.fields.map((field) => {
+      const presencePredicate = BLOCK_FIELD_PRESENCE[field.id];
+      if (presencePredicate !== undefined) {
+        return { ...field, present: presencePredicate(input.applicant) };
+      }
       if (field.id !== 'india_references_min') return field;
       const rule = category.formRules.fieldRules.find(
         (r) => r.sectionId === section.id && r.fieldId === 'india_references_min',

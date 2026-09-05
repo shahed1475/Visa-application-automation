@@ -67,7 +67,9 @@ function FieldRow({ field, applicationId, applicantId, onChanged }: RowProps) {
         {field.verified && <span className="field-row__flag field-row__flag--verified">verified</span>}
       </div>
 
-      {field.conditionMet === null && <p className="review-note">{REVIEW_TEXT}</p>}
+      {field.requirement === 'conditional' && field.conditionMet === null && (
+        <p className="review-note">{REVIEW_TEXT}</p>
+      )}
 
       {isApplicationScoped(field) ? (
         <div className="field-row__edit">

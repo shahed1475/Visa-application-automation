@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { VisaApplication } from '../../../../shared/application/types';
 import type { ApplicationPut } from '../../../../shared/application/schemas';
 import {
+  APPLICATION_MODES,
   ENTRY_TYPES,
   PURPOSE_TAGS,
   getCategoriesForMode,
@@ -14,6 +15,11 @@ import { api } from '../../api/client';
 function humanize(tag: string): string {
   return tag.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
+
+const MODE_LABELS: Record<ApplicationMode, string> = {
+  evisa: 'e-Visa',
+  regular: 'Regular',
+};
 
 interface Props {
   application: VisaApplication;
@@ -94,8 +100,11 @@ export function VisaSelectionSection({ application, onSaved }: Props) {
             value={form.applicationMode}
             onChange={(e) => changeMode(e.target.value as ApplicationMode)}
           >
-            <option value="evisa">e-Visa</option>
-            <option value="regular">Regular</option>
+            {APPLICATION_MODES.map((m) => (
+              <option key={m} value={m}>
+                {MODE_LABELS[m]}
+              </option>
+            ))}
           </select>
         </label>
         <label>

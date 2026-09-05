@@ -211,6 +211,21 @@ it('renders a conditionMet:null eligibility condition as review, not a failure',
   expect((row.textContent ?? '').toLowerCase()).not.toContain('failed');
 });
 
+it('shows the review note only on an unresolved conditional Required-information row', async () => {
+  renderAt();
+  await waitFor(() => expect(screen.getByText('Spouse name')).toBeTruthy());
+
+  // (a) conditional + conditionMet:null -> the note is shown
+  const conditionalRow = screen.getByText('Spouse name').closest('li')!;
+  expect(within(conditionalRow).getByText(/Review required — the app cannot determine this/i)).toBeTruthy();
+
+  // (b) plain required + conditionMet:null -> NO note (null is the engine default there)
+  const requiredRow = screen.getByText('Surname').closest('li')!;
+  expect(within(requiredRow).queryByText(/Review required/i)).toBeNull();
+  const appRow = screen.getByText('India company name').closest('li')!;
+  expect(within(appRow).queryByText(/Review required/i)).toBeNull();
+});
+
 it('an application-scoped field input calls setApplicationFieldValue', async () => {
   const api = await client();
   renderAt();

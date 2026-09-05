@@ -2,12 +2,14 @@ import type { ConditionContext } from './conditions.js';
 import { resolveDocumentPlans } from './documentRules.js';
 import { resolveFieldPlans, type ResolveValueResult } from './formRules.js';
 import { evaluateEligibility } from './eligibility.js';
+import { computeMissing, computeReadiness, computeVerification } from './readiness.js';
 import type {
   ApplicationPlan,
   BuildApplicationPlanInput,
   DocumentCoverage,
   FlatApplicant,
   SectionPlan,
+  Warning,
 } from './types.js';
 import { getCategory, getFormModel } from '../visa-kb/queries.js';
 
@@ -147,23 +149,30 @@ export function buildApplicationPlan(input: BuildApplicationPlanInput): Applicat
     now: input.now,
   });
 
+  const missing = computeMissing(sections, documents);
+  const verification = computeVerification(sections);
+  // Plan-level warnings for the found-category path: currently always empty (the only
+  // engine-level plan warning is the category-not-found case, which already returned above).
+  // A local variable (not two separate `[]` literals) keeps this and the returned `warnings`
+  // field from drifting apart if a future change ever needs to populate it here.
+  const warnings: Warning[] = [];
+  const readyForAutomation = computeReadiness(eligibility, missing, warnings);
+
   return {
     selection: input.selection,
     category: categoryView,
     eligibility,
     sections,
     documents,
-    // Task 12 replaces these three with real computations (computeMissing / computeVerification /
-    // computeReadiness); this task only wires the engine together.
-    missing: [],
-    verification: { requiredVerified: 0, requiredTotal: 0, ratio: 0, label: 'unverified', bySection: {} },
-    readyForAutomation: { ready: false, blockers: [] },
+    missing,
+    verification,
+    readyForAutomation,
     provenance: {
       kbVersion: input.kb.meta.kbVersion,
       kbRevisionDate: input.kb.meta.revisionDate,
       schemaVersion: input.kb.meta.schemaVersion,
       computedAt: input.now.toISOString(),
     },
-    warnings: [],
+    warnings,
   };
 }

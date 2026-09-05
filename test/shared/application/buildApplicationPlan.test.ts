@@ -151,16 +151,40 @@ describe('buildApplicationPlan', () => {
     expect(field?.verified).toBe(true);
   });
 
-  it('returns the placeholder literals for missing/verification/readyForAutomation on the found-category path', () => {
+  it('computes real missing/verification/readyForAutomation values for the found-category path', () => {
     const plan = buildApplicationPlan(baseInput());
-    expect(plan.missing).toEqual([]);
-    expect(plan.verification).toEqual({
-      requiredVerified: 0,
-      requiredTotal: 0,
-      ratio: 0,
-      label: 'unverified',
-      bySection: {},
-    });
-    expect(plan.readyForAutomation).toEqual({ ready: false, blockers: [] });
+
+    // No documentCoverage was supplied, so every required document is missing.
+    const category = getCategory('regular.tourist', kb)!;
+    const missingDocIds = plan.missing.filter((m) => m.kind === 'document').map((m) => m.id);
+    expect(missingDocIds.sort()).toEqual(category.requiredDocuments.map((d) => d.id).sort());
+
+    // regular.tourist has no india_references_min FieldRule (unlike regular.business), so that
+    // synthetic field never appears here at all.
+    const missingFieldIds = plan.missing.filter((m) => m.kind === 'field').map((m) => m.id);
+    expect(missingFieldIds).not.toContain('india_references_min');
+
+    // The synthetic applicant fully populates the six 1:1 profile sections, but `baseInput()`
+    // leaves `applicationValues` empty, so `application.*`-backed required fields (e.g.
+    // `purpose`) are correctly reported missing -- and the "satisfied by multiple fields"
+    // block-style fields (appliesTo: null, e.g. `standard_personal_block`) are always
+    // present:false by design (Task 9) since only `india_references_min` gets a special-cased
+    // fill in buildApplicationPlan.ts.
+    expect(missingFieldIds).toContain('purpose');
+    expect(missingFieldIds).toContain('standard_personal_block');
+
+    // Verification: nothing is ever verified in this fixture (fieldMeta: [], empty document
+    // coverage), so every required field's `verified` is false.
+    expect(plan.verification.requiredTotal).toBeGreaterThan(0);
+    expect(plan.verification.requiredVerified).toBe(0);
+    expect(plan.verification.ratio).toBe(0);
+    expect(plan.verification.label).toBe('unverified');
+
+    // Readiness: eligibility is 'eligible' with no unmet conditions (asserted above) and there
+    // are no plan-level warnings for the found-category path, so every blocker traces back to a
+    // missing required field/document -- one blocker per `missing` entry, in lock-step.
+    expect(plan.readyForAutomation.ready).toBe(false);
+    expect(plan.readyForAutomation.blockers.length).toBe(plan.missing.length);
+    expect(plan.readyForAutomation.blockers.every((b) => b.kind === 'field' || b.kind === 'document')).toBe(true);
   });
 });

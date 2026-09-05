@@ -160,6 +160,30 @@ delete; the React `/documents` pages are the per-field review-and-verify UI. OCR
 is text-from-pixels only — `td3.ts` is the sole authority for a valid MRZ — and no
 extraction path writes `verified = 1`. See `docs/PHASE-3-REPORT.md`.
 
+**Phase 4 (India visa application builder):** `src/shared/application/` is the pure
+plan engine — a condition evaluator, an eligibility evaluator, form-rule and
+document-rule resolvers, and `buildApplicationPlan(input) → ApplicationPlan`
+(sections / fields / documents / eligibility / `missing` / verification rollup / a
+five-condition `readyForAutomation` gate). It imports no `node:*`, no `fastify`, no
+`react`/router, no `better-sqlite3`, never reaches into `../server`, and never reads
+`process.env` — `test/shared/application/enginePurity.test.ts` greps the source and
+fails the build otherwise. India-specific form rules live only in
+`src/shared/visa-kb/` KB v2 (`schemaVersion: 2` — a form model plus per-category
+`formRules` / `conditionalDocuments`); the engine, `applicationService`,
+`routes/applications.ts` and the dashboard carry no KB category-id literal, asserted
+by `test/shared/application/architectureGuard.test.ts`. Every rule the plan surfaces
+carries a `source` (official URL + `retrievedAt` + `confidence`);
+`test/shared/application/provenanceGuard.test.ts` builds a plan for every category
+and fails on any empty source. Migration 4 adds `applicant_family`,
+`applicant_occupation`, `visa_applications`, `application_field_values` and five
+`applicant_identity` columns; `src/server/services/applicationService.ts` holds
+persistence and plan assembly (pinning `kb_version` per application, recomputing
+`draft ↔ ready` from the plan), and `src/server/routes/applications.ts` is the thin
+HTTP layer. The React `/applications/:id` dashboard is a verification/preparation
+view only — its "Start automation (Phase 5)" control is rendered disabled and inert
+with no handler; there is no portal automation, form fill or submission anywhere in
+this phase. See `docs/PHASE-4-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live
@@ -237,6 +261,13 @@ and `src/shared/applicant/` hold that domain, and per-field provenance
 (`source` / `confidence` / `raw_value` / `verified`) lives in `applicant_field_meta`,
 keyed by `(applicant_id, field_path)` and kept separate from the canonical data in
 the section tables. See `docs/PHASE-2-REPORT.md`.
+
+**Phase 4:** migration 4 (`LATEST_SCHEMA_VERSION → 4`) adds `applicant_family` and
+`applicant_occupation` (1:1 profile sections) plus five `applicant_identity`
+columns, and the per-application pair `visa_applications` (one applicant → many;
+pins `kb_version`) + `application_field_values` (`application.*` values +
+verification, `UNIQUE(application_id, field_path)`, both `ON DELETE CASCADE`). No
+profile data is copied into either application table. See `docs/PHASE-4-REPORT.md`.
 
 ---
 

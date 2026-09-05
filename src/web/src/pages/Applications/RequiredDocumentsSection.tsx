@@ -10,11 +10,20 @@ type Busy = 'idle' | 'uploading' | 'extracting';
 
 function DocumentRow({ doc }: { doc: DocumentPlan }) {
   const unresolvedConditional = doc.requirement === 'conditional' && doc.conditionMet === null;
+  // The chip must show `effectiveRequirement`, the value the gate actually uses — the same
+  // thing field rows show. Rendering the base `requirement` labelled a return-ticket document
+  // "optional" while Missing info and the blocker list called it required.
+  const promoted = doc.effectiveRequirement !== doc.requirement;
   return (
     <li className="doc-row">
       <div className="doc-row__head">
         <span className="doc-row__label">{doc.label}</span>
-        <span className={`req-chip req-chip--${doc.requirement}`}>{doc.requirement}</span>
+        <span className={`req-chip req-chip--${doc.effectiveRequirement}`}>
+          {doc.effectiveRequirement.replace(/_/g, ' ')}
+        </span>
+        {promoted && (
+          <span className="doc-row__flag">listed as {doc.requirement}</span>
+        )}
         {doc.uploaded ? (
           <span className="doc-row__flag doc-row__flag--present">uploaded</span>
         ) : (

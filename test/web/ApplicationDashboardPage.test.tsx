@@ -336,6 +336,36 @@ it('renders each required document with its requirement and uploaded state; a ma
   expect(link.getAttribute('href')).toBe('/documents/doc1');
 });
 
+it('a document row shows its effectiveRequirement, not its base requirement', async () => {
+  // The evisa.tourist.30d return_ticket case: listed optional, promoted to required by the
+  // category's onwardOrReturnTicket rule, so it also appears in Missing info and as a blocker.
+  // The chip must agree with the gate.
+  const promotedTicket = {
+    id: 'return_ticket',
+    label: 'Return or onward ticket',
+    requirement: 'optional' as const,
+    condition: null,
+    conditionMet: null,
+    effectiveRequirement: 'required' as const,
+    uploaded: false,
+    matchedDocumentId: null,
+    source: SRC,
+  };
+  const api = await client();
+  api.getApplication.mockResolvedValue({
+    application: makeApplication(),
+    plan: makePlan({ documents: [promotedTicket] }),
+  });
+  renderAt();
+  await waitFor(() => expect(screen.getByText('Return or onward ticket')).toBeTruthy());
+
+  const row = screen.getByText('Return or onward ticket').closest('li')!;
+  expect(within(row).getByText('required')).toBeTruthy();
+  expect(within(row).queryByText('optional')).toBeNull();
+  // the base requirement is still disclosed, just not as the chip
+  expect(within(row).getByText(/listed as optional/i)).toBeTruthy();
+});
+
 it('the required-documents upload control reuses the Phase 3 upload + extract, then reloads', async () => {
   const api = await client();
   api.getApplication.mockResolvedValue({

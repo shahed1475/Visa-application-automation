@@ -27,7 +27,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the personal-particulars page of the online form. Profile field identity.religion is not wired until Task 5."
+            "notes": "Visible field on the personal-particulars page of the online form."
           }
         },
         {
@@ -40,7 +40,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the personal-particulars page of the online form. Profile field identity.education is not wired until Task 5."
+            "notes": "Visible field on the personal-particulars page of the online form."
           }
         },
         {
@@ -53,7 +53,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the personal-particulars page of the online form. Profile field identity.nationalId is not wired until Task 5."
+            "notes": "Visible field on the personal-particulars page of the online form."
           }
         },
         {
@@ -66,7 +66,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the personal-particulars page of the online form. Profile field identity.visibleMarks is not wired until Task 5."
+            "notes": "Visible field on the personal-particulars page of the online form."
           }
         },
         {
@@ -79,7 +79,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the personal-particulars page of the online form (asked when nationality by birth differs from current nationality). Profile field identity.nationalityAtBirth is not wired until Task 5."
+            "notes": "Visible field on the personal-particulars page of the online form (asked when nationality by birth differs from current nationality)."
           }
         }
       ],
@@ -175,7 +175,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the family-particulars page of the online form. Profile field family.fatherName is not wired until Task 5."
+            "notes": "Visible field on the family-particulars page of the online form."
           }
         },
         {
@@ -188,7 +188,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the family-particulars page of the online form. Profile field family.fatherNationality is not wired until Task 5."
+            "notes": "Visible field on the family-particulars page of the online form."
           }
         },
         {
@@ -201,7 +201,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the family-particulars page of the online form. Profile field family.motherName is not wired until Task 5."
+            "notes": "Visible field on the family-particulars page of the online form."
           }
         },
         {
@@ -215,7 +215,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the family-particulars page of the online form. Profile field family.maritalStatus is not wired until Task 5."
+            "notes": "Visible field on the family-particulars page of the online form."
           }
         },
         {
@@ -228,7 +228,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the family-particulars page of the online form, asked when marital_status is married. Profile field family.spouseName is not wired until Task 5."
+            "notes": "Visible field on the family-particulars page of the online form, asked when marital_status is married."
           }
         },
         {
@@ -241,7 +241,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the family-particulars page of the online form, asked when marital_status is married. Profile field family.spouseNationality is not wired until Task 5."
+            "notes": "Visible field on the family-particulars page of the online form, asked when marital_status is married."
           }
         },
         {
@@ -255,7 +255,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/evisa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "The universal e-Visa exclusion for applicants of Pakistani origin/parentage (documented in eligibility.bgd.json from S1, tvoa.html) is also asked as a direct declaration field on the online form; the exact on-page wording for this declaration was not independently re-verified for Phase 4, so this rests on the exclusion guidance rather than a captured form screenshot. Profile field family.pakistanAncestry is not wired until Task 5."
+            "notes": "The universal e-Visa exclusion for applicants of Pakistani origin/parentage (documented in eligibility.bgd.json from S1, tvoa.html) is also asked as a direct declaration field on the online form; the exact on-page wording for this declaration was not independently re-verified for Phase 4, so this rests on the exclusion guidance rather than a captured form screenshot."
           }
         }
       ],
@@ -279,7 +279,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the occupation-particulars page of the online form. Profile field occupation.occupation is not wired until Task 5."
+            "notes": "Visible field on the occupation-particulars page of the online form."
           }
         },
         {
@@ -292,7 +292,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the occupation-particulars page of the online form. Profile field occupation.employerName is not wired until Task 5."
+            "notes": "Visible field on the occupation-particulars page of the online form."
           }
         },
         {
@@ -305,7 +305,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the occupation-particulars page of the online form. Profile field occupation.employerAddress is not wired until Task 5."
+            "notes": "Visible field on the occupation-particulars page of the online form."
           }
         },
         {
@@ -318,7 +318,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/visa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "Visible field on the occupation-particulars page of the online form. Profile field occupation.designation is not wired until Task 5."
+            "notes": "Visible field on the occupation-particulars page of the online form."
           }
         },
         {
@@ -332,7 +332,7 @@
             "officialUrl": "https://indianvisaonline.gov.in/evisa/",
             "retrievedAt": "2026-09-05",
             "confidence": "secondary_guidance",
-            "notes": "The e-Visa universal exclusion for defence/military/security/police background (eligibility.bgd.json, from S1 tvoa.html) is asked as a direct declaration field on the online form; the exact on-page wording was not independently re-verified for Phase 4. Profile field occupation.militaryPolice is not wired until Task 5."
+            "notes": "The e-Visa universal exclusion for defence/military/security/police background (eligibility.bgd.json, from S1 tvoa.html) is asked as a direct declaration field on the online form; the exact on-page wording was not independently re-verified for Phase 4."
           }
         }
       ],

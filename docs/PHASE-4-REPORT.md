@@ -267,10 +267,18 @@ never as satisfied. Covered by `conditionalRequirements.test.ts`
 4. Every `DocumentPlan.effectiveRequirement === 'required'` has `uploaded === true`.
 5. No `Warning` with `severity === 'blocker'`.
 
-Conditions 3 & 4 are derived from `computeMissing`'s output (not re-derived), so the
-`(sectionId, id)` dedupe — which the `regular.business` `references` section needs,
-since `resolveFieldPlans` emits two identical `india_references_min` entries — applies
-once, in one place. **`null` conditions do NOT gate** (they are review items only).
+Conditions 3 & 4 are derived from `computeMissing`'s output (not re-derived), and
+`computeMissing` / `computeVerification` still dedupe by `(sectionId, id)` defensively.
+(Through most of Phase 4 the `regular.business` `references` section carried two
+identical `india_references_min` `FieldPlan`s — one from the per-`FormField` loop, one
+from `resolveFieldPlans`' synthetic push — which the dedupe existed to absorb. The
+post-review fix wave dropped `india_references_min` from `form-model.json`'s
+`references` section, so the synthetic push is now the sole producer: exactly one
+`FieldPlan`, no duplicate React key, and the rollup count matches the rendered rows.
+The loader's `SYNTHETIC_FIELD_IDS` allow-list — enforced in `loader.ts`, tested both
+directions — is what keeps `regular.business`'s `india_references_min` `FieldRule`
+valid with no matching `FormField`.) **`null` conditions do NOT gate** (they are
+review items only).
 **Verification is NOT part of the gate** — the smoke below shows `ready: true` while
 `verification.label === 'unverified'`; also `readinessScenarios.test.ts` and the
 `applicationService` `'updateApplication recomputes status from draft to ready'` test.
@@ -500,9 +508,14 @@ gate for deciding whether any is worth a pre-merge fix.
   style elsewhere.
 - Task 11 — provenance object duplicated between two branches; test 1's
   document-count assertion uses `>=` not exact length. The parked
-  duplicate-`india_references_min`-FieldPlan-id item was **resolved in Task 12**
-  (`readiness.ts` `uniqueFields` dedupes by `(sectionId, id)` in both
-  `computeMissing` and `computeVerification`; `readiness.test.ts:231`).
+  duplicate-`india_references_min`-FieldPlan-id item was first absorbed by Task 12's
+  `(sectionId, id)` dedupe (`readiness.ts` `uniqueFields`; `readiness.test.ts:231`)
+  and then **fully resolved in the post-review fix wave** (commit `40ed56c`): the
+  duplicate-emitting `india_references_min` `FormField` was removed from
+  `form-model.json`'s `references` section, leaving `resolveFieldPlans`' synthetic
+  push as the single producer; the loader's `SYNTHETIC_FIELD_IDS` allow-list keeps
+  the `FieldRule` valid with no backing `FormField`. The dedupe in `readiness.ts` is
+  now belt-and-braces.
 - Task 12 — `index.ts` barrel collision-freedom was confirmed clean once Task 13
   consumed it; `ELIGIBILITY_STATUS_TEXT` takes the whole `EligibilityPlan` though 2
   of 3 branches ignore it.

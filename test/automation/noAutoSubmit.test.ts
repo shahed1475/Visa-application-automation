@@ -1,0 +1,97 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { expect, it } from 'vitest';
+
+import { EVENT_TYPES } from '../../src/shared/automation/events.js';
+
+/**
+ * Phase 5 safety invariant (spec §5.6 / §13): the automation NEVER submits,
+ * confirms, lodges or pays on the user's behalf, and it never tries to defeat
+ * a CAPTCHA / OTP / MFA challenge. It prepares the application up to the portal's
+ * final review page and then stops — submission is the user's act.
+ *
+ * Source-grep guard over the whole automation tree. Comments are stripped first
+ * so a doc-comment ("the loop NEVER submits", "no `form.submit()`") does not
+ * trip it. If a grep matches, the fix is in the SOURCE, never a looser regex.
+ */
+
+function walk(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...walk(full));
+    else if (full.endsWith('.ts')) out.push(full);
+  }
+  return out;
+}
+
+function stripComments(src: string): string {
+  return src.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+const SCAN = [
+  ...walk(path.join('src', 'server', 'automation')),
+  ...walk(path.join('src', 'shared', 'automation')),
+];
+const scanned = `scanned ${SCAN.length} files:\n${SCAN.join('\n')}`;
+
+/** Each pattern that must never appear in the comment-stripped automation source. */
+const SUBMIT_PATTERNS: RegExp[] = [
+  /\.click\([^)]*submit/i,
+  /\.click\([^)]*confirm/i,
+  /\.click\([^)]*lodge/i,
+  /\.click\([^)]*\bpay\b/i,
+  /form\s*=>\s*form\.submit\(\)/,
+  /\.evaluate\([^)]*\.submit\(\)/,
+  /\brequestSubmit\s*\(/,
+  /page\.on\(\s*['"]dialog['"]/,
+];
+
+/** CAPTCHA / OTP solver libraries — referencing any of these would mean the
+ *  automation is trying to defeat a challenge instead of handing it to the user. */
+const SOLVER_PATTERN =
+  /2captcha|anti-?captcha|deathbycaptcha|capsolver|solveRecaptcha|speakeasy|otplib|otpauth|imap-simple|node-imap|tesseract.*captcha/i;
+
+it('has a non-empty scan set', () => {
+  expect(SCAN.length, scanned).toBeGreaterThan(15);
+});
+
+it('never clicks a submit/confirm/lodge/pay control', () => {
+  for (const file of SCAN) {
+    const src = stripComments(readFileSync(file, 'utf8'));
+    for (const pattern of SUBMIT_PATTERNS) {
+      expect(
+        src,
+        `${file} matches ${pattern} — the automation must never submit/confirm/lodge/pay ` +
+          `or auto-accept a dialog on the user's behalf.\n${scanned}`,
+      ).not.toMatch(pattern);
+    }
+  }
+});
+
+it('the PortalAdapter interface pins submitSelector to null', () => {
+  const src = readFileSync(
+    path.join('src', 'server', 'automation', 'adapters', 'baseAdapter.ts'),
+    'utf8',
+  );
+  expect(src).toMatch(/submitSelector\s*:\s*null/);
+});
+
+it('the automation event vocabulary has no submit-like type', () => {
+  const offending = EVENT_TYPES.filter((t) => /submit|confirm|lodge|pay/i.test(t));
+  expect(
+    offending,
+    `EVENT_TYPES contains a submit-like entry: ${offending.join(', ')}`,
+  ).toEqual([]);
+  expect(EVENT_TYPES.every((t) => !/submit|confirm|lodge|pay/i.test(t))).toBe(true);
+});
+
+it('no CAPTCHA/OTP solver library is referenced', () => {
+  for (const file of SCAN) {
+    const src = stripComments(readFileSync(file, 'utf8'));
+    expect(
+      src,
+      `${file} references a CAPTCHA/OTP solver — challenges are handed to the user, never solved.\n${scanned}`,
+    ).not.toMatch(SOLVER_PATTERN);
+  }
+});

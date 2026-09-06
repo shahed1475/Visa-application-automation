@@ -46,15 +46,26 @@ describe('indiaAdapter — scaffold', () => {
     );
   });
 
-  it('matches known India visa-portal hosts and nothing else', () => {
+  it('matches only on the hostname of a known India visa portal', () => {
+    // known hosts, with and without www / a path
+    expect(indiaAdapter.matches('https://indianvisaonline.gov.in/visa/apply')).toBe(true);
+    expect(indiaAdapter.matches('https://www.indianvisaonline.gov.in/')).toBe(true);
     expect(indiaAdapter.matches('https://indianvisaonline.gov.in/visa/')).toBe(true);
     expect(indiaAdapter.matches('https://www.ivacbd.com/')).toBe(true);
+    // over-match guards: the token must be at a hostname boundary
+    expect(indiaAdapter.matches('https://myivac.com/service')).toBe(false);
+    expect(indiaAdapter.matches('https://portal.example/service/ivac.aspx')).toBe(false);
+    // hostname-only: a token in the path or query must never trip it
+    expect(indiaAdapter.matches('https://ivac.example.org/apply?ref=ivac.gov.in')).toBe(false);
     expect(indiaAdapter.matches('https://example.com/')).toBe(false);
+    // not a URL → the try/catch returns false
+    expect(indiaAdapter.matches('not a url')).toBe(false);
   });
 
   it('resolveAdapter picks india first, generic as the fallback', () => {
     expect(resolveAdapter('https://indianvisaonline.gov.in/x').id).toBe('india');
     expect(resolveAdapter('https://example.com/x').id).toBe('generic');
+    expect(resolveAdapter('https://myivac.com/x').id).toBe('generic');
   });
 
   it('clickNext rejects while selectors are not yet discovered', async () => {

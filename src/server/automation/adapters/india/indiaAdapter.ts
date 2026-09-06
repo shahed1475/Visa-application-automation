@@ -33,7 +33,13 @@ async function getIndiaPageIdentity(page: Page): Promise<PageIdentity> {
 export const indiaAdapter: PortalAdapter = {
   id: 'india',
 
-  matches: (url) => indiaPortalMap.matchesUrl.test(url),
+  matches: (url) => {
+    try {
+      return indiaPortalMap.matchesUrl.test(new URL(url).hostname);
+    } catch {
+      return false;
+    }
+  },
 
   // The India flow entry is whatever the operator configured in Settings —
   // never a constant baked into the adapter.

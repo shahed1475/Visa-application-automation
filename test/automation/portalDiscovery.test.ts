@@ -58,7 +58,18 @@ describe('captureDiscovery — read-only portal discovery', () => {
     )
       .replace(/\/\/.*$/gm, '')
       .replace(/\/\*[\s\S]*?\*\//g, '');
-    for (const banned of ['.fill(', '.click(', '.type(', '.press(', '.goto(', 'form.submit']) {
+    for (const banned of [
+      '.fill(',
+      '.click(',
+      '.type(',
+      '.press(',
+      '.goto(',
+      'form.submit',
+      '.selectOption(',
+      '.check(',
+      '.setInputFiles(',
+      '.hover(',
+    ]) {
       expect(src, `portalDiscovery.ts must not contain ${banned}`).not.toContain(banned);
     }
   });

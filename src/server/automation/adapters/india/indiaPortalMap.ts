@@ -37,8 +37,12 @@ export interface IndiaPortalMap {
 }
 
 export const indiaPortalMap: IndiaPortalMap = {
-  // known India visa-portal hosts — this is adapter knowledge, lives here (excluded from the arch guard)
-  matchesUrl: /(?:indianvisaonline|ivacbd|ivac)\.[a-z.]+/i,
+  // Known India visa-portal hostnames — adapter knowledge, lives here (excluded from the
+  // arch guard). Host-anchored: `(?:^|\.)` requires the token to start the hostname or
+  // follow a dot, `$` pins it to the end. `indiaAdapter.matches` tests this against
+  // `new URL(url).hostname` ONLY — never the path or query. So `www.indianvisaonline.gov.in`
+  // matches; `myivac.com`, `ivac.example.org`, `…/ivac.aspx`, `?ref=ivac.gov.in` do not.
+  matchesUrl: /(?:^|\.)(?:indianvisaonline\.gov\.in|ivacbd\.com)$/i,
   states: {
     REGISTRATION: {
       headingPattern: /register|create account/i,

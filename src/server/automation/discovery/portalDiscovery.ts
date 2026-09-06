@@ -1,7 +1,8 @@
 // DESIGN NOTE (do not remove): READ-ONLY. captureDiscovery enumerates the current
 // page's form controls + labels and ranks selectors per docs/visa-form-analysis.md §8.1.
-// It has NO page.fill / page.click / page.type / page.press / page.goto / form.submit —
-// by design. It runs against a page the USER has already navigated (spec §12, R15).
+// It has NO page-mutating call — no fill / click / type / press / goto / form.submit /
+// selectOption / check / setInputFiles / hover — by design. It runs against a page the
+// USER has already navigated (spec §12, R15).
 
 import type { Page } from 'playwright';
 import { inspectPage, type PageInspection } from '../engine/pageInspector.js';

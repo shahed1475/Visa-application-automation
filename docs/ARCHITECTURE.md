@@ -184,6 +184,30 @@ view only — its "Start automation (Phase 5)" control is rendered disabled and 
 with no handler; there is no portal automation, form fill or submission anywhere in
 this phase. See `docs/PHASE-4-REPORT.md`.
 
+**Phase 5 (India visa browser automation):** `src/shared/automation/` is the pure
+core — a run state machine (`RunStatus`, `LEGAL_TRANSITIONS`, terminal set
+`review_ready` / `failed` / `aborted`), a closed 36-literal event vocabulary with
+fixed non-interpolated messages, and a pure `mapFields` `FieldPlan → portal-control`
+mapper; `test/automation/architectureGuard.test.ts` greps the source and fails on a
+`node:` / `playwright` / `fastify` / `react` / `../server/` import. `src/server/automation/`
+holds the Playwright half — condition-based control primitives (no `waitForTimeout`),
+fill + read-back verification, page detection with a 0.6 confidence floor,
+detect-only OTP/CAPTCHA/MFA/anti-bot checkpoint detection, the run loop, the
+`AutomationService` + background runner, and the seven `/api/automation-runs`
+endpoints. The engine never imports a concrete adapter — it reaches a portal only
+through a `PortalAdapter` (resolved from the active portal URL via a registry); India
+selectors live only under `adapters/india/` and ship as the literal string
+`'TODO:discover'` (real discovery is user-driven, see `docs/portals/india.md`), both
+asserted by guard tests. Migration 5 adds `automation_runs` + `automation_events`.
+The loop stops at `review_ready` and has **no submit path** — enforced four ways
+(`PortalAdapter.submitSelector` typed `readonly null`; a structural `return` before
+any submit action; a source-grep guard test; `submitCount === 0` across every
+fixture E2E). OTP / CAPTCHA / MFA / anti-bot are **human checkpoints** — the run
+pauses, foregrounds the browser, and waits for `POST /resume`; nothing is solved or
+bypassed. No field value is ever stored or logged. The engine is proven end-to-end
+against a local fixture portal; no run has touched a real India portal. See
+`docs/PHASE-5-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live
@@ -268,6 +292,16 @@ columns, and the per-application pair `visa_applications` (one applicant → man
 pins `kb_version`) + `application_field_values` (`application.*` values +
 verification, `UNIQUE(application_id, field_path)`, both `ON DELETE CASCADE`). No
 profile data is copied into either application table. See `docs/PHASE-4-REPORT.md`.
+
+**Phase 5:** migration 5 (`LATEST_SCHEMA_VERSION → 5`) adds `automation_runs`
+(one `visa_applications` row → many; `status` CHECK excludes any `completed` /
+`submitted` value; `waiting_reason` CHECK; required-only progress counters;
+sanitized `error_code` / `error_message`) + `automation_events` (`run_id`
+`ON DELETE CASCADE`, `UNIQUE(run_id, seq)`, `type` from the closed vocabulary,
+`field_path` is the canonical `appliesTo` identifier and `message` from the fixed
+`EVENT_MESSAGES` set — **neither table has a column for a field value**). An
+optional relative `evidence_path` (screenshots, off by default, under a gitignored
+`data/automation/`) is the only file reference. See `docs/PHASE-5-REPORT.md`.
 
 ---
 

@@ -6,7 +6,10 @@ import { runMigrations } from '../../src/server/db/migrations.js';
 import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
 import { createPortal, setActivePortal } from '../../src/server/services/portalService.js';
 import type { ApplicationPlan } from '../../src/shared/application/types.js';
-import type { EngineStop } from '../../src/server/automation/engine/automationEngine.js';
+import type {
+  EngineContext,
+  EngineStop,
+} from '../../src/server/automation/engine/automationEngine.js';
 import type { PortalAdapter } from '../../src/server/automation/adapters/baseAdapter.js';
 import type { PageInspection } from '../../src/server/automation/engine/pageInspector.js';
 import {
@@ -100,7 +103,7 @@ interface ServiceOpts {
   ready?: boolean;
   blockers?: number;
   stops?: EngineStop[];
-  runLoop?: () => Promise<EngineStop>;
+  runLoop?: (ctx: EngineContext) => Promise<EngineStop>;
   inspect?: () => Promise<PageInspection>;
   browserManager?: unknown;
 }
@@ -266,6 +269,71 @@ describe('AutomationService', () => {
     expect(got.error_code).toBe('engine_error');
     expect(got.error_message).not.toMatch(/secret|selector|#passport/);
     expect(got.error_message).toBe('Error');
+  });
+
+  it('case 10: fields_verified is carried across a pause/resume, not reset to 0', async () => {
+    const seen: (number | undefined)[] = [];
+    let calls = 0;
+    const svc = makeService({
+      runLoop: async (ctx: EngineContext) => {
+        calls += 1;
+        seen.push(ctx.initialVerifiedCount);
+        if (calls === 1) {
+          await ctx.onProgress({
+            current_portal_state: 'PERSONAL',
+            current_section_id: null,
+            fields_total: 9,
+            fields_verified: 7,
+            documents_total: 0,
+            documents_ready: 0,
+          });
+          return { kind: 'waiting', reason: 'otp' };
+        }
+        return { kind: 'review_ready' };
+      },
+    });
+    const run = await svc.startRun(db, 'app1');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'waiting_for_user');
+    expect(svc.getRun(db, run.id)!.run.fields_verified).toBe(7);
+
+    await svc.resumeRun(db, run.id);
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'review_ready');
+
+    // first walk starts at 0; the resumed walk gets the persisted 7 fed back in.
+    expect(seen).toEqual([0, 7]);
+    expect(svc.getRun(db, run.id)!.run.fields_verified).toBe(7);
+  });
+
+  it('case 11: dispose() mid-walk leaves the run paused (resumable), not stuck running', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    let calls = 0;
+    const svc = makeService({
+      runLoop: async () => {
+        calls += 1;
+        if (calls === 1) {
+          await gate;
+          return { kind: 'waiting', reason: 'value_mismatch' };
+        }
+        return { kind: 'review_ready' };
+      },
+    });
+    const run = await svc.startRun(db, 'app1');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'running');
+
+    // dispose fires while runLoop #1 is still in flight (the runner is walking a
+    // page, not parked at a wait).
+    const disposeP = svc.dispose();
+    release();
+    await disposeP;
+
+    expect(svc.getRun(db, run.id)!.run.status).toBe('paused');
+
+    // a stuck `running` row would make resumeRun throw NotWaitingError.
+    await expect(svc.resumeRun(db, run.id)).resolves.toBeDefined();
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'review_ready');
   });
 
   it('case 7: dispose while a runner is parked at a wait resolves and closes the browser', async () => {

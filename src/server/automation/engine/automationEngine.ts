@@ -73,6 +73,14 @@ export interface EngineContext {
   ) => Promise<{ filled: boolean; outcome: VerificationOutcome; alreadySet: boolean }>;
   readControl: (page: Page, selector: string, control: ControlKind) => Promise<string | null>;
   settle: (page: Page) => Promise<void>;
+  /**
+   * Required-field verified count carried in from an earlier `runLoop` call on
+   * the same run (a resume re-enters the loop from scratch). Defaults to 0 for a
+   * first invocation. Without this the counter resets to 0 on every pause/resume
+   * and every real run — which must pass at least one OTP checkpoint — reaches
+   * `review_ready` reporting 0 verified fields (spec §5: counters are durable).
+   */
+  initialVerifiedCount?: number;
 }
 
 export type EngineStop =
@@ -101,7 +109,7 @@ const MAX_ITERATIONS = 60;
 export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
   await ctx.emit({ type: 'RUN_STARTED' });
 
-  let countVerified = 0;
+  let countVerified = ctx.initialVerifiedCount ?? 0;
   /** The state we navigated away from at the end of the previous iteration. */
   let leftState: string | null = null;
   let iterations = 0;

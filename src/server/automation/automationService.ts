@@ -323,6 +323,12 @@ export class AutomationService {
       // in-memory runner but leave the persisted run in its current (non-terminal)
       // state so a fresh process can resume it from the DB record (spec §10, R18).
       this.activeRunner.stopped = true;
+      // A run parked at a wait is already `waiting_for_user` (resumable). A run
+      // actively walking a page is `running`; killing the browser out from under
+      // it would leave it stuck `running` forever, blocking every future
+      // startRun with no in-UI recovery. Park it as `paused` (resumeRun accepts
+      // both).
+      this.activeRunner.parkForShutdown();
       this.checkpoints.signalResume(this.activeRunner.runId);
     }
     await this.bm.close().catch(() => undefined);
@@ -339,6 +345,13 @@ export class AutomationRunner {
   aborted = false;
   /** Set by `dispose` — stop the loop but leave the persisted run resumable. */
   stopped = false;
+  /**
+   * Last `fields_verified` the engine reported. `runLoop` restarts its own
+   * counter at 0 every call, so on a resume we feed this back in as
+   * `initialVerifiedCount` to keep the count monotonic across pauses. A fresh
+   * runner (crash-recovery re-walk) legitimately starts at 0 and re-counts.
+   */
+  private lastVerifiedCount = 0;
 
   constructor(
     private readonly svc: AutomationService,
@@ -354,6 +367,24 @@ export class AutomationRunner {
     if (!cur) throw new Error(`automation run ${this.runId} vanished`);
     assertTransition(cur.status, to);
     updateRun(this.db, this.runId, { status: to }, now());
+  }
+
+  /**
+   * `dispose()` shutdown hook. If this runner is parked at a checkpoint the row
+   * is already `waiting_for_user` and resumable — leave it. If it is mid-walk
+   * (`running`) the browser is about to be torn out from under it, so persist
+   * `paused` here; otherwise the row stays `running` forever and every future
+   * `startRun` is refused with `ANOTHER_RUN_ACTIVE`. Best-effort and idempotent.
+   */
+  parkForShutdown(): void {
+    if (this.svc.checkpoints.hasPending(this.runId)) return;
+    try {
+      const cur = getRunRow(this.db, this.runId);
+      if (!cur || cur.status !== 'running') return;
+      this.transition('paused');
+    } catch {
+      /* raced a terminal write — leave the recorded status as-is */
+    }
   }
 
   private emitEvent(
@@ -400,6 +431,7 @@ export class AutomationRunner {
       checkpoints: this.svc.checkpoints,
       runId,
       onProgress: (patch) => {
+        this.lastVerifiedCount = patch.fields_verified;
         updateRun(db, runId, patch, now());
       },
       emit: async (e) => {
@@ -426,6 +458,7 @@ export class AutomationRunner {
       applyField,
       readControl,
       settle: waitForPageSettled,
+      initialVerifiedCount: this.lastVerifiedCount,
     };
   }
 

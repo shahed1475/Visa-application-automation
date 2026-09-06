@@ -171,6 +171,7 @@ interface CtxOpts {
     m: MappedField,
   ) => { filled: boolean; outcome: VerificationOutcome; alreadySet: boolean };
   readControlValue?: string | null;
+  initialVerifiedCount?: number;
 }
 
 function makeCtx(o: CtxOpts) {
@@ -209,6 +210,7 @@ function makeCtx(o: CtxOpts) {
     },
     readControl: async () => (o.readControlValue === undefined ? null : o.readControlValue),
     settle: async () => {},
+    initialVerifiedCount: o.initialVerifiedCount,
   };
   return { ctx, events, progress, mismatches, applyFieldCalls };
 }
@@ -469,5 +471,54 @@ describe('runLoop', () => {
 
     expect(stop).toEqual({ kind: 'waiting', reason: 'unknown_page' });
     expect(types(events)).toContain('NAVIGATION_STALLED');
+  });
+
+  it('10. a resumed run carries fields_verified in — the count is not reset to 0', async () => {
+    // Models the second `runLoop` call after an OTP pause: the earlier pages
+    // (and their verified fields) are behind us; this walk only sees the review
+    // page. Without `initialVerifiedCount` the run would report 0/3 at success.
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'REVIEW', isFinalReview: true, sectionIds: [] }],
+      {},
+    );
+    const { ctx, progress } = makeCtx({
+      adapter,
+      plan: makePlan({ requiredTotal: 3 }),
+      initialVerifiedCount: 3,
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    expect(progress.at(-1)).toMatchObject({ fields_verified: 3, fields_total: 3 });
+    expect(progress.every((p) => p.fields_verified === 3)).toBe(true);
+  });
+
+  it('11. initialVerifiedCount is the floor, then the loop keeps counting up', async () => {
+    const fieldMap: PortalFieldMap = {
+      'identity.surname': { selector: '#s', control: 'text', selectorConfidence: 'stable' },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({ appliesTo: 'identity.surname', sectionId: 'personal_particulars', value: 'RANA' }),
+        ]),
+      ],
+      requiredTotal: 2,
+    });
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      fieldMap,
+    );
+    const { ctx, progress } = makeCtx({ adapter, plan, initialVerifiedCount: 1 });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    // 1 carried in + 1 verified on this page = 2
+    expect(progress.at(-1)).toMatchObject({ fields_verified: 2, fields_total: 2 });
   });
 });

@@ -45,6 +45,11 @@ const SUBMIT_PATTERNS: RegExp[] = [
   /\.evaluate\([^)]*\.submit\(\)/,
   /\brequestSubmit\s*\(/,
   /page\.on\(\s*['"]dialog['"]/,
+  // Pressing Enter in a text input inside a <form> triggers implicit form
+  // submission — the one submit vector with no selector and no `submit` token.
+  // `typeAutocomplete` uses `pressSequentially` (types characters, no Enter);
+  // nothing in the tree presses Enter today and nothing should start.
+  /(?:keyboard\.)?\bpress\s*\(\s*['"]Enter['"]/i,
 ];
 
 /**
@@ -95,6 +100,15 @@ it('the submit-click guard is non-vacuous', () => {
   // benign controls must NOT trip it
   expect(SUBMIT_LOCATOR_PATTERN.test("await page.locator('#surname').click()")).toBe(false);
   expect(SUBMIT_LOCATOR_PATTERN.test('const payload = buildPayload(page)')).toBe(false);
+
+  // the implicit-form-submit guard bites on both spellings …
+  const enterPattern = SUBMIT_PATTERNS.find((p) => p.source.includes('Enter'));
+  expect(enterPattern, 'no Enter-press pattern in SUBMIT_PATTERNS').toBeDefined();
+  expect(enterPattern!.test("await page.keyboard.press('Enter')")).toBe(true);
+  expect(enterPattern!.test('await field.press("Enter")')).toBe(true);
+  // … and leaves a benign key press alone
+  expect(enterPattern!.test("await page.keyboard.press('Tab')")).toBe(false);
+  expect(enterPattern!.test("pressSequentially('Enterprise')")).toBe(false);
 });
 
 it('the PortalAdapter interface pins submitSelector to null', () => {

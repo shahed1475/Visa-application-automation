@@ -56,7 +56,7 @@ export const EVENT_MESSAGES: Record<EventType, string> = {
   FIELD_ALREADY_SET: 'The portal control already held the expected entry, so it was left unchanged.',
   FIELD_FILL_STARTED: 'The run began filling this field.',
   FIELD_FILLED: 'The field was filled and read back as expected.',
-  FIELD_FILLED_UNVERIFIED: 'The field was filled but could not be read back for confirmation.',
+  FIELD_FILLED_UNVERIFIED: 'The field was filled and read back as expected, but you have not verified this entry yet.',
   FIELD_VERIFIED: 'The field read back as expected.',
   FIELD_MISMATCH: 'A filled field did not read back as expected. The run paused for your review.',
   FIELD_UNVERIFIABLE: 'The field could not be read back to confirm its contents.',

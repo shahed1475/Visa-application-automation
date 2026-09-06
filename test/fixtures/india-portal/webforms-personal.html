@@ -10,4 +10,8 @@
 <label for="wf-given-names">Given names</label><input id="wf-given-names" name="wf-given-names" type="text">
 <button name="save" type="submit">Save</button>
 </form>
+<!-- Task 13 scenario 5: a real WebForms page can carry BOTH a self-posting Save
+     button and a distinct forward-navigation link. The engine advances via `.next`;
+     the Save postback (same URL) is never triggered by the run. -->
+<a class="next" href="/passport">Save &amp; Continue</a>
 </body></html>

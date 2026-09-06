@@ -214,6 +214,15 @@ export class AutomationService {
     if (CHECKPOINT_REASONS.has(cur.waiting_reason ?? '')) {
       const runner = this.activeRunner;
       if (runner?.runId === id && runner.page) {
+        // The user completes the challenge in the real browser, which changes
+        // the page server-side; re-fetch the current URL so the re-check (and
+        // the resumed loop) sees the live DOM, not the stale challenge markup.
+        // Best-effort: a fake/detached page (unit tests) simply skips this.
+        try {
+          await runner.page.reload({ waitUntil: 'domcontentloaded' });
+        } catch {
+          /* best-effort — fall through to the re-check on whatever is loaded */
+        }
         const inspection = await this.inspect(runner.page);
         const adapter = this.resolveAdapter(cur.portal_url_snapshot);
         const cp = await this.checkpoints.stillBlocked(

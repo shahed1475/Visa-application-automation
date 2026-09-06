@@ -27,6 +27,7 @@ import {
   findActiveRun,
   getRun as getRunRow,
   listEvents as listEventRows,
+  listRunsForApplication as listRunRowsForApplication,
   updateRun,
 } from './state/automationRunStore.js';
 import {
@@ -191,6 +192,10 @@ export class AutomationService {
 
   listEvents(db: DatabaseSync, id: string, afterSeq?: number): AutomationEventRow[] {
     return listEventRows(db, id, afterSeq);
+  }
+
+  listRunsForApplication(db: DatabaseSync, applicationId: string): AutomationRunRow[] {
+    return listRunRowsForApplication(db, applicationId);
   }
 
   getLive(id: string): { mismatches: { fieldPath: string; expected: string; actual: string }[] } | null {

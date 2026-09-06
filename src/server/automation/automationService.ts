@@ -290,7 +290,10 @@ export class AutomationService {
 
   async dispose(): Promise<void> {
     if (this.activeRunner) {
-      this.activeRunner.aborted = true;
+      // A dispose is a shutdown / crash-simulation, NOT a user abort: stop the
+      // in-memory runner but leave the persisted run in its current (non-terminal)
+      // state so a fresh process can resume it from the DB record (spec §10, R18).
+      this.activeRunner.stopped = true;
       this.checkpoints.signalResume(this.activeRunner.runId);
     }
     await this.bm.close().catch(() => undefined);
@@ -303,7 +306,10 @@ export class AutomationRunner {
   page: Page | null = null;
   context: BrowserContext | null = null;
   readonly mismatches: { fieldPath: string; expected: string; actual: string }[] = [];
+  /** Set by `abortRun` — the run is being terminated; persist `aborted`. */
   aborted = false;
+  /** Set by `dispose` — stop the loop but leave the persisted run resumable. */
+  stopped = false;
 
   constructor(
     private readonly svc: AutomationService,
@@ -383,7 +389,7 @@ export class AutomationRunner {
       for (;;) {
         const ctx = this.buildContext(page);
         const stop = await this.svc.runLoop(ctx);
-        if (this.aborted) break;
+        if (this.aborted || this.stopped) break;
 
         if (stop.kind === 'review_ready') {
           this.transition('review_ready');
@@ -403,7 +409,7 @@ export class AutomationRunner {
 
         await this.svc.checkpoints.awaitResume(runId);
 
-        if (this.aborted || getRunRow(db, runId)?.status === 'aborted') break;
+        if (this.aborted || this.stopped || getRunRow(db, runId)?.status === 'aborted') break;
 
         this.transition('running');
         updateRun(db, runId, { waiting_reason: null }, now());
@@ -411,8 +417,10 @@ export class AutomationRunner {
         await ctx.settle(page); // re-settle before re-entering the loop
       }
 
-      // The loop broke because of an abort (abortRun / dispose flipped `aborted`).
-      // If abortRun's own DB write has not landed yet, persist the terminal status
+      // The loop broke because of an abort (abortRun flipped `aborted`) or a
+      // dispose (`stopped`). Only an abort persists a terminal status; a dispose
+      // leaves the run resumable. If abortRun's own DB write has not landed yet,
+      // persist the terminal status
       // here so a restart does not see a stuck non-terminal run. Idempotent with
       // abortRun — whichever runs first wins; the loser's assertTransition throws.
       if (this.aborted) {
@@ -432,7 +440,14 @@ export class AutomationRunner {
       // side effect of the abort racing an in-flight `transition('running')` —
       // do not overwrite the user's abort with an engine-error record.
       const fresh = getRunRow(this.db, this.runId)?.status;
-      if (this.aborted || fresh === 'aborted' || (fresh != null && isTerminal(fresh))) return;
+      if (
+        this.aborted ||
+        this.stopped ||
+        fresh === 'aborted' ||
+        (fresh != null && isTerminal(fresh))
+      ) {
+        return;
+      }
       try {
         this.transition('failed');
       } catch {

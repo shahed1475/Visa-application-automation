@@ -1,0 +1,227 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { api } from '../../api/client';
+import { isTerminal } from '../../../../shared/automation/states';
+import type {
+  RunStatus,
+  AutomationRunRow,
+  AutomationEventRow,
+} from '../../../../shared/automation/types';
+import {
+  ActionRequiredPanel,
+  EventLog,
+  ProgressBar,
+  SafeStopBanner,
+  StatusBadge,
+} from './runChrome';
+
+type Mismatch = { fieldPath: string; expected: string; actual: string };
+
+const POLL_MS = 1500;
+
+function bySeq(a: AutomationEventRow, b: AutomationEventRow) {
+  return a.seq - b.seq;
+}
+
+function maxSeq(rows: AutomationEventRow[], fallback: number): number {
+  return rows.reduce((acc, r) => Math.max(acc, r.seq), fallback);
+}
+
+export function AutomationRunPage() {
+  const { id } = useParams<{ id: string }>();
+  const [run, setRun] = useState<AutomationRunRow | null>(null);
+  const [events, setEvents] = useState<AutomationEventRow[]>([]);
+  const [headerNames, setHeaderNames] = useState<{ applicant?: string; category?: string }>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [mismatches, setMismatches] = useState<Mismatch[] | null>(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const lastSeq = useRef(0);
+  const inFlight = useRef(false);
+
+  // ---- initial load (+ best-effort header names) -------------------------
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { run: r, events: evs } = await api.getAutomationRun(id);
+        if (cancelled) return;
+        const sorted = [...evs].sort(bySeq);
+        setRun(r);
+        setEvents(sorted);
+        lastSeq.current = maxSeq(sorted, 0);
+        setLoadError(null);
+        try {
+          const { application, plan } = await api.getApplication(r.application_id);
+          if (cancelled) return;
+          const next: { applicant?: string; category?: string } = {
+            category: plan?.category?.displayName ?? undefined,
+          };
+          try {
+            const { applicant } = await api.getApplicant(application.applicantId);
+            if (!cancelled) next.applicant = applicant.displayName;
+          } catch {
+            /* best-effort — leave the id showing */
+          }
+          if (!cancelled) setHeaderNames(next);
+        } catch {
+          /* best-effort — leave the ids showing */
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : 'Failed to load the automation run.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  // ---- one polling tick -------------------------------------------------
+  const poll = useCallback(async () => {
+    if (!id || inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const [{ events: fresh }, { run: freshRun }] = await Promise.all([
+        api.getAutomationEvents(id, lastSeq.current),
+        api.getAutomationRun(id),
+      ]);
+      if (fresh.length > 0) {
+        const sorted = [...fresh].sort(bySeq);
+        setEvents((prev) => [...prev, ...sorted]);
+        lastSeq.current = maxSeq(sorted, lastSeq.current);
+      }
+      setRun(freshRun);
+    } catch {
+      /* transient — keep polling */
+    } finally {
+      inFlight.current = false;
+    }
+  }, [id]);
+
+  // ---- polling lifecycle: run while non-terminal, clear at terminal -----
+  const status: RunStatus | null = run ? run.status : null;
+  useEffect(() => {
+    if (!id || !status || isTerminal(status)) return;
+    const timer = setInterval(() => {
+      void poll();
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [id, status, poll]);
+
+  // ---- value_mismatch: pull the in-memory mismatch list ----------------
+  const waitingReason = run?.waiting_reason ?? null;
+  useEffect(() => {
+    if (!id || waitingReason !== 'value_mismatch') {
+      if (waitingReason !== 'value_mismatch') setMismatches(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getAutomationLive(id)
+      .then((r) => {
+        if (!cancelled) setMismatches(r.mismatches);
+      })
+      .catch(() => {
+        /* best-effort — the panel still shows the instruction */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, waitingReason]);
+
+  const handleResume = useCallback(async () => {
+    if (!id) return;
+    setBusy(true);
+    setResumeError(null);
+    try {
+      await api.resumeAutomationRun(id);
+      const { run: fresh } = await api.getAutomationRun(id);
+      setRun(fresh);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Resume failed.';
+      setResumeError(
+        /checkpoint/i.test(msg)
+          ? 'The challenge is still on the page — complete it in the browser, then resume.'
+          : msg,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [id]);
+
+  const handleAbort = useCallback(async () => {
+    if (!id) return;
+    try {
+      await api.abortAutomationRun(id);
+      const { run: fresh } = await api.getAutomationRun(id);
+      setRun(fresh);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Could not abort the run.');
+    }
+  }, [id]);
+
+  if (loadError && !run) {
+    return (
+      <p className="error" role="alert">
+        {loadError}
+      </p>
+    );
+  }
+  if (!run) return <p>Loading…</p>;
+
+  const nonTerminal = !isTerminal(run.status);
+
+  return (
+    <section className="automation-run">
+      <h1>Automation run</h1>
+      <p className="muted">
+        {headerNames.applicant ?? run.application_id}
+        {headerNames.category ? ` · ${headerNames.category}` : ''} · {run.portal_url_snapshot} ·
+        adapter: {run.adapter_id}
+      </p>
+
+      {loadError && (
+        <p className="error" role="alert">
+          {loadError}
+        </p>
+      )}
+
+      <StatusBadge status={run.status} waitingReason={run.waiting_reason} />
+
+      <ProgressBar label="Fields verified" value={run.fields_verified} max={run.fields_total} />
+      <p className="ready-line automation-run__docs">
+        Documents ready: {run.documents_ready} / {run.documents_total}
+      </p>
+      <p className="muted">Current page: {run.current_portal_state ?? '—'}</p>
+
+      <EventLog events={events} />
+
+      {run.status === 'waiting_for_user' && (
+        <ActionRequiredPanel
+          reason={run.waiting_reason}
+          mismatches={mismatches}
+          resumeError={resumeError}
+          busy={busy}
+          onResume={handleResume}
+          onAbort={handleAbort}
+        />
+      )}
+
+      {run.status === 'review_ready' && <SafeStopBanner />}
+
+      {run.status === 'failed' && (
+        <p className="error">The run failed ({run.error_code ?? 'unknown error'}).</p>
+      )}
+
+      {nonTerminal && (
+        <button type="button" className="automation-run__abort" onClick={handleAbort}>
+          Abort automation
+        </button>
+      )}
+    </section>
+  );
+}

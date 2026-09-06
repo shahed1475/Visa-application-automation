@@ -21,9 +21,9 @@ describe('migration 5 — automation_runs + automation_events', () => {
     cleanupTempDb(dbPath);
   });
 
-  it('LATEST_SCHEMA_VERSION is 5', () => {
-    expect(LATEST_SCHEMA_VERSION).toBe(5);
-    expect(userVersion(db)).toBe(5);
+  it('LATEST_SCHEMA_VERSION is 6', () => {
+    expect(LATEST_SCHEMA_VERSION).toBe(6);
+    expect(userVersion(db)).toBe(6);
   });
 
   it('a fresh DB has automation_runs + automation_events with their indexes', () => {
@@ -70,8 +70,8 @@ describe('migration 5 — real v4 -> v5 upgrade of an existing application', () 
     cleanupTempDb(dbPath);
   });
 
-  it('reaches schema version 5 and keeps the v4-era data', () => {
-    expect(userVersion(db)).toBe(5);
+  it('reaches the latest schema version and keeps the v4-era data', () => {
+    expect(userVersion(db)).toBe(6);
     expect(db.prepare(`SELECT display_name FROM applicants WHERE id='a1'`).get()).toEqual({
       display_name: 'A',
     });
@@ -129,16 +129,23 @@ describe('migration 5 — real v4 -> v5 upgrade of an existing application', () 
     ).toThrow();
   });
 
-  it('rejects an illegal waiting_reason via the CHECK constraint', () => {
+  it('no longer constrains waiting_reason (migration 6 dropped the CHECK)', () => {
     expect(() =>
       db
         .prepare(
           `INSERT INTO automation_runs
              (id, application_id, portal_url_snapshot, adapter_id, status, waiting_reason, started_at, updated_at)
-           VALUES ('r','app1','u','india-evisa','waiting_for_user','not_a_reason',?,?)`,
+           VALUES ('r','app1','u','india-evisa','waiting_for_user','value_conflict',?,?)`,
         )
         .run(now, now),
-    ).toThrow();
+    ).not.toThrow();
+    expect(
+      (
+        db.prepare(`SELECT waiting_reason AS w FROM automation_runs WHERE id='r'`).get() as {
+          w: string;
+        }
+      ).w,
+    ).toBe('value_conflict');
   });
 
   it('enforces UNIQUE (run_id, seq) on automation_events', () => {

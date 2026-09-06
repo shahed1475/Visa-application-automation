@@ -38,4 +38,14 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
     },
   },
+  {
+    // The Phase 6 migration-6 spec is checked in verbatim (see
+    // .superpowers/sdd/2026-09-06-phase-6-india-portal-adapter/task-2-brief.md): it reads
+    // untyped PRAGMA / count rows as `(... as any).user_version` etc. The test body must
+    // not be restructured away from the brief.
+    files: ['test/automation/discoveryMigrations.test.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 );

@@ -30,11 +30,11 @@ describe('migration 4 — applicant family/occupation/identity + visa_applicatio
       )
       .run(id, now, now);
 
-  it('bumps the schema version to 5', () => {
-    expect(LATEST_SCHEMA_VERSION).toBe(5);
+  it('bumps the schema version to the latest', () => {
+    expect(LATEST_SCHEMA_VERSION).toBe(6);
     expect(
       (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    ).toBe(5);
+    ).toBe(6);
   });
 
   it('creates applicant_family with the expected columns', () => {
@@ -252,7 +252,7 @@ describe('migration 4 — applicant family/occupation/identity + visa_applicatio
     expect(count.n).toBe(0);
   });
 
-  it('a v3 database upgrades to v4 without data loss', () => {
+  it('a v3 database upgrades to the latest schema without data loss', () => {
     const p3 = makeTempDbPath();
     const d3 = openDatabase(p3);
     d3.exec('PRAGMA user_version = 0');
@@ -265,7 +265,7 @@ describe('migration 4 — applicant family/occupation/identity + visa_applicatio
     runMigrations(d4);
     expect(
       (d4.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    ).toBe(5);
+    ).toBe(6);
     expect(d4.prepare(`SELECT display_name FROM applicants WHERE id='a1'`).get()).toEqual({
       display_name: 'A',
     });
@@ -317,10 +317,10 @@ describe('migration 4 — real v3 -> v4 upgrade of an existing applicant', () =>
   const count = (t: string) =>
     (db.prepare(`SELECT COUNT(*) AS n FROM ${t} WHERE applicant_id = 'legacy'`).get() as { n: number }).n;
 
-  it('reaches schema version 5 and keeps the v3-era data', () => {
+  it('reaches the latest schema version and keeps the v3-era data', () => {
     expect(
       (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    ).toBe(5);
+    ).toBe(6);
     expect(db.prepare(`SELECT surname FROM applicant_identity WHERE applicant_id='legacy'`).get()).toEqual({
       surname: 'Rai',
     });

@@ -295,6 +295,77 @@ const migrations: Migration[] = [
       CREATE INDEX idx_automation_events_run ON automation_events(run_id);
     `,
   },
+  {
+    version: 6,
+    // First line MUST stay `PRAGMA foreign_keys = OFF;` — runMigrations detects it and applies
+    // it *outside* the wrapping transaction (the pragma is a no-op mid-BEGIN under node:sqlite),
+    // then restores it after COMMIT. The `automation_runs` rebuild below drops the table while
+    // `automation_events` still references it; with FKs enforced that DROP would cascade-wipe
+    // the events (and `PRAGMA legacy_alter_table` does NOT stop RENAME from rewriting the child
+    // FK in this SQLite build). The rebuild follows the SQLite "table rebuild" recipe: create
+    // the replacement under a temp name, copy, drop the old, RENAME the new into place — the
+    // RENAME leaves `automation_events`'s `REFERENCES automation_runs` untouched.
+    up: `
+      PRAGMA foreign_keys = OFF;
+
+      CREATE TABLE portal_discovery_sessions (
+        id                   TEXT PRIMARY KEY,
+        portal_id            TEXT REFERENCES visa_portals(id) ON DELETE SET NULL,
+        adapter_id           TEXT NOT NULL,
+        status               TEXT NOT NULL CHECK (status IN ('active','ended','aborted')),
+        started_at           TEXT NOT NULL,
+        ended_at             TEXT,
+        page_count           INTEGER NOT NULL DEFAULT 0,
+        last_validation_json TEXT,
+        notes                TEXT
+      );
+      CREATE UNIQUE INDEX idx_discovery_sessions_one_active
+        ON portal_discovery_sessions(adapter_id) WHERE status = 'active';
+
+      CREATE TABLE portal_discovery_pages (
+        id               TEXT PRIMARY KEY,
+        session_id       TEXT NOT NULL REFERENCES portal_discovery_sessions(id) ON DELETE CASCADE,
+        seq              INTEGER NOT NULL,
+        created_at       TEXT NOT NULL,
+        state_guess      TEXT,
+        url_pattern      TEXT,
+        page_title       TEXT,
+        headings_json    TEXT NOT NULL,
+        fingerprint_json TEXT NOT NULL,
+        candidates_json  TEXT NOT NULL,
+        signals_json     TEXT NOT NULL,
+        UNIQUE (session_id, seq)
+      );
+      CREATE INDEX idx_discovery_pages_session ON portal_discovery_pages(session_id);
+
+      CREATE TABLE _automation_runs_v6 (
+        id                    TEXT PRIMARY KEY,
+        application_id        TEXT NOT NULL REFERENCES visa_applications(id) ON DELETE CASCADE,
+        portal_id             TEXT REFERENCES visa_portals(id) ON DELETE SET NULL,
+        portal_url_snapshot   TEXT NOT NULL,
+        adapter_id            TEXT NOT NULL,
+        status                TEXT NOT NULL CHECK (status IN ('pending','running','waiting_for_user','paused','review_ready','failed','aborted')),
+        waiting_reason        TEXT,
+        current_portal_state  TEXT,
+        current_section_id    TEXT,
+        fields_total          INTEGER NOT NULL DEFAULT 0,
+        fields_verified       INTEGER NOT NULL DEFAULT 0,
+        documents_total       INTEGER NOT NULL DEFAULT 0,
+        documents_ready       INTEGER NOT NULL DEFAULT 0,
+        error_code            TEXT,
+        error_message         TEXT,
+        started_at            TEXT NOT NULL,
+        updated_at            TEXT NOT NULL,
+        ended_at              TEXT
+      );
+      INSERT INTO _automation_runs_v6 SELECT * FROM automation_runs;
+      DROP TABLE automation_runs;
+      ALTER TABLE _automation_runs_v6 RENAME TO automation_runs;
+      CREATE INDEX idx_automation_runs_application ON automation_runs(application_id);
+
+      PRAGMA foreign_keys = ON;
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations[migrations.length - 1]!.version;
@@ -309,6 +380,11 @@ export function runMigrations(db: DatabaseSync, upTo?: number): void {
   for (const migration of migrations) {
     if (migration.version <= current) continue;
     if (upTo !== undefined && migration.version > upTo) break;
+    // `PRAGMA foreign_keys` is silently ignored inside a transaction (node:sqlite), so a
+    // migration that must rebuild a referenced table declares `PRAGMA foreign_keys = OFF;`
+    // on its first line and we toggle it around the wrapping BEGIN/COMMIT instead.
+    const suspendFks = /^\s*PRAGMA foreign_keys = OFF;/i.test(migration.up);
+    if (suspendFks) db.exec('PRAGMA foreign_keys = OFF');
     db.exec('BEGIN');
     try {
       db.exec(migration.up);
@@ -317,6 +393,8 @@ export function runMigrations(db: DatabaseSync, upTo?: number): void {
     } catch (err) {
       db.exec('ROLLBACK');
       throw err;
+    } finally {
+      if (suspendFks) db.exec('PRAGMA foreign_keys = ON');
     }
   }
 }

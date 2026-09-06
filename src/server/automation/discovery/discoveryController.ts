@@ -161,6 +161,10 @@ export class DiscoveryController {
       urlPattern: sanitizeUrlToPattern(page.url()),
       pageTitle: report.pageTitle,
       headingsJson: JSON.stringify(report.headings),
+      // migration 6 has no column for the captureDiscoveryV2 structure, so the
+      // V2-only fields (groups, buttons, selectCatalogue, requiredIndicators,
+      // stableAttributes, discoveryVersion) are folded under `fingerprint_json._v2`.
+      // Tasks 7/8/9 read discovery pages from there.
       fingerprintJson: JSON.stringify({
         ...report.fingerprint,
         _v2: {

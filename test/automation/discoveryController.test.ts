@@ -11,6 +11,7 @@ import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
 import { BrowserManager } from '../../src/server/automation/engine/browserManager.js';
 import * as policyGate from '../../src/server/automation/discovery/policyGate.js';
 import {
+  findActiveDiscoverySession,
   getDiscoverySession,
   listDiscoveryPages,
 } from '../../src/server/automation/discovery/discoverySessionStore.js';
@@ -175,6 +176,29 @@ describe('DiscoveryController — read-only session lifecycle', () => {
     expect(controller.activePage).toBeNull();
     expect(getDiscoverySession(db, session)?.status).toBe('ended');
   }, 60_000);
+
+  it('start aborts cleanly when the ToS gate throws — no session row, no browser launch', async () => {
+    let launchCalls = 0;
+    const bm = {
+      launchPersistentDiscovery: async () => {
+        launchCalls += 1;
+        throw new Error('launchPersistentDiscovery must not be reached');
+      },
+      closeDiscovery: async () => {},
+    } as unknown as BrowserManager;
+    const gatedController = new DiscoveryController({ browserManager: bm, profileDir });
+
+    ackSpy.mockImplementationOnce(() => {
+      throw new policyGate.ToSNotAcknowledgedError('portal-x');
+    });
+
+    await expect(gatedController.start(db, portalId)).rejects.toBeInstanceOf(
+      policyGate.ToSNotAcknowledgedError,
+    );
+    expect(findActiveDiscoverySession(db, 'generic')).toBeNull();
+    expect(launchCalls).toBe(0);
+    expect(gatedController.activePage).toBeNull();
+  });
 
   it('abort marks a fresh session aborted', async () => {
     gotoUrls = [];

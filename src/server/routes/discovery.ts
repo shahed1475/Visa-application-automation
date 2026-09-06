@@ -22,10 +22,12 @@ import {
 } from '../automation/adapters/india/indiaMappingRegistry.js';
 import { PortalNotFoundError } from '../services/errors.js';
 import { getPortal } from '../services/portalService.js';
+import { validateIndiaAdapter } from '../automation/adapters/india/validateAdapter.js';
 import {
   getDiscoverySession,
   listDiscoveryPages,
   listDiscoverySessions,
+  updateDiscoverySession,
 } from '../automation/discovery/discoverySessionStore.js';
 import { errorBody, notFoundError, validationError } from './errors.js';
 
@@ -172,6 +174,41 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
       try {
         const mappingEdit = promoteCandidate(app.db, parsedParams.data.id, parsedBody.data);
         return reply.send({ mappingEdit });
+      } catch (e) {
+        const mapped = mapDiscoveryError(e, reply);
+        if (mapped) return mapped;
+        throw e;
+      }
+    },
+  );
+
+  // Adapter self-diagnostics (Phase 6 §7.4). Runs `validateIndiaAdapter` against
+  // the live discovery page: every non-placeholder mapping resolves to exactly
+  // one node of a matching control kind, every state's `nextSelector` resolves.
+  // The report is value-free (option labels pass the §5.3 sanitizer) and is
+  // persisted to `portal_discovery_sessions.last_validation_json`.
+  app.post<{ Params: { id: string } }>(
+    '/api/discovery-sessions/:id/validate-adapter',
+    async (req, reply) => {
+      const parsed = idParamSchema.safeParse(req.params);
+      if (!parsed.success) return reply.code(400).send(validationError(parsed.error));
+      try {
+        const session = getDiscoverySession(app.db, parsed.data.id);
+        if (!session) throw new DiscoverySessionNotFoundError(parsed.data.id);
+        if (session.status !== 'active') {
+          throw new DiscoverySessionNotActiveError(parsed.data.id);
+        }
+        const page = app.discovery.activePage;
+        if (!page) throw new DiscoverySessionNotActiveError(parsed.data.id);
+
+        const report = await validateIndiaAdapter(page);
+        updateDiscoverySession(
+          app.db,
+          parsed.data.id,
+          { last_validation_json: JSON.stringify(report) },
+          new Date().toISOString(),
+        );
+        return reply.send({ report });
       } catch (e) {
         const mapped = mapDiscoveryError(e, reply);
         if (mapped) return mapped;

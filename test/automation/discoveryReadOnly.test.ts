@@ -4,6 +4,9 @@ import { expect, it } from 'vitest';
 const FILES = [
   'src/server/automation/discovery/discoveryController.ts',
   'src/server/automation/discovery/observe.ts',
+  // The adapter self-diagnostic runs against the same live discovery page and
+  // must be equally read-only (spec §7.4 / global constraint).
+  'src/server/automation/adapters/india/validateAdapter.ts',
 ];
 const strip = (s: string) => s.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
 // page-mutating APIs a read-only discovery module must never call

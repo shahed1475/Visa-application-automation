@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { FastifyInstance } from 'fastify';
-import type { Page } from 'playwright';
+import { chromium, type Browser, type Page } from 'playwright';
 import { buildServer } from '../../src/server/app.js';
 import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
 import { createPortal, setActivePortal } from '../../src/server/services/portalService.js';
@@ -29,10 +29,10 @@ import {
 const ADAPTER_ID = 'india';
 
 class FakeDiscoveryController {
-  constructor(private readonly opts: { requireAck?: boolean } = {}) {}
+  constructor(private readonly opts: { requireAck?: boolean; activePage?: Page } = {}) {}
 
   get activePage(): Page | null {
-    return null;
+    return this.opts.activePage ?? null;
   }
 
   async start(db: DatabaseSync, portalId: string): Promise<DiscoverySessionRow> {
@@ -376,6 +376,82 @@ describe('discovery routes', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.code).toBe('VALIDATION_ERROR');
+  });
+
+  describe('POST /api/discovery-sessions/:id/validate-adapter', () => {
+    let browser: Browser;
+
+    beforeAll(async () => {
+      browser = await chromium.launch({ headless: true });
+    });
+    afterAll(async () => {
+      await browser.close();
+    });
+
+    it('active session + live page → 200 { report } and persists last_validation_json', async () => {
+      const page = await browser.newPage();
+      await page.goto('about:blank');
+      const { portalId } = await build(new FakeDiscoveryController({ activePage: page }));
+      const created = (
+        await app.inject({ method: 'POST', url: `/api/portals/${portalId}/discovery-sessions` })
+      ).json();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/discovery-sessions/${created.session.id}/validate-adapter`,
+      });
+      await page.close();
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      // The real india map is all placeholder today → vacuous pass, no fields.
+      expect(body.report.ok).toBe(true);
+      expect(body.report.fields).toStrictEqual([]);
+      expect(body.report.states).toStrictEqual([]);
+      expect(typeof body.report.ranAt).toBe('string');
+      noPII(body);
+
+      const db = (app as unknown as { db: DatabaseSync }).db;
+      const row = getDiscoverySession(db, created.session.id);
+      expect(row?.last_validation_json).toContain('"ok":true');
+    });
+
+    it('no active page for the session → 409 SESSION_NOT_ACTIVE', async () => {
+      const { portalId } = await build(new FakeDiscoveryController());
+      const created = (
+        await app.inject({ method: 'POST', url: `/api/portals/${portalId}/discovery-sessions` })
+      ).json();
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/discovery-sessions/${created.session.id}/validate-adapter`,
+      });
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error.code).toBe('SESSION_NOT_ACTIVE');
+    });
+
+    it('ended session → 409; unknown session → 404', async () => {
+      const { portalId } = await build(new FakeDiscoveryController());
+      const created = (
+        await app.inject({ method: 'POST', url: `/api/portals/${portalId}/discovery-sessions` })
+      ).json();
+      await app.inject({
+        method: 'POST',
+        url: `/api/discovery-sessions/${created.session.id}/end`,
+      });
+      const ended = await app.inject({
+        method: 'POST',
+        url: `/api/discovery-sessions/${created.session.id}/validate-adapter`,
+      });
+      expect(ended.statusCode).toBe(409);
+      expect(ended.json().error.code).toBe('SESSION_NOT_ACTIVE');
+
+      const unknown = await app.inject({
+        method: 'POST',
+        url: '/api/discovery-sessions/does-not-exist/validate-adapter',
+      });
+      expect(unknown.statusCode).toBe(404);
+      expect(unknown.json().error.code).toBe('NOT_FOUND');
+    });
   });
 
   it('unknown portal → 404 for create and policy-ack', async () => {

@@ -1,6 +1,15 @@
 import type { PortalAdapter } from '../../../src/server/automation/adapters/baseAdapter.js';
 import {
+  indiaPortalMap,
+  type IndiaFieldMapping,
+  type IndiaPortalMap,
+  type IndiaPortalState,
+  type IndiaPortalStateConfig,
+  type MappingStatus,
+} from '../../../src/server/automation/adapters/india/indiaPortalMap.js';
+import {
   UNKNOWN_STATE,
+  type ControlKind,
   type PageIdentity,
   type PortalFieldMap,
   type PortalFieldSpec,
@@ -178,3 +187,81 @@ export function makeFixtureIndiaAdapter(
     isFinalReview: (state) => state === 'FINAL_REVIEW',
   };
 }
+
+// ---------------------------------------------------------------------------
+// FIXTURE_INDIA_PORTAL_MAP_V2 — a fully-populated India portal map over the
+// fixture-portal selectors, every mapping `status: 'validated'`. Feeds
+// `validateAdapterAgainstPage` so the validator (Task 9) runs green in CI.
+//
+// Scope: mirrors ONLY the ~13 controls the fixture pages actually contain (see
+// `FIELD_MAP` above), NOT all 26 canonical India keys. The two radio-group
+// fields use a `[value=…]` selector so they resolve to EXACTLY ONE node — spec
+// §7.4 requires a single node, and the validator's control matcher inspects one
+// node's tag/type. `#spouse-name` gets `type="text"` implicitly (no attribute).
+// ---------------------------------------------------------------------------
+
+const VALIDATED_AT = '2026-09-06T00:00:00.000Z';
+
+function vField(
+  selector: string,
+  control: ControlKind,
+  extra: Partial<Pick<IndiaFieldMapping, 'optionMatch' | 'fallbackSelector'>> = {},
+): IndiaFieldMapping {
+  return {
+    selector,
+    control,
+    selectorConfidence: 'stable',
+    status: 'validated',
+    discoverySessionRef: 'fixture',
+    validatedAt: VALIDATED_AT,
+    ...extra,
+  };
+}
+
+/** Form pages carry a single `.next` nav control; final review / pre-form states carry none. */
+function vState(state: IndiaPortalState, nextSelector: string | null): IndiaPortalStateConfig {
+  const base = indiaPortalMap.states[state];
+  const nextSelectorStatus: MappingStatus = 'validated';
+  return { ...base, nextSelector, nextSelectorStatus };
+}
+
+const FIXTURE_V2_FIELDS: Record<string, IndiaFieldMapping> = {
+  'identity.surname': vField('#surname', 'text'),
+  'identity.givenNames': vField('#given-names', 'text'),
+  'identity.sex': vField('#sex', 'native_select', { optionMatch: 'value' }),
+  'passport.number': vField('#passport-number', 'text'),
+  'passport.expiryDate': vField('#passport-expiry', 'date'),
+  'address.line1': vField('#address-line1', 'text'),
+  'address.city': vField('#address-city', 'text'),
+  'family.maritalStatus': vField('input[name="marital-status"][value="married"]', 'radio'),
+  'family.spouseName': vField('#spouse-name', 'text'),
+  'occupation.occupation': vField('#occupation', 'text'),
+  'application.purpose': vField('#purpose', 'native_select', { optionMatch: 'value' }),
+  'application.intendedArrivalDate': vField('#arrival-date', 'date'),
+  'application.visitedIndiaBefore': vField('input[name="visited-before"][value="yes"]', 'radio'),
+};
+
+const FIXTURE_V2_STATES: Record<IndiaPortalState, IndiaPortalStateConfig> = {
+  REGISTRATION: vState('REGISTRATION', null),
+  OTP: vState('OTP', null),
+  PERSONAL_DETAILS: vState('PERSONAL_DETAILS', 'a.next'),
+  PASSPORT_DETAILS: vState('PASSPORT_DETAILS', 'a.next'),
+  ADDRESS: vState('ADDRESS', 'a.next'),
+  FAMILY: vState('FAMILY', 'a.next'),
+  OCCUPATION: vState('OCCUPATION', 'a.next'),
+  VISA_DETAILS: vState('VISA_DETAILS', 'a.next'),
+  REFERENCES: vState('REFERENCES', 'a.next'),
+  DOCUMENTS: vState('DOCUMENTS', 'a.next'),
+  REVIEW: vState('REVIEW', 'a.next'),
+  FINAL_REVIEW: vState('FINAL_REVIEW', null),
+};
+
+export const FIXTURE_INDIA_PORTAL_MAP_V2: Pick<
+  IndiaPortalMap,
+  'adapterVersion' | 'mappingRevision' | 'fields' | 'states'
+> = {
+  adapterVersion: indiaPortalMap.adapterVersion,
+  mappingRevision: indiaPortalMap.mappingRevision,
+  fields: FIXTURE_V2_FIELDS,
+  states: FIXTURE_V2_STATES,
+};

@@ -1,4 +1,7 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Blocker } from '../../../../shared/application/types';
+import { api } from '../../api/client';
 import { SourceLine } from './provenance';
 
 const PHASE_5_HELPER =
@@ -6,10 +9,27 @@ const PHASE_5_HELPER =
 
 interface Props {
   readyForAutomation: { ready: boolean; blockers: Blocker[] };
+  applicationId: string;
 }
 
-export function ReadyForAutomationSection({ readyForAutomation }: Props) {
+export function ReadyForAutomationSection({ readyForAutomation, applicationId }: Props) {
   const { ready, blockers } = readyForAutomation;
+  const navigate = useNavigate();
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  async function start() {
+    setStartError(null);
+    setStarting(true);
+    try {
+      const { run } = await api.startAutomationRun(applicationId);
+      navigate('/automation-runs/' + run.id);
+    } catch (e) {
+      setStartError(e instanceof Error ? e.message : 'Could not start automation');
+    } finally {
+      setStarting(false);
+    }
+  }
 
   return (
     <div className="ready-for-automation">
@@ -33,9 +53,19 @@ export function ReadyForAutomationSection({ readyForAutomation }: Props) {
         </ul>
       )}
 
-      <button type="button" className="start-automation" disabled>
-        Start automation (Phase 5)
+      <button
+        type="button"
+        className="start-automation"
+        disabled={!ready || starting}
+        onClick={ready ? () => void start() : undefined}
+      >
+        {ready ? (starting ? 'Starting…' : 'Start automation') : 'Start automation (Phase 5)'}
       </button>
+      {startError && (
+        <p className="error" role="alert">
+          {startError}
+        </p>
+      )}
       <p className="hint">{PHASE_5_HELPER}</p>
       <p className="hint">
         Readiness reflects only the local preparation data against the current knowledge base. It is

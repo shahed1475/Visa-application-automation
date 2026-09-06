@@ -24,6 +24,7 @@ import type {
   ApplicationFieldValueInput,
   ApplicationPut,
 } from '../../../shared/application/schemas';
+import type { AutomationRunRow, AutomationEventRow } from '../../../shared/automation/types';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -175,4 +176,24 @@ export const api = {
     }),
   deleteApplication: (id: string) =>
     request<{ deleted: true }>(`/applications/${id}`, { method: 'DELETE' }),
+
+  // ---- Automation runs (Phase 5) -----------------------------------------
+  startAutomationRun: (applicationId: string) =>
+    request<{ run: AutomationRunRow }>(`/applications/${applicationId}/automation-runs`, {
+      method: 'POST',
+    }),
+  listAutomationRuns: (applicationId: string) =>
+    request<{ runs: AutomationRunRow[] }>(`/applications/${applicationId}/automation-runs`),
+  getAutomationRun: (runId: string) =>
+    request<{ run: AutomationRunRow; events: AutomationEventRow[] }>(`/automation-runs/${runId}`),
+  getAutomationEvents: (runId: string, afterSeq: number) =>
+    request<{ events: AutomationEventRow[] }>(`/automation-runs/${runId}/events?after=${afterSeq}`),
+  getAutomationLive: (runId: string) =>
+    request<{ mismatches: { fieldPath: string; expected: string; actual: string }[] }>(
+      `/automation-runs/${runId}/live`,
+    ),
+  resumeAutomationRun: (runId: string) =>
+    request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/resume`, { method: 'POST' }),
+  abortAutomationRun: (runId: string) =>
+    request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/abort`, { method: 'POST' }),
 };

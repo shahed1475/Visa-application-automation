@@ -180,7 +180,10 @@ export function ApplicationDashboardPage() {
         title="Ready for automation"
         chip={chipForReadyForAutomation(plan.readyForAutomation)}
       >
-        <ReadyForAutomationSection readyForAutomation={plan.readyForAutomation} />
+        <ReadyForAutomationSection
+          readyForAutomation={plan.readyForAutomation}
+          applicationId={application.id}
+        />
       </DashboardSection>
     </section>
   );

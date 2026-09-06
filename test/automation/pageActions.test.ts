@@ -29,25 +29,35 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Co
     <li role="option">Third</li>
   </ul>
 
+  <div id="ss" role="combobox" tabindex="0"><span id="ss-label">Pick</span></div>
+  <ul id="ss-list" role="listbox" hidden>
+    <li role="option">One</li>
+    <li role="option">Two</li>
+    <li role="option">Three</li>
+  </ul>
+
   <label><input type="radio" name="r" value="x">X</label>
   <label><input type="radio" name="r" value="y">Y</label>
 
   <input type="checkbox" id="cb">
   <input type="date" id="d">
+  <input type="number" id="num">
 
   <input id="ac" type="text" autocomplete="off">
   <ul id="aclist" role="listbox" hidden></ul>
 
   <script>
     (function () {
-      var cd = document.getElementById('cd');
-      var list = document.getElementById('cd-list');
-      var label = document.getElementById('cd-label');
-      cd.addEventListener('click', function () { list.hidden = !list.hidden; });
-      Array.prototype.forEach.call(list.querySelectorAll('li'), function (li) {
-        li.addEventListener('click', function () {
-          label.textContent = li.textContent;
-          list.hidden = true;
+      ['cd', 'ss'].forEach(function (id) {
+        var trigger = document.getElementById(id);
+        var list = document.getElementById(id + '-list');
+        var label = document.getElementById(id + '-label');
+        trigger.addEventListener('click', function () { list.hidden = !list.hidden; });
+        Array.prototype.forEach.call(list.querySelectorAll('li'), function (li) {
+          li.addEventListener('click', function () {
+            label.textContent = li.textContent;
+            list.hidden = true;
+          });
         });
       });
 
@@ -105,14 +115,35 @@ describe('pageActions', () => {
     expect(await readControl(page, '#ta', 'textarea')).toBe('multi\nline');
   });
 
+  it('round-trips a number input', async () => {
+    await fillText(page, '#num', '42');
+    expect(await readControl(page, '#num', 'number')).toBe('42');
+  });
+
   it('selects a native option by label and reads the selected label', async () => {
     await selectNative(page, '#ns', 'Bravo', 'label');
     expect(await readControl(page, '#ns', 'native_select')).toBe('Bravo');
   });
 
+  it('selects a native option by value', async () => {
+    await selectNative(page, '#ns', 'b', 'value');
+    expect(await readControl(page, '#ns', 'native_select')).toBe('Bravo');
+  });
+
+  it('rejects with OptionNotFoundError for a missing native option', async () => {
+    await expect(selectNative(page, '#ns', 'NoSuchOption', 'label')).rejects.toBeInstanceOf(
+      OptionNotFoundError,
+    );
+  });
+
   it('opens a custom dropdown and picks an option', async () => {
     await selectCustom(page, '#cd', 'Second');
     expect(await readControl(page, '#cd', 'custom_select')).toContain('Second');
+  });
+
+  it('opens a searchable-select widget and picks an option', async () => {
+    await selectCustom(page, '#ss', 'Two');
+    expect(await readControl(page, '#ss', 'searchable_select')).toContain('Two');
   });
 
   it('sets a radio in a group and reads the checked value', async () => {

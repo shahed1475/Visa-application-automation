@@ -37,7 +37,9 @@ interface EvaluatedSelect {
 }
 
 async function requireSelector(page: Page, selector: string): Promise<void> {
-  if ((await page.locator(selector).count()) === 0) {
+  try {
+    await page.locator(selector).first().waitFor({ state: 'attached', timeout: DEFAULT_TIMEOUT_MS });
+  } catch {
     throw new SelectorNotFoundError(selector);
   }
 }
@@ -49,7 +51,7 @@ async function requireSelector(page: Page, selector: string): Promise<void> {
 export async function waitForPageSettled(
   page: Page,
   anchorSelector?: string,
-  timeoutMs = 15_000,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   if (anchorSelector) {
@@ -84,7 +86,7 @@ export async function readControl(
       );
     case 'custom_select':
     case 'searchable_select':
-      return (await page.locator(selector).innerText()).trim();
+      return (await locator.innerText()).trim();
     case 'radio': {
       const checked = page.locator(`${selector}:checked`);
       if ((await checked.count()) === 0) return null;
@@ -115,19 +117,37 @@ export async function selectNative(
 ): Promise<void> {
   await requireSelector(page, selector);
   const locator = page.locator(selector);
-  if (match === 'label') {
-    await locator.selectOption({ label: value });
-    return;
-  }
-  if (match === 'value') {
-    await locator.selectOption({ value });
-    return;
-  }
   try {
-    await locator.selectOption({ label: value }, { timeout: 2_000 });
-  } catch {
-    await locator.selectOption({ value });
+    if (match === 'label') {
+      await locator.selectOption({ label: value }, { timeout: 2_000 });
+    } else if (match === 'value') {
+      await locator.selectOption({ value }, { timeout: 2_000 });
+    } else {
+      try {
+        await locator.selectOption({ label: value }, { timeout: 2_000 });
+      } catch {
+        await locator.selectOption({ value }, { timeout: 2_000 });
+      }
+    }
+  } catch (err) {
+    if (await nativeOptionExists(page, selector, value)) throw err;
+    throw new OptionNotFoundError(selector, value);
   }
+}
+
+/** True when the `<select>` has an option whose label OR value equals `value`. */
+async function nativeOptionExists(
+  page: Page,
+  selector: string,
+  value: string,
+): Promise<boolean> {
+  const options = page.locator(`${selector} option`);
+  const labels = await options.allInnerTexts();
+  if (labels.some((l) => l.trim() === value)) return true;
+  const values = await options.evaluateAll((els) =>
+    els.map((el) => (el as unknown as { value: string }).value),
+  );
+  return values.includes(value);
 }
 
 /**
@@ -205,7 +225,7 @@ export async function typeAutocomplete(
   await locator.fill('');
   await locator.pressSequentially(value, { delay: 15 });
   await page
-    .locator('#aclist:visible, [role="listbox"]:visible')
+    .locator('[role="listbox"]:visible')
     .first()
     .waitFor({ state: 'visible', timeout: DEFAULT_TIMEOUT_MS });
   const option = page.getByRole('option', { name: value, exact: true }).first();

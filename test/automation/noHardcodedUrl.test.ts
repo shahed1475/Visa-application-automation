@@ -28,8 +28,14 @@ it('automation engine contains no hard-coded http(s) URL literal', () => {
 it('no source file outside docs/tests references a known government visa host', () => {
   const roots = ['src'];
   const banned = /indianvisaonline|\bvisa[a-z0-9.-]*\.gov\b/i;
+  // The India adapter is the ONE place portal-host knowledge is allowed to live
+  // (spec §3/§5/§11; same carve-out as `architectureGuard.test.ts`). Its
+  // `matchesUrl` regex names the known India visa-portal hosts by design; every
+  // other file under src/ must stay host-agnostic.
+  const indiaSegment = `${path.sep}india${path.sep}`;
   for (const root of roots) {
     for (const file of walk(root)) {
+      if (file.includes(indiaSegment)) continue;
       const src = readFileSync(file, 'utf8');
       expect(src, `${file} must not name a specific gov visa host`).not.toMatch(banned);
     }

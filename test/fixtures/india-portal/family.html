@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Family</title></head><body>
+<h1>Family</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<input type="radio" name="marital-status" value="married" id="ms-m"><label for="ms-m">Married</label>
+<input type="radio" name="marital-status" value="single" id="ms-s"><label for="ms-s">Single</label>
+<div id="spouse-wrap" hidden><label for="spouse-name">Spouse's name</label><input id="spouse-name"></div>
+<a class="next" href="/occupation">Save &amp; Continue</a>
+<script>
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="marital-status"]'), function (r) {
+    r.addEventListener('change', function () {
+      document.getElementById('spouse-wrap').hidden = r.value !== 'married';
+    });
+  });
+</script>
+</body></html>

@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Personal details</title></head><body>
+<h1>Personal details</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<label for="surname">Surname</label><input id="surname" type="text">
+<label for="given-names">Given names</label><input id="given-names" type="text">
+<label for="sex">Sex</label>
+<select id="sex"><option value="M">Male</option><option value="F">Female</option></select>
+<a class="next" href="/passport">Save &amp; Continue</a>
+</body></html>

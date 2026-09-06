@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Address</title></head><body>
+<h1>Address</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<label for="address-line1">Address line 1</label><input id="address-line1" type="text">
+<label for="address-city">City</label><input id="address-city" type="text">
+<a class="next" href="/family">Save &amp; Continue</a>
+</body></html>

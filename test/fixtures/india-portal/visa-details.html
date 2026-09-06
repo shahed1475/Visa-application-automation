@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Visa details</title></head><body>
+<h1>Visa details</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<label for="purpose">Purpose of visit</label>
+<select id="purpose"><option value="business">Business</option><option value="recreation">Tourism</option></select>
+<label for="arrival-date">Intended arrival date</label><input type="date" id="arrival-date">
+<input type="radio" name="visited-before" value="yes" id="vb-y"><label for="vb-y">Yes</label>
+<input type="radio" name="visited-before" value="no" id="vb-n"><label for="vb-n">No</label>
+<a class="next" href="/references">Save &amp; Continue</a>
+</body></html>

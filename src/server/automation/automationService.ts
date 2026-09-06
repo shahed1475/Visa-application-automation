@@ -396,8 +396,29 @@ export class AutomationRunner {
         this.emitEvent('RUN_RESUMED');
         await ctx.settle(page); // re-settle before re-entering the loop
       }
+
+      // The loop broke because of an abort (abortRun / dispose flipped `aborted`).
+      // If abortRun's own DB write has not landed yet, persist the terminal status
+      // here so a restart does not see a stuck non-terminal run. Idempotent with
+      // abortRun — whichever runs first wins; the loser's assertTransition throws.
+      if (this.aborted) {
+        try {
+          const s = getRunRow(db, runId)?.status;
+          if (s != null && !isTerminal(s)) {
+            this.transition('aborted');
+            updateRun(db, runId, { ended_at: now() }, now());
+          }
+        } catch {
+          /* abortRun's own write won the race */
+        }
+      }
     } catch (e) {
       // NEVER persist `e.message` — it may carry a selector or verbose page text.
+      // If the run was aborted (or is otherwise already terminal), the throw is a
+      // side effect of the abort racing an in-flight `transition('running')` —
+      // do not overwrite the user's abort with an engine-error record.
+      const fresh = getRunRow(this.db, this.runId)?.status;
+      if (this.aborted || fresh === 'aborted' || (fresh != null && isTerminal(fresh))) return;
       try {
         this.transition('failed');
       } catch {
@@ -416,7 +437,9 @@ export class AutomationRunner {
       this.emitEvent('RUN_FAILED');
     } finally {
       await this.context?.close().catch(() => undefined);
-      this.svc.activeRunner = null;
+      // Only clear the pointer if it still points at *this* runner — a newer
+      // runner may have claimed `activeRunner` while `context.close()` awaited.
+      if (this.svc.activeRunner === this) this.svc.activeRunner = null;
     }
   }
 }

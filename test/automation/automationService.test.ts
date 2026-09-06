@@ -233,6 +233,41 @@ describe('AutomationService', () => {
     await svc.dispose();
   });
 
+  it('case 8: abortRun on a parked run persists a terminal status and releases the runner', async () => {
+    const svc = makeService({
+      stops: [{ kind: 'waiting', reason: 'value_mismatch' }, { kind: 'review_ready' }],
+    });
+    const run = await svc.startRun(db, 'app1');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'waiting_for_user');
+
+    await svc.abortRun(db, run.id);
+
+    const got = svc.getRun(db, run.id)!;
+    expect(got.run.status).toBe('aborted');
+    expect(got.run.ended_at).not.toBeNull();
+    expect(got.events.some((e) => e.type === 'RUN_ABORTED')).toBe(true);
+
+    // A fresh run for the same application must not be blocked by the aborted one.
+    await waitFor(() => svc.activeRunner === null || svc.activeRunner.runId !== run.id);
+    await expect(svc.startRun(db, 'app1')).resolves.toBeDefined();
+    await svc.dispose();
+  });
+
+  it('case 9: an engine error records error_code engine_error and never leaks the error message', async () => {
+    const svc = makeService({
+      runLoop: async () => {
+        throw new Error('secret selector #passport-value-here');
+      },
+    });
+    const run = await svc.startRun(db, 'app1');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'failed');
+
+    const got = svc.getRun(db, run.id)!.run;
+    expect(got.error_code).toBe('engine_error');
+    expect(got.error_message).not.toMatch(/secret|selector|#passport/);
+    expect(got.error_message).toBe('Error');
+  });
+
   it('case 7: dispose while a runner is parked at a wait resolves and closes the browser', async () => {
     let closed = false;
     const bm = { ...fakeBrowserManager, close: async () => {

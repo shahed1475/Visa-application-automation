@@ -333,7 +333,9 @@ describe('phase-6 fixture-v2 integration (real engine + headless chromium)', () 
 
     const id = await startRun();
     await runSettles(id);
-    expect((await getRun(id)).waiting_reason).toBe('value_conflict');
+    const paused = await getRun(id);
+    expect(paused.status).toBe('waiting_for_user');
+    expect(paused.waiting_reason).toBe('value_conflict');
 
     const resumed = await app.inject({
       method: 'POST',
@@ -425,7 +427,7 @@ describe('phase-6 fixture-v2 integration (real engine + headless chromium)', () 
     expect(portal.requests.some((r) => r.url === '/passport')).toBe(true);
     assertNoSubmitEvents(events);
     expect(portal.submitCount).toBe(0);
-  });
+  }, 60000);
 
   it('6. unknown page: entry at /nowhere (a real 200 page that matches no adapter state) → unknown_page, no fills attempted', async () => {
     await build({ adapter: { entryPath: '/nowhere' } });
@@ -463,7 +465,7 @@ describe('phase-6 fixture-v2 integration (real engine + headless chromium)', () 
     });
     expect(resumed.statusCode).toBe(202);
 
-    await waitFor(async () => (await getRun(id)).status === 'review_ready', 30000);
+    await waitFor(async () => (await getRun(id)).status === 'review_ready', 25000);
     run = await getRun(id);
     expect(run.status).toBe('review_ready');
     expect(run.fields_total).toBe(13);
@@ -474,9 +476,9 @@ describe('phase-6 fixture-v2 integration (real engine + headless chromium)', () 
     // Global constraint: no event type matches /submit|confirm|lodge|pay/i.
     assertNoSubmitEvents(events);
     expect(portal.submitCount).toBe(0);
-  });
+  }, 60000);
 
-  it('8. discovery round-trip: start → user navigates to /passport → capture → end; the session shows 1 page with a real state guess and non-empty candidates', async () => {
+  it('8. discovery round-trip: start → user navigates to a prefilled page → capture → end; 1 page captured with a real state guess + non-empty candidates, and NO rendered control value leaks into the row', async () => {
     const profileDir = mkdtempSync(path.join(tmpdir(), 'phase6-disco-'));
     tmpDirs.push(profileDir);
     const controller = new DiscoveryController({
@@ -492,10 +494,16 @@ describe('phase-6 fixture-v2 integration (real engine + headless chromium)', () 
     expect(started.statusCode).toBe(201);
     const sessionId = started.json().session.id as string;
 
-    // The operator drives the real headed browser between captures.
-    await controller.activePage!.goto(`${portal.url}/passport`, {
+    // The operator drives the real headed browser to a page that RENDERS
+    // recognisable control values (`#surname` = "SOMEONE-ELSE", `#given-names` =
+    // "DIFFERENT" per fixturePortal's `?prefill=conflict`). captureDiscoveryV2
+    // must persist page STRUCTURE only — never a control value (commit 81a1d74).
+    await controller.activePage!.goto(`${portal.url}/personal?prefill=conflict`, {
       waitUntil: 'domcontentloaded',
     });
+    // Guard against a vacuous leak check: the value really is in the live DOM.
+    expect(await controller.activePage!.locator('#surname').inputValue()).toBe('SOMEONE-ELSE');
+    expect(await controller.activePage!.locator('#given-names').inputValue()).toBe('DIFFERENT');
 
     const captured = await app.inject({
       method: 'POST',
@@ -525,16 +533,32 @@ describe('phase-6 fixture-v2 integration (real engine + headless chromium)', () 
     expect(body.session.status).toBe('ended');
     expect(body.pages).toHaveLength(1);
     const pageRow = body.pages[0]!;
-    expect(pageRow.state_guess).toBe('PASSPORT_DETAILS');
+
+    // Capture did its real job: a recognised state + a non-empty candidate array.
+    expect(pageRow.state_guess).toBe('PERSONAL_DETAILS');
     expect(pageRow.candidates_json).not.toBe('[]');
-    expect(JSON.parse(pageRow.candidates_json).length).toBeGreaterThan(0);
+    const candidates = JSON.parse(pageRow.candidates_json) as unknown[];
+    expect(Array.isArray(candidates)).toBe(true);
+    expect(candidates.length).toBeGreaterThan(0);
     expect(pageRow.url_pattern).toContain('127.0.0.1');
 
-    // No seeded PII (plan values / passport number) may appear in the row.
+    // ...but NONE of the rendered control values reached the persisted row —
+    // not the full GET body, and not `candidates_json` specifically.
+    const RENDERED_VALUES = ['SOMEONE-ELSE', 'DIFFERENT'];
     const serialized = JSON.stringify(body.pages);
-    for (const pii of ['RANA', 'MITHU', 'BG1234567', 'Dhaka']) {
-      expect(serialized, `discovery page leaked ${pii}`).not.toContain(pii);
+    for (const v of RENDERED_VALUES) {
+      expect(serialized, `discovery GET body leaked rendered value ${v}`).not.toContain(v);
+      expect(pageRow.candidates_json, `candidates_json leaked rendered value ${v}`).not.toContain(v);
     }
+    // And the raw persisted table row is clean too (defence in depth).
+    const rawRows = app.db
+      .prepare('SELECT * FROM portal_discovery_pages WHERE session_id = ?')
+      .all(sessionId);
+    const rawJson = JSON.stringify(rawRows);
+    for (const v of RENDERED_VALUES) {
+      expect(rawJson, `portal_discovery_pages row leaked ${v}`).not.toContain(v);
+    }
+
     // Discovery is read-only: it never posts the fixture submit endpoint.
     expect(portal.submitCount).toBe(0);
   }, 60000);

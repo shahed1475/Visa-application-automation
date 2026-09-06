@@ -10,6 +10,8 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import type { BrowserContext, Page } from 'playwright';
 import { env } from '../env.js';
 import type {
@@ -49,6 +51,23 @@ import { getActivePortal } from '../services/portalService.js';
 const now = (): string => new Date().toISOString();
 
 const CHECKPOINT_REASONS: ReadonlySet<string> = new Set(['otp', 'captcha', 'mfa', 'anti_bot']);
+
+// Event types worth a screenshot when AUTOMATION_EVIDENCE='screenshots': the run
+// paused for the user, hit a challenge, or reached the review page — moments a
+// screenshot helps a human understand. Routine per-field events are excluded.
+const NOTABLE_EVENTS: ReadonlySet<string> = new Set([
+  'OTP_REQUIRED',
+  'CAPTCHA_REQUIRED',
+  'MFA_REQUIRED',
+  'ANTI_BOT_DETECTED',
+  'FIELD_MISMATCH',
+  'VALIDATION_ERROR',
+  'REVIEW_READY',
+  'UNKNOWN_PORTAL_STATE',
+  'BLOCKED_MISSING_DOCUMENT',
+  'NAVIGATION_STALLED',
+  'SESSION_EXPIRED',
+]);
 
 // ---- error classes ---------------------------------------------------------
 
@@ -121,6 +140,8 @@ export interface AutomationServiceDeps {
   runLoop?: (ctx: EngineContext) => Promise<EngineStop>;
   inspect?: (page: Page) => Promise<PageInspection>;
   getApplication?: (db: DatabaseSync, id: string) => LoadedApplication | null;
+  evidence?: 'off' | 'screenshots';
+  automationDir?: string;
 }
 
 export class AutomationService {
@@ -131,6 +152,10 @@ export class AutomationService {
   /** Reassignable so a test can swap the page-inspection result mid-run. */
   inspect: (page: Page) => Promise<PageInspection>;
   private readonly getApplication: (db: DatabaseSync, id: string) => LoadedApplication | null;
+  /** `'screenshots'` captures a page image on notable events; defaults to env (`'off'`). */
+  readonly evidence: 'off' | 'screenshots';
+  /** Directory the screenshot files live under; defaults to `env.AUTOMATION_DIR` (under `data/`). */
+  readonly automationDir: string;
 
   /** At most one runner process-wide. */
   activeRunner: AutomationRunner | null = null;
@@ -141,6 +166,8 @@ export class AutomationService {
     this.runLoop = deps.runLoop ?? realRunLoop;
     this.inspect = deps.inspect ?? inspectPage;
     this.getApplication = deps.getApplication ?? realGetApplication;
+    this.evidence = deps.evidence ?? env.AUTOMATION_EVIDENCE;
+    this.automationDir = deps.automationDir ?? env.AUTOMATION_DIR;
   }
 
   async startRun(db: DatabaseSync, applicationId: string): Promise<AutomationRunRow> {
@@ -332,6 +359,7 @@ export class AutomationRunner {
   private emitEvent(
     type: string,
     extra?: { portalState?: string | null; fieldPath?: string | null; status?: string | null },
+    evidencePath?: string | null,
   ): void {
     appendEvent(this.db, {
       id: randomUUID(),
@@ -341,9 +369,26 @@ export class AutomationRunner {
       fieldPath: extra?.fieldPath ?? null,
       status: extra?.status ?? null,
       message: EVENT_MESSAGES[type as keyof typeof EVENT_MESSAGES] ?? type,
-      evidencePath: null,
+      evidencePath: evidencePath ?? null,
       now: now(),
     });
+  }
+
+  // DESIGN NOTE — Screenshots of a mid-fill portal page contain PII. That is why
+  // AUTOMATION_EVIDENCE defaults to 'off', the files live under AUTOMATION_DIR
+  // (gitignored via data/), and only a RELATIVE path — never the image bytes —
+  // is stored in automation_events. (spec §13, R19)
+  private async captureEvidence(page: Page, type: string): Promise<string | null> {
+    try {
+      const name = `${Date.now()}-${type}.png`;
+      const rel = path.posix.join(this.runId, name); // forward slashes in the DB
+      const abs = path.join(this.svc.automationDir, this.runId, name);
+      await mkdir(path.dirname(abs), { recursive: true });
+      await page.screenshot({ path: abs });
+      return rel;
+    } catch {
+      return null;
+    }
   }
 
   private buildContext(page: Page): EngineContext {
@@ -357,12 +402,20 @@ export class AutomationRunner {
       onProgress: (patch) => {
         updateRun(db, runId, patch, now());
       },
-      emit: (e) => {
-        this.emitEvent(e.type, {
-          portalState: e.portalState ?? null,
-          fieldPath: e.fieldPath ?? null,
-          status: e.status ?? null,
-        });
+      emit: async (e) => {
+        let evidencePath: string | null = null;
+        if (this.svc.evidence === 'screenshots' && NOTABLE_EVENTS.has(e.type)) {
+          evidencePath = await this.captureEvidence(page, e.type);
+        }
+        this.emitEvent(
+          e.type,
+          {
+            portalState: e.portalState ?? null,
+            fieldPath: e.fieldPath ?? null,
+            status: e.status ?? null,
+          },
+          evidencePath,
+        );
       },
       recordMismatch: (m) => {
         this.mismatches.push(m);

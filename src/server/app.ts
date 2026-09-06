@@ -20,6 +20,7 @@ import { errorBody, notFoundError } from './routes/errors.js';
 import { createTesseractEngine } from './documents/tesseractEngine.js';
 import { MAX_DOCUMENT_BYTES } from './documents/fileType.js';
 import type { OcrEngine } from './documents/ocrEngine.js';
+import { AutomationService } from './automation/automationService.js';
 
 export interface BuildServerOptions {
   dbPath: string;
@@ -28,6 +29,8 @@ export interface BuildServerOptions {
   loggerInstance?: FastifyBaseLogger;
   /** Test seam: swap the OCR engine. Production uses a real tesseract.js engine. */
   ocr?: OcrEngine;
+  /** Test seam: swap the automation service. Production uses a real one. */
+  automation?: AutomationService;
 }
 
 export async function buildServer(
@@ -80,6 +83,13 @@ export async function buildServer(
   await registerPortalRoutes(app);
   await registerApplicantRoutes(app);
   await registerApplicationRoutes(app);
+
+  const automation = opts.automation ?? new AutomationService();
+  app.decorate('automation', automation);
+  app.addHook('onClose', async () => {
+    await automation.dispose().catch(() => undefined);
+  });
+
   await app.register(multipart, {
     // Signal an oversize file via `file.truncated` (→ route returns a sanitized
     // 400) rather than letting the plugin throw its own 413.

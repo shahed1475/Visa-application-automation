@@ -1,0 +1,422 @@
+// Task 12 — wires the automation engine (Tasks 1-11) to the DB, the browser and
+// the Fastify app. One `AutomationService` per process; it owns at most one
+// `AutomationRunner` at a time (`activeRunner`). The runner walks portal pages
+// in the background: launch browser → goto entry URL → runLoop → map the
+// returned `EngineStop` onto a persisted `status` (+ `waiting_reason` /
+// `error_code`) via `assertTransition`-guarded `updateRun`. On a `waiting` stop
+// it parks on `CheckpointManager.awaitResume` until `resumeRun` / `abortRun` /
+// `dispose` releases it. Raw field values NEVER touch the DB — only the
+// in-memory `mismatches[]` (surfaced by `getLive`) and value-free events.
+
+import type { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
+import type { BrowserContext, Page } from 'playwright';
+import { env } from '../env.js';
+import type {
+  AutomationEventRow,
+  AutomationRunRow,
+  RunStatus,
+  WaitingReason,
+} from '../../shared/automation/types.js';
+import { assertTransition, isTerminal } from '../../shared/automation/states.js';
+import { EVENT_MESSAGES } from '../../shared/automation/events.js';
+import type { ApplicationPlan } from '../../shared/application/types.js';
+import {
+  appendEvent,
+  createRun,
+  findActiveRun,
+  getRun as getRunRow,
+  listEvents as listEventRows,
+  updateRun,
+} from './state/automationRunStore.js';
+import {
+  runLoop as realRunLoop,
+  type EngineContext,
+  type EngineStop,
+} from './engine/automationEngine.js';
+import { CheckpointManager } from './checkpoints/checkpointManager.js';
+import { BrowserManager } from './engine/browserManager.js';
+import { resolveAdapter as realResolveAdapter } from './adapters/registry.js';
+import type { PortalAdapter } from './adapters/baseAdapter.js';
+import { detectPage } from './engine/pageDetector.js';
+import { applyField } from './engine/fieldActions.js';
+import { readControl, waitForPageSettled } from './engine/pageActions.js';
+import { inspectPage, type PageInspection } from './engine/pageInspector.js';
+import { getApplication as realGetApplication } from '../services/applicationService.js';
+import { getActivePortal } from '../services/portalService.js';
+
+const now = (): string => new Date().toISOString();
+
+const CHECKPOINT_REASONS: ReadonlySet<string> = new Set(['otp', 'captcha', 'mfa', 'anti_bot']);
+
+// ---- error classes ---------------------------------------------------------
+
+export class ApplicationNotFoundError extends Error {
+  constructor(readonly applicationId: string) {
+    super(`application ${applicationId} not found`);
+    this.name = 'ApplicationNotFoundError';
+  }
+}
+
+export class NotReadyError extends Error {
+  constructor(readonly blockers: unknown[]) {
+    super('the application is not ready for automation');
+    this.name = 'NotReadyError';
+  }
+}
+
+export class RunInProgressError extends Error {
+  constructor(readonly runId: string) {
+    super(`a run is already in progress for this application: ${runId}`);
+    this.name = 'RunInProgressError';
+  }
+}
+
+export class AnotherRunActiveError extends Error {
+  constructor(readonly runId: string) {
+    super(`another automation run is active: ${runId}`);
+    this.name = 'AnotherRunActiveError';
+  }
+}
+
+export class NoActivePortalError extends Error {
+  constructor() {
+    super('no active portal is configured');
+    this.name = 'NoActivePortalError';
+  }
+}
+
+export class RunNotFoundError extends Error {
+  constructor(readonly runId: string) {
+    super(`automation run ${runId} not found`);
+    this.name = 'RunNotFoundError';
+  }
+}
+
+export class NotWaitingError extends Error {
+  constructor(readonly runId: string) {
+    super(`automation run ${runId} is not waiting for the user`);
+    this.name = 'NotWaitingError';
+  }
+}
+
+export class CheckpointStillPresentError extends Error {
+  constructor() {
+    super('the security checkpoint is still present on the page');
+    this.name = 'CheckpointStillPresentError';
+  }
+}
+
+// ---- service --------------------------------------------------------------
+
+interface LoadedApplication {
+  application: unknown;
+  plan: ApplicationPlan;
+}
+
+export interface AutomationServiceDeps {
+  browserManager?: BrowserManager;
+  resolveAdapter?: (url: string) => PortalAdapter;
+  runLoop?: (ctx: EngineContext) => Promise<EngineStop>;
+  inspect?: (page: Page) => Promise<PageInspection>;
+  getApplication?: (db: DatabaseSync, id: string) => LoadedApplication | null;
+}
+
+export class AutomationService {
+  readonly bm: BrowserManager;
+  readonly checkpoints = new CheckpointManager();
+  readonly resolveAdapter: (url: string) => PortalAdapter;
+  readonly runLoop: (ctx: EngineContext) => Promise<EngineStop>;
+  /** Reassignable so a test can swap the page-inspection result mid-run. */
+  inspect: (page: Page) => Promise<PageInspection>;
+  private readonly getApplication: (db: DatabaseSync, id: string) => LoadedApplication | null;
+
+  /** At most one runner process-wide. */
+  activeRunner: AutomationRunner | null = null;
+
+  constructor(deps: AutomationServiceDeps = {}) {
+    this.bm = deps.browserManager ?? new BrowserManager();
+    this.resolveAdapter = deps.resolveAdapter ?? realResolveAdapter;
+    this.runLoop = deps.runLoop ?? realRunLoop;
+    this.inspect = deps.inspect ?? inspectPage;
+    this.getApplication = deps.getApplication ?? realGetApplication;
+  }
+
+  async startRun(db: DatabaseSync, applicationId: string): Promise<AutomationRunRow> {
+    const loaded = this.getApplication(db, applicationId);
+    if (!loaded) throw new ApplicationNotFoundError(applicationId);
+    if (!loaded.plan.readyForAutomation.ready) {
+      throw new NotReadyError(loaded.plan.readyForAutomation.blockers);
+    }
+
+    const mine = findActiveRun(db, { applicationId });
+    if (mine) throw new RunInProgressError(mine.id);
+    const anyRun = findActiveRun(db, {});
+    if (anyRun) throw new AnotherRunActiveError(anyRun.id);
+
+    const portal = getActivePortal(db);
+    if (!portal) throw new NoActivePortalError();
+    const portalUrlSnapshot = portal.url;
+    const adapter = this.resolveAdapter(portalUrlSnapshot);
+
+    const run = createRun(db, {
+      id: randomUUID(),
+      applicationId,
+      portalId: portal.id,
+      portalUrlSnapshot,
+      adapterId: adapter.id,
+      now: now(),
+    });
+
+    this.activeRunner = new AutomationRunner(
+      this,
+      db,
+      run.id,
+      adapter,
+      loaded.plan,
+      portalUrlSnapshot,
+    );
+    void this.activeRunner.run();
+    return run;
+  }
+
+  getRun(
+    db: DatabaseSync,
+    id: string,
+  ): { run: AutomationRunRow; events: AutomationEventRow[] } | null {
+    const run = getRunRow(db, id);
+    if (!run) return null;
+    return { run, events: listEventRows(db, id) };
+  }
+
+  listEvents(db: DatabaseSync, id: string, afterSeq?: number): AutomationEventRow[] {
+    return listEventRows(db, id, afterSeq);
+  }
+
+  getLive(id: string): { mismatches: { fieldPath: string; expected: string; actual: string }[] } | null {
+    return this.activeRunner?.runId === id
+      ? { mismatches: [...this.activeRunner.mismatches] }
+      : null;
+  }
+
+  async resumeRun(db: DatabaseSync, id: string): Promise<AutomationRunRow> {
+    const cur = getRunRow(db, id);
+    if (!cur) throw new RunNotFoundError(id);
+    if (cur.status !== 'waiting_for_user' && cur.status !== 'paused') {
+      throw new NotWaitingError(id);
+    }
+
+    if (CHECKPOINT_REASONS.has(cur.waiting_reason ?? '')) {
+      const runner = this.activeRunner;
+      if (runner?.runId === id && runner.page) {
+        const inspection = await this.inspect(runner.page);
+        const adapter = this.resolveAdapter(cur.portal_url_snapshot);
+        const cp = await this.checkpoints.stillBlocked(
+          runner.page,
+          inspection,
+          adapter.checkpointHints,
+        );
+        if (cp) {
+          appendEvent(db, {
+            id: randomUUID(),
+            runId: id,
+            type: 'CHECKPOINT_STILL_PRESENT',
+            message: EVENT_MESSAGES.CHECKPOINT_STILL_PRESENT,
+            now: now(),
+          });
+          throw new CheckpointStillPresentError();
+        }
+      }
+    }
+
+    const signalled = this.checkpoints.signalResume(id);
+    if (!signalled) {
+      // Crash-recovery path: no in-memory runner is parked on this run (the
+      // process restarted while it was waiting). Phase 5 simplification — start
+      // a fresh runner from the entry URL. The loop re-walks the pages and
+      // `FIELD_ALREADY_SET` keeps the re-fills idempotent.
+      const loaded = this.getApplication(db, cur.application_id);
+      if (!loaded) throw new ApplicationNotFoundError(cur.application_id);
+      const adapter = this.resolveAdapter(cur.portal_url_snapshot);
+      this.activeRunner = new AutomationRunner(
+        this,
+        db,
+        id,
+        adapter,
+        loaded.plan,
+        cur.portal_url_snapshot,
+      );
+      void this.activeRunner.run();
+    }
+
+    return getRunRow(db, id)!;
+  }
+
+  async abortRun(db: DatabaseSync, id: string): Promise<AutomationRunRow> {
+    const cur = getRunRow(db, id);
+    if (!cur) throw new RunNotFoundError(id);
+    if (isTerminal(cur.status)) return cur; // idempotent
+
+    assertTransition(cur.status, 'aborted');
+    updateRun(db, id, { status: 'aborted', ended_at: now() }, now());
+    appendEvent(db, {
+      id: randomUUID(),
+      runId: id,
+      type: 'RUN_ABORTED',
+      message: EVENT_MESSAGES.RUN_ABORTED,
+      now: now(),
+    });
+
+    if (this.activeRunner?.runId === id) {
+      this.activeRunner.aborted = true;
+      this.checkpoints.signalResume(id);
+    }
+    return getRunRow(db, id)!;
+  }
+
+  async dispose(): Promise<void> {
+    if (this.activeRunner) {
+      this.activeRunner.aborted = true;
+      this.checkpoints.signalResume(this.activeRunner.runId);
+    }
+    await this.bm.close().catch(() => undefined);
+  }
+}
+
+// ---- runner --------------------------------------------------------------
+
+export class AutomationRunner {
+  page: Page | null = null;
+  context: BrowserContext | null = null;
+  readonly mismatches: { fieldPath: string; expected: string; actual: string }[] = [];
+  aborted = false;
+
+  constructor(
+    private readonly svc: AutomationService,
+    private readonly db: DatabaseSync,
+    readonly runId: string,
+    private readonly adapter: PortalAdapter,
+    private readonly plan: ApplicationPlan,
+    private readonly portalUrl: string,
+  ) {}
+
+  private transition(to: RunStatus): void {
+    const cur = getRunRow(this.db, this.runId);
+    if (!cur) throw new Error(`automation run ${this.runId} vanished`);
+    assertTransition(cur.status, to);
+    updateRun(this.db, this.runId, { status: to }, now());
+  }
+
+  private emitEvent(
+    type: string,
+    extra?: { portalState?: string | null; fieldPath?: string | null; status?: string | null },
+  ): void {
+    appendEvent(this.db, {
+      id: randomUUID(),
+      runId: this.runId,
+      type,
+      portalState: extra?.portalState ?? null,
+      fieldPath: extra?.fieldPath ?? null,
+      status: extra?.status ?? null,
+      message: EVENT_MESSAGES[type as keyof typeof EVENT_MESSAGES] ?? type,
+      evidencePath: null,
+      now: now(),
+    });
+  }
+
+  private buildContext(page: Page): EngineContext {
+    const { db, runId } = this;
+    return {
+      page,
+      adapter: this.adapter,
+      plan: this.plan,
+      checkpoints: this.svc.checkpoints,
+      runId,
+      onProgress: (patch) => {
+        updateRun(db, runId, patch, now());
+      },
+      emit: (e) => {
+        this.emitEvent(e.type, {
+          portalState: e.portalState ?? null,
+          fieldPath: e.fieldPath ?? null,
+          status: e.status ?? null,
+        });
+      },
+      recordMismatch: (m) => {
+        this.mismatches.push(m);
+      },
+      now,
+      inspect: this.svc.inspect,
+      detectPage,
+      applyField,
+      readControl,
+      settle: waitForPageSettled,
+    };
+  }
+
+  async run(): Promise<void> {
+    const { db, runId } = this;
+    try {
+      await this.svc.bm.launch({ headless: env.AUTOMATION_HEADLESS });
+      const { page, context } = await this.svc.bm.newPage();
+      this.page = page;
+      this.context = context;
+
+      await page.goto(this.adapter.entryUrl(this.portalUrl));
+      this.transition('running');
+      updateRun(db, runId, { waiting_reason: null }, now());
+
+      for (;;) {
+        const ctx = this.buildContext(page);
+        const stop = await this.svc.runLoop(ctx);
+        if (this.aborted) break;
+
+        if (stop.kind === 'review_ready') {
+          this.transition('review_ready');
+          updateRun(db, runId, { ended_at: now() }, now());
+          break;
+        }
+        if (stop.kind === 'failed') {
+          this.transition('failed');
+          updateRun(db, runId, { error_code: stop.errorCode, ended_at: now() }, now());
+          break;
+        }
+
+        // waiting
+        this.transition('waiting_for_user');
+        updateRun(db, runId, { waiting_reason: stop.reason as WaitingReason }, now());
+        this.emitEvent('USER_ACTION_REQUIRED');
+
+        await this.svc.checkpoints.awaitResume(runId);
+
+        if (this.aborted || getRunRow(db, runId)?.status === 'aborted') break;
+
+        this.transition('running');
+        updateRun(db, runId, { waiting_reason: null }, now());
+        this.emitEvent('RUN_RESUMED');
+        await ctx.settle(page); // re-settle before re-entering the loop
+      }
+    } catch (e) {
+      // NEVER persist `e.message` — it may carry a selector or verbose page text.
+      try {
+        this.transition('failed');
+      } catch {
+        /* already terminal — leave the recorded status as-is */
+      }
+      updateRun(
+        db,
+        runId,
+        {
+          error_code: 'engine_error',
+          error_message: e instanceof Error ? e.name : 'error',
+          ended_at: now(),
+        },
+        now(),
+      );
+      this.emitEvent('RUN_FAILED');
+    } finally {
+      await this.context?.close().catch(() => undefined);
+      this.svc.activeRunner = null;
+    }
+  }
+}

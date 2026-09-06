@@ -1,9 +1,9 @@
 # Phase 5 — India Visa Browser Automation — end-of-phase report
 
-**Status:** Complete. Gate green. Whole-branch review (opus) pending.
+**Status:** Complete. Gate green. Whole-branch review (opus): **APPROVE-WITH-FIXES** — 0 Critical, 8 Important, 12 Minor; the 4 must-fix items landed in one wave (see §14). All 8 hard safety rails PASS.
 **Branch:** `phase-5-browser-automation` (cut from `phase-0-portal-settings` at `f13ab3a`; Phases 0–4 already on `origin`).
-**Range:** spec `3648ffd`, plan `edaef78`, **29 implementation / fix / test commits** `de5df96 … b062521`, plus this docs commit (report + two `ARCHITECTURE.md` edits, no `src/` or `test/` change). Several tasks took one fix round; Task 12 also took a pre-review critical fix and one dead-implementer re-dispatch.
-**Last verified:** 2026-09-06 — `npm run typecheck` (4 tsc projects), `npm run lint` (0 warnings), `npm test` (**967 passed / 91 files**), `npm run build` (web bundle **445.66 kB JS / 113.55 kB gzip**, css 13.07 kB / 2.95 kB gzip, html 0.40 kB) all green. `npx vitest run test/automation` → **26 files / 181 tests**. Baseline entering the phase: 783 tests.
+**Range:** spec `3648ffd`, plan `edaef78`, **29 implementation / fix / test commits** `de5df96 … b062521`, the report/`ARCHITECTURE.md` docs commit `dd350e6`, then the whole-branch-review must-fix wave (`I1`/`I2`/`I4`/`I8` + this report update). Several tasks took one fix round; Task 12 also took a pre-review critical fix and one dead-implementer re-dispatch.
+**Last verified:** 2026-09-06 — `npm run typecheck` (4 tsc projects), `npm run lint` (0 warnings), `npm test` (**971 passed / 91 files**), `npm run build` (web bundle **445.69 kB JS / 113.56 kB gzip**, css 13.07 kB / 2.95 kB gzip, html 0.40 kB) all green. Baseline entering the phase: 783 tests. (Task 21 was interrupted by a power outage and resumed in a fresh session; the fix wave added +4 tests over the 967 at `dd350e6`.)
 **Spec:** `docs/superpowers/specs/2026-09-06-phase-5-browser-automation-design.md`
 **Plan:** `docs/superpowers/plans/2026-09-06-phase-5-browser-automation.md`
 **SDD ledger:** `.superpowers/sdd/2026-09-06-phase-5-browser-automation/progress.md`
@@ -537,12 +537,71 @@ the automation `{field: {expected, actual}}` shape is the one that matters.
 
 ---
 
-## 14. Known limitations (triaged — none merge-blocking in my assessment)
+## 14. Known limitations (triaged)
 
-Every deferred / parked / flagged item from the SDD ledger, in one list. The
-whole-branch opus review is the gate for whether any is worth a pre-merge fix.
+Every deferred / parked / flagged item from the SDD ledger, in one list.
 
-### Worth the opus reviewer's attention (behavioural, still not blocking)
+### Whole-branch review (opus) — outcome + the must-fix wave
+
+Verdict **APPROVE-WITH-FIXES** (report:
+`.superpowers/sdd/2026-09-06-phase-5-browser-automation/whole-branch-review-report.md`).
+0 Critical. All 8 hard safety rails PASS — no submit path, no solver, no evasion,
+no PII in the DB or the log, no guessed India selector, no hard-coded portal URL
+(each probed with a synthetic violation). 8 Important, 12 Minor.
+
+**Four must-fix items landed in one wave** (all on the normal path — every real
+India run pauses for an OTP, every operator eventually Ctrl-Cs the server):
+
+| # | Defect | Fix | Tests |
+|---|---|---|---|
+| **I1** | `fields_verified` reset to 0 on every `runLoop` invocation, so every real run (mandatory OTP pause) reached `review_ready` showing 0 / N verified. | `EngineContext.initialVerifiedCount` carries the count across invocations; `AutomationRunner` feeds back the last reported value. A fresh crash-recovery runner still starts at 0 and re-counts (which also fixes the replay-path counters — §16 item 11). | `automationEngine.test.ts` 10–11, `automationService.test.ts` case 10 |
+| **I2** | `dispose()` on a run that was *walking* (not parked) left the row `running` forever → every future `startRun` refused with `ANOTHER_RUN_ACTIVE`, no in-UI recovery. A plain Ctrl-C triggered it. | `AutomationRunner.parkForShutdown()` persists `paused` (which `resumeRun` accepts) when nothing is parked at a checkpoint. | `automationService.test.ts` case 11 |
+| **I4** | `EVENT_MESSAGES.FIELD_FILLED_UNVERIFIED` said "could not be read back" — the opposite of its trigger (it fires *after* a successful read-back, for a plan value the user never verified). | Message → *"The field was filled and read back as expected, but you have not verified this entry yet."* | `events.test.ts` (vocabulary purity) |
+| **I8** | The no-auto-submit source guard had no pattern for `keyboard.press('Enter')` — implicit form submission, the one submit vector with no selector and no `submit` token. Source is clean today. | Added `/(?:keyboard\.)?\bpress\s*\(\s*['"]Enter['"]/i` to `SUBMIT_PATTERNS` + non-vacuity assertions. | `noAutoSubmit.test.ts` |
+
+**The other four Important findings — kept as documented follow-ups** (all
+unreachable with the shipped `india` / `generic` adapters, so no test exercises
+them and none can bite before real India discovery):
+
+- **I3** — `document_upload_required` re-pauses forever on resume (`pageRequiredDocs`
+  is recomputed from the *plan*, never from the portal DOM, so it is still
+  non-empty after the user attaches files). Unreachable: both shipped adapters
+  return `[]` from `documentIdsForState`. Fix when the first adapter declares
+  document states: track acknowledged document states per run.
+- **I5** — `OptionNotFoundError` from `selectNative` / `selectCustom` /
+  `typeAutocomplete` is not caught by the engine's `SelectorNotFoundError`-only
+  handler, so a missing dropdown option hard-fails the run instead of pausing, and
+  `DROPDOWN_OPTION_MISSING` (a specified §11 event) is never emitted. Also: that
+  error's `.message` embeds a field value — never logged or persisted today
+  (`error_message` is `e.name` only), but a latent PII path. Fix: catch it, emit
+  `DROPDOWN_OPTION_MISSING`, pause `value_mismatch` for a required field; make the
+  message value-free.
+- **I6** — the settle step (`ctx.settle(page)`) is never given an anchor selector;
+  `IndiaPortalStateConfig.anchorField` is dead config. Degrades to
+  `waitForLoadState('domcontentloaded')` — invisible against the static fixture,
+  but the most likely source of flakiness on a real SPA portal. Fix: add
+  `anchorSelectorForState(state)` to `PortalAdapter` and pass it to both `settle`
+  calls (this is also the natural moment to move `settle` into the injectable dep
+  seam).
+- **I7** — spec §5's `session_expired` resume detection is not implemented;
+  `SESSION_EXPIRED` / `PORTAL_UNAVAILABLE` are never emitted. Degrades safely (a
+  login page reads as `unknown_page`, same UI instruction). Fix: on resume, detect
+  a login/landing identity and pause `session_expired`.
+
+**Unemitted event types** — 8 of the 36 closed vocabulary literals are never
+emitted: `CHECKPOINT_DETECTED`, `FIELD_MAP_RESOLVED`, `FIELD_FILLED`,
+`SELECTOR_STALE`, `DROPDOWN_OPTION_MISSING` (I5), `SESSION_EXPIRED` (I7),
+`PORTAL_UNAVAILABLE` (I7), `RUN_PAUSED`. Two of those (`DROPDOWN_OPTION_MISSING`,
+`SESSION_EXPIRED`) are specified *behaviours*, covered by I5 / I7 above; the rest
+are labels reserved for future emit sites.
+
+The 12 Minor findings (guard-regex gaps that miss no current violation,
+`RunSummary` now unused, `fields_total` vs `fields_verified` skew with an unmapped
+required field, the `GET .../automation-runs` route lacking `safeParse`, the
+`Date.now()` screenshot-filename collision, no vitest setup file forcing headless,
+…) are recorded in the review report and left for a future cleanup pass.
+
+### Other deferred items (from the per-task reviews — opus review said keep-deferred)
 
 - **Crash-recovery resume re-walks earlier pages** (Task 12; see §15 item 11). When
   the process restarts while a run is `waiting_for_user`, `checkpointManager` has no
@@ -553,12 +612,8 @@ whole-branch opus review is the gate for whether any is worth a pre-merge fix.
   should "continue from the observed state, never replaying earlier pages". The
   in-process resume (the normal OTP case) does not replay. A targeted resume
   (persist the observed state, re-detect, resume mid-plan) is the clean follow-up.
-- **`dispose()` mid-walk leaves a stuck `running` row** (Task 12 / Task 15 —
-  flagged for whole-branch). `dispose()` on a run parked at a wait persists nothing
-  and leaves it `waiting_for_user` (correct, resumable); on a run **actively
-  walking a page** (not parked) it kills the runner but the row stays `running`,
-  which then blocks every future `startRun` (`another_run_active`) until an operator
-  aborts it. `dispose()` should persist `paused` for a non-parked in-flight run.
+- ~~**`dispose()` mid-walk leaves a stuck `running` row**~~ — **FIXED** in the
+  whole-branch review wave (I2 above).
 - **`NAVIGATION_STALLED` same-state false-positive** (Task 11). The stall check
   (`leftState === state` after `clickNext`) fires on a legitimate portal that keeps
   the same logical state across a multi-screen step. No fixture portal does this;
@@ -678,7 +733,7 @@ whole-branch opus review is the gate for whether any is worth a pre-merge fix.
 
 | # | Item | Verdict | Evidence |
 |---|---|---|---|
-| 1 | `typecheck` ×4, `lint`, `test`, `build` green; full Phase 0–4 regression green | **PASS** | §"Last verified" — 4 tsc projects exit 0, `eslint .` 0 warnings, **967 passed / 91 files**, build 445.66 kB / 113.55 kB gzip; baseline 783 → +184 |
+| 1 | `typecheck` ×4, `lint`, `test`, `build` green; full Phase 0–4 regression green | **PASS** | §"Last verified" — 4 tsc projects exit 0, `eslint .` 0 warnings, **971 passed / 91 files**, build 445.69 kB / 113.56 kB gzip; baseline 783 → +188 (967 at `dd350e6`, +4 in the whole-branch-review wave) |
 | 2 | Migration 5 creates both tables; `LATEST_SCHEMA_VERSION === 5`; fresh DB + a real v4→v5 upgrade both succeed | **PASS** | §3 — `automationMigrations.test.ts` (8): `runMigrations(db, 4)` stop → seed → migrate → `user_version === 5`, tables + indexes, cascade, CHECK rejections; `applicant/applicationMigrations.test.ts` `LATEST_SCHEMA_VERSION === 5` canary |
 | 3 | Consumes `getApplication` / `plan` / `getActivePortal` — no duplicate applicant/application/document/visa-rule model; guard asserts no KB category-id or portal-URL literal in the engine | **PASS** | §6 — `AutomationService.startRun` calls `getApplication` + `getActivePortal`; the engine reads `plan.sections` / `plan.documents` / `plan.readyForAutomation` only (document readiness reaches it as `plan.documents[].uploaded`, computed by Phase 4 from Phase 3 data — not re-modelled). `architectureGuard.test.ts` + `noHardcodedUrl.test.ts` + `noAutoSubmit.test.ts` — zero category-id / portal-URL literal in `src/**/automation/**` |
 | 4 | Engine portal-agnostic: `automationEngine.ts` imports no concrete adapter; India selectors only under `adapters/india/` | **PASS** | §6 — `architectureGuard.test.ts` "the engine loop imports no concrete adapter" (only `import type { PortalAdapter }`); "India portal knowledge lives only under adapters/india" scans `src/server/automation/**` minus `india/` for the category + visa-URL literal, zero |
@@ -688,15 +743,16 @@ whole-branch opus review is the gate for whether any is worth a pre-merge fix.
 | 8 | OTP + CAPTCHA fixture checkpoints each pause with the matching reason; `bringToFront` called; resume re-checks & refuses `409` while present; no solver code | **PASS** | integration scenario 1 (`OTP_REQUIRED`, `waiting_reason = otp`, `/resume` after `setChallenge('ok')` → proceeds) + scenario 2 (`CAPTCHA_REQUIRED`; `/resume` while present → `409 CHECKPOINT_STILL_PRESENT` + event; clear → proceeds); `checkpointDetector.test.ts` (precedence + clean-page negative); `noAutoSubmit.test.ts` solver grep = zero; `automationEngine.test.ts` scenario 3 asserts the `bringToFront` spy |
 | 9 | Missing required info and missing required documents each block with the specific reason | **PASS** | integration scenario 3 (`VALIDATION_ERROR` → pause `validation_error`, no navigation past FAMILY) + scenario 4 (`BLOCKED_MISSING_DOCUMENT` → `failed` / `error_code = missing_document`, `waiting_reason` NULL, `field_path` = the doc id) |
 | 10 | No automatic submission: the four §6 mechanisms all in place; `submitCount === 0` in E2E; guard green | **PASS** | §12 — `submitSelector: null` (interface + 3 impls); `noAutoSubmit.test.ts` 6/6 (non-vacuous); `submitCount === 0` in all 8 integration scenarios + the §10 smoke; `indiaPortalMap` has no submit selector, `FINAL_REVIEW.nextSelector = null` |
-| 11 | Crash mid-run leaves a resumable DB record; `resumeRun` re-detects and continues from the observed state without replaying earlier pages | **PARTIAL** | Resumable record: **yes** — counters + events persisted before every suspension; integration scenario 7 (dispose the service mid-pause → rebuild from the same DB → run reads `waiting_for_user` → `/resume` → `review_ready`). "Without replaying earlier pages": **in-process resume yes** (continues from the challenge page); **crash-recovery resume no** — a fresh `AutomationRunner` re-walks from the entry URL (idempotent via `FIELD_ALREADY_SET` / re-verify, reconciles to the observed state, but replays). See §14 item 1 |
+| 11 | Crash mid-run leaves a resumable DB record; `resumeRun` re-detects and continues from the observed state without replaying earlier pages | **PARTIAL** | Resumable record: **yes** — counters + events persisted before every suspension; integration scenario 7 (dispose the service mid-pause → rebuild from the same DB → run reads `waiting_for_user` → `/resume` → `review_ready`). "Without replaying earlier pages": **in-process resume yes** (continues from the challenge page); **crash-recovery resume no** — a fresh `AutomationRunner` re-walks from the entry URL (idempotent via `FIELD_ALREADY_SET` / re-verify, reconciles to the observed state, but replays). Opus review: keep-deferred (replay is idempotent, converges, cannot submit; the honest PARTIAL is the right disclosure). The wave's I1 fix makes the replayed counters correct. See §14 |
 | 12 | PII: full-run redaction passes; message vocabulary closed; screenshots gitignored + path-only; `REDACT_PATHS` extended | **PASS** | §13 — `security.test.ts` test 1 (capturing pino: no value / no `otp`/`expected`/`actual` value shape; every `message` ∈ `EVENT_MESSAGES`; every `field_path` ∈ contract paths) + test 2 (`evidence_path` relative, drive-letter-free, under `AUTOMATION_DIR` ⊆ `DATA_DIR`); `logger.ts` Phase 5 `REDACT_PATHS` block; `events.ts` `EVENT_MESSAGES` has no `${` |
 | 13 | UI: start button wired to readiness; run page shows status, progress, a value-free event log, the ACTION REQUIRED panel with Resume, the SAFE STOP banner; no submit control | **PASS** | §5 — `ReadyForAutomationSection.test.tsx` (5: enabled when ready → starts + navigates; `409` → `role="alert"`; `!ready` inert; verbatim hints; no submit affordance); `AutomationRunPage.test.tsx` (5: value-free log, "Complete the OTP…" + Resume, `/live` mismatch list in the alert panel, SAFE STOP verbatim + no `<form>`/`type="submit"`, polling halts at terminal) |
 | 14 | India adapter scaffold present + typed; `indiaPortalMap` selectors are explicit placeholders; `docs/portals/india.md` created with the ToS/robots section; `portalDiscovery` read-only | **PASS** | §6, §11 — `indiaAdapter.test.ts` (12: every `fields` selector `'TODO:discover'`, `submitSelector` literal `null`, `clickNext` throws on `'TODO:discover'`, host-anchored `matches`); `portalDiscovery.test.ts` (2: source guard — no `fill`/`click`/`type`/`press`/`goto`/`selectOption`/`check`/`setInputFiles`/`hover`/`form.submit`); `docs/portals/india.md` with Discovery `NOT STARTED` + `## ToS / robots.txt position` |
 | 15 | `docs/PHASE-5-REPORT.md` with the §32 contents + the two verbatim NOT-IMPLEMENTED lines; `docs/ARCHITECTURE.md` §3 gains a Phase 5 paragraph | **PASS** | this file (all §32 sections + the two lines at the top); `ARCHITECTURE.md` §3 Phase 5 paragraph + §6 migration-5 note (this commit) |
 
 **14 PASS, 1 PARTIAL (item 11 — crash-recovery resume re-walks earlier pages; the
-resumable-record guarantee and in-process resume both hold).** No item is a known
-blocker; the whole-branch opus review is the final gate.
+resumable-record guarantee and in-process resume both hold).** The whole-branch
+opus review (APPROVE-WITH-FIXES, 0 Critical, all 8 rails PASS) is complete and its
+4 must-fix items have landed — see §14.
 
 ---
 

@@ -141,6 +141,15 @@ async function countNodes(page: Page, selector: string): Promise<number> {
   }
 }
 
+/**
+ * `radio` / `checkbox` mappings store the GROUP selector (`input[name="…"]`) — the
+ * engine's `setRadio` / `setCheckbox` append `[value="…"]` themselves at fill time
+ * — so a correctly stored group resolves to 2+ nodes. Those are validated as a
+ * group (`nodeCount >= 1`, every node an `<input>` of the declared type); every
+ * other control must resolve to exactly one node.
+ */
+const GROUP_CONTROLS: ReadonlySet<ControlKind> = new Set<ControlKind>(['radio', 'checkbox']);
+
 async function validateField(
   page: Page,
   fieldPath: string,
@@ -148,15 +157,23 @@ async function validateField(
 ): Promise<AdapterFieldValidation> {
   const selector = mapping.selector;
   const nodeCount = await countNodes(page, selector);
-  const resolvable = nodeCount === 1;
+  const isGroup = GROUP_CONTROLS.has(mapping.control);
+  const resolvable = isGroup ? nodeCount >= 1 : nodeCount === 1;
 
-  const first = resolvable ? ((await readNodes(page, selector))[0] ?? null) : null;
-  const controlMatches =
-    first !== null && controlMatchesNode(mapping.control, first.tag, first.type);
+  // Inspect the DOM only when the count says there is something to inspect.
+  const nodes = resolvable ? await readNodes(page, selector) : [];
+  const inspectFailed = resolvable && nodes.length === 0;
+
+  const first = nodes[0] ?? null;
+  const controlMatches = isGroup
+    ? nodes.length > 0 && nodes.every((n) => n.tag === 'input' && n.type === mapping.control)
+    : first !== null && controlMatchesNode(mapping.control, first.tag, first.type);
 
   const result: AdapterFieldValidation = { fieldPath, resolvable, nodeCount, controlMatches };
 
-  if (
+  if (inspectFailed) {
+    result.note = 'selector resolved but the node could not be inspected';
+  } else if (
     !controlMatches &&
     mapping.control === 'date' &&
     first?.tag === 'input' &&
@@ -188,6 +205,10 @@ async function validateStates(
   return Promise.all(
     entries.map(async ([state, cfg]) => ({
       state,
+      // NOTE (Task 16 / whole-branch): a comma-list `nextSelector` such as
+      // `'a.next, button.next'` matches 2 nodes on a page that has both, so this
+      // `=== 1` check will need the same group-aware treatment as radio/checkbox
+      // once real states are promoted from placeholder.
       nextResolvable: (await countNodes(page, cfg.nextSelector as string)) === 1,
     })),
   );
@@ -195,10 +216,12 @@ async function validateStates(
 
 /**
  * Check a portal map against a live page: every non-placeholder field mapping
- * must resolve to exactly one node of a matching control kind, and every state
- * with a non-placeholder `nextSelector` must resolve to exactly one node.
- * Placeholder mappings are skipped, so a fully-placeholder map validates
- * vacuously (`ok: true`, empty `fields` / `states`).
+ * must resolve to a node of a matching control kind (exactly one node for
+ * single controls; one-or-more `<input>`s of the declared type for a
+ * `radio` / `checkbox` group), and every state with a non-placeholder
+ * `nextSelector` must resolve to exactly one node. Placeholder mappings are
+ * skipped, so a fully-placeholder map validates vacuously (`ok: true`, empty
+ * `fields` / `states`).
  */
 export async function validateAdapterAgainstPage(
   page: Page,

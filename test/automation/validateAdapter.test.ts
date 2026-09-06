@@ -23,6 +23,8 @@ const HAND_PAGE = `<!doctype html><html><head><title>hand</title></head><body>
 <label for="sex">Sex</label>
 <select id="sex"><option value="M">Male</option><option value="F">Female</option></select>
 <select id="pii-select"><option>${PII_OPTION}</option><option>Clean Option</option></select>
+<input type="radio" name="marital-status" value="married" id="ms-m"><label for="ms-m">Married</label>
+<input type="radio" name="marital-status" value="single" id="ms-s"><label for="ms-s">Single</label>
 <a class="next" href="/next">Save &amp; Continue</a>
 </body></html>`;
 
@@ -118,6 +120,24 @@ const handMap = {
       discoverySessionRef: 'test',
       validatedAt: '2026-09-06T00:00:00.000Z',
     },
+    // A correctly stored radio mapping: the GROUP selector, 2 nodes on the page.
+    'radio.group': {
+      selector: 'input[name="marital-status"]',
+      control: 'radio',
+      selectorConfidence: 'stable',
+      status: 'validated',
+      discoverySessionRef: 'test',
+      validatedAt: '2026-09-06T00:00:00.000Z',
+    },
+    // A radio mapping pointed at the wrong kind of control.
+    'radio.mismatch': {
+      selector: '#sex',
+      control: 'radio',
+      selectorConfidence: 'stable',
+      status: 'validated',
+      discoverySessionRef: 'test',
+      validatedAt: '2026-09-06T00:00:00.000Z',
+    },
   },
   states: {
     ...indiaPortalMap.states,
@@ -178,6 +198,15 @@ describe('validateAdapterAgainstPage', () => {
     expect(byPath('identity.sex')?.optionLabels).toEqual(['Male', 'Female']);
     expect(byPath('missing.field')).toMatchObject({ resolvable: false, controlMatches: false });
     expect(byPath('mismatch.field')).toMatchObject({ resolvable: true, controlMatches: false });
+
+    // A radio GROUP selector resolves to 2+ nodes and is still valid.
+    expect(byPath('radio.group')).toMatchObject({
+      resolvable: true,
+      controlMatches: true,
+      nodeCount: 2,
+    });
+    // A radio mapping pointed at a <select> matches the kind check as false.
+    expect(byPath('radio.mismatch')).toMatchObject({ resolvable: true, controlMatches: false });
 
     const personal = report.states.find((s) => s.state === 'PERSONAL_DETAILS');
     expect(personal).toEqual({ state: 'PERSONAL_DETAILS', nextResolvable: true });

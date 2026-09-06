@@ -194,10 +194,11 @@ export function makeFixtureIndiaAdapter(
 // `validateAdapterAgainstPage` so the validator (Task 9) runs green in CI.
 //
 // Scope: mirrors ONLY the ~13 controls the fixture pages actually contain (see
-// `FIELD_MAP` above), NOT all 26 canonical India keys. The two radio-group
-// fields use a `[value=…]` selector so they resolve to EXACTLY ONE node — spec
-// §7.4 requires a single node, and the validator's control matcher inspects one
-// node's tag/type. `#spouse-name` gets `type="text"` implicitly (no attribute).
+// `FIELD_MAP` above), NOT all 26 canonical India keys. The two radio fields use
+// the GROUP selector (`input[name="…"]`) exactly as `FIELD_MAP` / the engine's
+// `setRadio` expect — the validator resolves a radio/checkbox mapping as a group
+// (nodeCount >= 1, every node an <input> of the declared type).
+// `#spouse-name` gets `type="text"` implicitly (no attribute).
 // ---------------------------------------------------------------------------
 
 const VALIDATED_AT = '2026-09-06T00:00:00.000Z';
@@ -233,12 +234,12 @@ const FIXTURE_V2_FIELDS: Record<string, IndiaFieldMapping> = {
   'passport.expiryDate': vField('#passport-expiry', 'date'),
   'address.line1': vField('#address-line1', 'text'),
   'address.city': vField('#address-city', 'text'),
-  'family.maritalStatus': vField('input[name="marital-status"][value="married"]', 'radio'),
+  'family.maritalStatus': vField('input[name="marital-status"]', 'radio'),
   'family.spouseName': vField('#spouse-name', 'text'),
   'occupation.occupation': vField('#occupation', 'text'),
   'application.purpose': vField('#purpose', 'native_select', { optionMatch: 'value' }),
   'application.intendedArrivalDate': vField('#arrival-date', 'date'),
-  'application.visitedIndiaBefore': vField('input[name="visited-before"][value="yes"]', 'radio'),
+  'application.visitedIndiaBefore': vField('input[name="visited-before"]', 'radio'),
 };
 
 const FIXTURE_V2_STATES: Record<IndiaPortalState, IndiaPortalStateConfig> = {

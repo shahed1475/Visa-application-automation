@@ -74,6 +74,11 @@ const PHASE_4_MUST_INCLUDE = [
   '*.spousePrevNationality', '*.spouse_prev_nationality',
 ];
 
+const PHASE_5_MUST_INCLUDE = [
+  'expected', 'actual', 'otp', 'otpCode', 'captcha',
+  '*.expected', '*.actual', '*.otp', '*.captcha',
+];
+
 it('redacts every applicant PII key we care about', () => {
   for (const key of MUST_INCLUDE) {
     expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
@@ -88,6 +93,12 @@ it('redacts every document-extraction PII key we care about', () => {
 
 it('redacts every family/occupation PII key we care about', () => {
   for (const key of PHASE_4_MUST_INCLUDE) {
+    expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
+  }
+});
+
+it('redacts every automation PII key we care about', () => {
+  for (const key of PHASE_5_MUST_INCLUDE) {
     expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
   }
 });

@@ -58,6 +58,12 @@ export const REDACT_PATHS = [
   '*.fatherPrevNationality', '*.father_prev_nationality',
   '*.motherPrevNationality', '*.mother_prev_nationality',
   '*.spousePrevNationality', '*.spouse_prev_nationality',
+  // Phase 5 — automation
+  // `expected` / `actual` carry the field values compared during verification
+  // (names, dates, passport numbers) per the Phase 5 spec Global Constraints;
+  // `otp` / `captcha` are the challenge secrets. All are censored as whole units.
+  'expected', 'actual', 'otp', 'otpCode', 'otp_code', 'captcha', 'captchaText',
+  '*.expected', '*.actual', '*.otp', '*.otpCode', '*.captcha',
 ];
 
 /**

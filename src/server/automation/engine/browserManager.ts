@@ -1,14 +1,43 @@
-import { chromium, type Browser } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from 'playwright';
 import { env } from '../../env.js';
 
 export class BrowserManager {
   private browser: Browser | null = null;
 
-  async launch(): Promise<Browser> {
+  /**
+   * `opts.headless` overrides the default, which stays `env.PW_HEADLESS` so
+   * `discovery/testConnection.ts` (calls `launch()` with no args) is unchanged.
+   * The Phase 5 automation service passes `{ headless: env.AUTOMATION_HEADLESS }`.
+   *
+   * Connection reuse: if a browser is already connected, it is returned as-is —
+   * a differing `headless` in a later call does NOT relaunch it. The automation
+   * service owns its own manager instance, so this is a non-issue in practice.
+   */
+  async launch(opts?: { headless?: boolean }): Promise<Browser> {
     if (!this.browser || !this.browser.isConnected()) {
-      this.browser = await chromium.launch({ headless: env.PW_HEADLESS });
+      this.browser = await chromium.launch({
+        headless: opts?.headless ?? env.PW_HEADLESS,
+      });
     }
     return this.browser;
+  }
+
+  /** Fresh isolated context + page per call (cookies/storage not shared). */
+  async newPage(): Promise<{ page: Page; context: BrowserContext }> {
+    const browser = await this.launch();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    return { page, context };
+  }
+
+  /** Best-effort foreground; a headless or already-closed page must not throw. */
+  async bringToFront(page: Page): Promise<void> {
+    await page.bringToFront().catch(() => {});
   }
 
   async close(): Promise<void> {

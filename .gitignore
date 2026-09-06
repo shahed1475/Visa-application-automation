@@ -1,5 +1,6 @@
 node_modules/
 data/
+# data/automation/ — Phase 5 automation screenshot evidence (covered by data/ above)
 # The visa-kb ships versioned JSON data as source, not runtime scratch.
 !src/shared/visa-kb/data/
 .env

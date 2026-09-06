@@ -159,3 +159,121 @@ describe('fixture India adapter', () => {
     await context.close();
   });
 });
+
+describe('fixture portal v2 — prefill / WebForms / extra sections / unknown page', () => {
+  it('injects the canonical match prefill values on /personal', async () => {
+    portal.setPrefill('match');
+    const body = await (await fetch(portal.url + '/personal')).text();
+    expect(body).toContain('<input id="surname" type="text" value="RANA">');
+    expect(body).toContain('<input id="given-names" type="text" value="KUMAR">');
+    portal.setPrefill('none');
+  });
+
+  it('injects the conflict prefill values on /personal', async () => {
+    portal.setPrefill('conflict');
+    const body = await (await fetch(portal.url + '/personal')).text();
+    expect(body).toContain('<input id="surname" type="text" value="SOMEONE-ELSE">');
+    expect(body).toContain('<input id="given-names" type="text" value="DIFFERENT">');
+    portal.setPrefill('none');
+  });
+
+  it('serves /personal with empty controls when prefill is none (default)', async () => {
+    const body = await (await fetch(portal.url + '/personal')).text();
+    expect(body).toContain('<input id="surname" type="text">');
+    expect(body).not.toContain('value="RANA"');
+  });
+
+  it('honours a ?prefill= query override for a single request only', async () => {
+    const overridden = await (await fetch(portal.url + '/personal?prefill=match')).text();
+    expect(overridden).toContain('value="RANA"');
+    const next = await (await fetch(portal.url + '/personal')).text();
+    expect(next).not.toContain('value="RANA"');
+  });
+
+  it('leaves the self-mutating #surname-bad probe untouched when prefilling', async () => {
+    portal.setPrefill('match');
+    const body = await (await fetch(portal.url + '/personal')).text();
+    expect(body).toContain(
+      `<input id="surname-bad" type="text" oninput="this.value = this.value + 'X'">`,
+    );
+    portal.setPrefill('none');
+  });
+
+  it('serves a WebForms-style /webforms-personal with __VIEWSTATE', async () => {
+    const res = await fetch(portal.url + '/webforms-personal');
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain('__VIEWSTATE');
+    expect(body).toContain('<h1>Personal Particulars</h1>');
+  });
+
+  it('serves /nowhere as an unknown page (200, heading matches no adapter state)', async () => {
+    const res = await fetch(portal.url + '/nowhere');
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain('<h1>Session Dashboard</h1>');
+  });
+
+  it('serves the extra section pages with an <h1> and a .next link', async () => {
+    for (const p of ['/previous-visits', '/additional-information']) {
+      const body = await (await fetch(portal.url + p)).text();
+      expect(body).toContain('<h1>');
+      expect(body).toContain('class="next"');
+    }
+  });
+
+  it('does not increment submitCount when the new pages are fetched', async () => {
+    const before = portal.submitCount;
+    for (const p of [
+      '/webforms-personal',
+      '/nowhere',
+      '/previous-visits',
+      '/additional-information',
+      '/personal?prefill=conflict',
+    ]) {
+      await fetch(portal.url + p);
+    }
+    expect(portal.submitCount).toBe(before);
+  });
+
+  it('maps the new v2 paths to states and /nowhere to UNKNOWN', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const adapter = makeFixtureIndiaAdapter(portal.url);
+
+    await page.goto(portal.url + '/previous-visits');
+    expect((await adapter.getPageIdentity(page, {} as PageInspection)).state).toBe('PREVIOUS_VISITS');
+
+    await page.goto(portal.url + '/additional-information');
+    expect((await adapter.getPageIdentity(page, {} as PageInspection)).state).toBe(
+      'ADDITIONAL_INFORMATION',
+    );
+
+    await page.goto(portal.url + '/webforms-personal');
+    expect((await adapter.getPageIdentity(page, {} as PageInspection)).state).toBe(
+      'WEBFORMS_PERSONAL',
+    );
+
+    await page.goto(portal.url + '/nowhere');
+    const id = await adapter.getPageIdentity(page, {} as PageInspection);
+    expect(id.state).toBe('UNKNOWN');
+    expect(id.confidence).toBe(0);
+
+    expect(adapter.sectionIdsForState('PREVIOUS_VISITS')).toEqual(['previous_visits']);
+    expect(adapter.sectionIdsForState('ADDITIONAL_INFORMATION')).toEqual(['additional_information']);
+    expect(adapter.sectionIdsForState('WEBFORMS_PERSONAL')).toEqual(['personal_particulars']);
+
+    await context.close();
+  });
+
+  it('the WebForms Save button re-renders the same path (postback)', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(portal.url + '/webforms-personal');
+    await page.locator('button[name="save"]').click();
+    await page.waitForLoadState('domcontentloaded');
+    expect(new URL(page.url()).pathname).toBe('/webforms-personal');
+    expect(await page.locator('input[name="__VIEWSTATE"]').count()).toBe(1);
+    await context.close();
+  });
+});

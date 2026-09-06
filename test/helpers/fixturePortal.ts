@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 
 export type ChallengeVariant = 'otp' | 'captcha' | 'ok';
+export type PrefillVariant = 'none' | 'match' | 'conflict';
 
 export interface FixturePortal {
   url: string;
@@ -10,6 +11,12 @@ export interface FixturePortal {
   requests: { method: string; url: string }[];
   /** Controls what `/challenge` renders for subsequent requests. */
   setChallenge(v: ChallengeVariant): void;
+  /**
+   * Controls whether prefill-supporting pages (`/personal`) come back with their
+   * canonical `match` / `conflict` values already in the controls. A `?prefill=`
+   * query param overrides this for a single request.
+   */
+  setPrefill(v: PrefillVariant): void;
   close(): Promise<void>;
 }
 
@@ -25,7 +32,38 @@ const PAGE_NAMES = [
   'challenge',
   'review',
   'final-review',
+  'previous-visits',
+  'additional-information',
+  'webforms-personal',
+  'nowhere',
 ] as const;
+
+/** Pages whose known text controls accept prefill injection. */
+const PREFILL_SUPPORTING = new Set<string>(['personal']);
+
+/**
+ * Canonical prefill values keyed by element id. `match` holds the value the
+ * Task 13 plan wants (so the engine sees a prefill-match); `conflict` holds a
+ * different value (so the engine raises `value_conflict`). Injected with a
+ * per-id regex against the empty control — idempotent and deterministic.
+ */
+const PREFILL_VALUES: Record<'match' | 'conflict', Record<string, string>> = {
+  match: { surname: 'RANA', 'given-names': 'KUMAR' },
+  conflict: { surname: 'SOMEONE-ELSE', 'given-names': 'DIFFERENT' },
+};
+
+function injectPrefill(html: string, variant: 'match' | 'conflict'): string {
+  let out = html;
+  for (const [id, value] of Object.entries(PREFILL_VALUES[variant])) {
+    const emptyControl = new RegExp(`<input id="${id}" type="text">`);
+    out = out.replace(emptyControl, `<input id="${id}" type="text" value="${value}">`);
+  }
+  return out;
+}
+
+function isPrefillVariant(v: string | null): v is PrefillVariant {
+  return v === 'none' || v === 'match' || v === 'conflict';
+}
 
 const CHALLENGE_MARKUP: Record<ChallengeVariant, string> = {
   otp: '<label for="otp">Enter the OTP</label><input id="otp" type="text">',
@@ -46,7 +84,11 @@ export async function startFixturePortal(): Promise<FixturePortal> {
     );
   }
 
-  const state = { challenge: 'otp' as ChallengeVariant, submitCount: 0 };
+  const state = {
+    challenge: 'otp' as ChallengeVariant,
+    prefill: 'none' as PrefillVariant,
+    submitCount: 0,
+  };
   const requests: { method: string; url: string }[] = [];
 
   const server = createServer((req, res) => {
@@ -79,6 +121,11 @@ export async function startFixturePortal(): Promise<FixturePortal> {
       const variant = isChallengeVariant(queryVariant) ? queryVariant : state.challenge;
       body = body.replace('<!--CHALLENGE-->', CHALLENGE_MARKUP[variant]);
     }
+    if (PREFILL_SUPPORTING.has(name)) {
+      const queryVariant = parsed.searchParams.get('prefill');
+      const variant = isPrefillVariant(queryVariant) ? queryVariant : state.prefill;
+      if (variant !== 'none') body = injectPrefill(body, variant);
+    }
 
     res.writeHead(200, { 'content-type': 'text/html' });
     res.end(body);
@@ -95,6 +142,9 @@ export async function startFixturePortal(): Promise<FixturePortal> {
     requests,
     setChallenge(v: ChallengeVariant) {
       state.challenge = v;
+    },
+    setPrefill(v: PrefillVariant) {
+      state.prefill = v;
     },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };

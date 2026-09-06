@@ -35,6 +35,10 @@ const PATH_TO_STATE: Record<string, PortalState> = {
   '/challenge': 'CHALLENGE',
   '/review': 'REVIEW',
   '/final-review': 'FINAL_REVIEW',
+  // v2 (Task 12): extra sections + a WebForms-style page, all path-identified.
+  '/previous-visits': 'PREVIOUS_VISITS',
+  '/additional-information': 'ADDITIONAL_INFORMATION',
+  '/webforms-personal': 'WEBFORMS_PERSONAL',
 };
 
 const SECTION_IDS: Record<string, string[]> = {
@@ -45,6 +49,9 @@ const SECTION_IDS: Record<string, string[]> = {
   OCCUPATION: ['occupation'],
   VISA_DETAILS: ['visa_details', 'previous_visits'],
   REFERENCES: ['references'],
+  PREVIOUS_VISITS: ['previous_visits'],
+  ADDITIONAL_INFORMATION: ['additional_information'],
+  WEBFORMS_PERSONAL: ['personal_particulars'],
 };
 
 const FIELD_MAP: PortalFieldMap = {

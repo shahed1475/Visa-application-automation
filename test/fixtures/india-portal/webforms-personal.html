@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Personal Particulars</title></head><body>
+<h1>Personal Particulars</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<form method="get" action="/webforms-personal">
+<input type="hidden" name="__VIEWSTATE" value="/wEPDwUKLTIwNDgzMTU5Mg9kFgICAw9kFgICAQ8PZBYCHgdvbmZvY3VzBQ1zZXRUaW1lb3V0KDApZGRk">
+<input type="hidden" name="__EVENTVALIDATION" value="/wEdAANHkQ2sZ0k8mQ7vZ3xL2p9aQ==">
+<input type="hidden" name="posted" value="1">
+<label for="wf-surname">Surname</label><input id="wf-surname" name="wf-surname" type="text">
+<label for="wf-given-names">Given names</label><input id="wf-given-names" name="wf-given-names" type="text">
+<button name="save" type="submit">Save</button>
+</form>
+</body></html>

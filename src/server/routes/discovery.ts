@@ -20,6 +20,7 @@ import {
   getIndiaMappings,
   promoteCandidate,
 } from '../automation/adapters/india/indiaMappingRegistry.js';
+import { getIndiaDiagnostics } from '../automation/adapters/india/diagnostics.js';
 import { PortalNotFoundError } from '../services/errors.js';
 import { getPortal } from '../services/portalService.js';
 import { validateIndiaAdapter } from '../automation/adapters/india/validateAdapter.js';
@@ -160,6 +161,17 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
     mappings: getIndiaMappings(),
     status: getIndiaMappingStatus(),
   }));
+
+  // Adapter self-diagnostics assembly (Phase 6 §7.4 / §13.21). Value-free health
+  // snapshot of the India adapter — contract version, discovery progress, mapping
+  // lifecycle counts, unknown-page tally, last adapter-validation outcome. Lenient
+  // GET like `/adapter-mappings`: `:id` is accepted for URL symmetry but the
+  // result is adapter-level, so there is no 404 on an unknown portal id. The SQL
+  // lives in `diagnostics.ts`, not here.
+  app.get<{ Params: { id: string } }>(
+    '/api/portals/:id/adapter-diagnostics',
+    async (req) => ({ diagnostics: getIndiaDiagnostics(app.db, req.params.id) }),
+  );
 
   // Promote a discovered selector candidate to a paste-ready indiaPortalMap.ts
   // edit (§13.12). Returns a TS string for a human to review and paste — the app

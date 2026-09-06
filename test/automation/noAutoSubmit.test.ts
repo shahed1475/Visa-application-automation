@@ -111,6 +111,28 @@ it('the submit-click guard is non-vacuous', () => {
   expect(enterPattern!.test("pressSequentially('Enterprise')")).toBe(false);
 });
 
+it('the no-submit / no-solver grep visibly covers the discovery tree, non-vacuously', () => {
+  // Phase 6 Task 14 Step 1: `src/server/automation/discovery/**` is pulled into
+  // SCAN by the recursive `walk` above, so the submit/solver guards run over it.
+  const discoveryFiles = SCAN.filter((file) =>
+    file.includes(`${path.sep}discovery${path.sep}`),
+  );
+  expect(
+    discoveryFiles.length,
+    `no discovery/*.ts file is in the scan set — the no-submit guard would not cover discovery/**.\n${scanned}`,
+  ).toBeGreaterThan(0);
+
+  // …and the guard patterns genuinely bite on a discovery-flavoured string
+  // (keep this non-vacuous — a real match in discovery/** must still fail).
+  expect(SUBMIT_LOCATOR_PATTERN.test("page.locator('#discovery-submit').click()")).toBe(true);
+  expect(
+    SUBMIT_LOCATOR_PATTERN.test("await page.getByRole('button', { name: 'Confirm discovery' }).click()"),
+  ).toBe(true);
+  expect(SOLVER_PATTERN.test('import { solveRecaptcha } from "./discovery-2captcha"')).toBe(true);
+  // a benign discovery string is left alone
+  expect(SUBMIT_LOCATOR_PATTERN.test("page.locator('#discovery-heading').textContent()")).toBe(false);
+});
+
 it('the PortalAdapter interface pins submitSelector to null', () => {
   const src = readFileSync(
     path.join('src', 'server', 'automation', 'adapters', 'baseAdapter.ts'),

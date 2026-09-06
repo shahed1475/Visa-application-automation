@@ -305,6 +305,51 @@ describe('discovery routes', () => {
     noPII(body);
   });
 
+  it('GET /api/portals/:id/adapter-diagnostics → 200 { diagnostics }, value-free, lenient on portal id', async () => {
+    const { portalId } = await build(new FakeDiscoveryController());
+    const db = (app as unknown as { db: DatabaseSync }).db;
+    // a captured discovery page so pagesDiscovered is non-zero
+    const session = createDiscoverySession(db, {
+      id: randomUUID(),
+      portalId,
+      adapterId: ADAPTER_ID,
+      now: new Date().toISOString(),
+    });
+    appendDiscoveryPage(db, {
+      id: randomUUID(),
+      sessionId: session.id,
+      now: new Date().toISOString(),
+      stateGuess: 'PERSONAL_DETAILS',
+      urlPattern: '/personal',
+      pageTitle: 'Personal',
+      headingsJson: '[]',
+      fingerprintJson: '{}',
+      candidatesJson: '[]',
+      signalsJson: '[]',
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/portals/${portalId}/adapter-diagnostics`,
+    });
+    expect(res.statusCode).toBe(200);
+    const { diagnostics } = res.json();
+    expect(diagnostics.adapterId).toBe('india');
+    expect(diagnostics.pagesDiscovered).toBe(1);
+    expect(diagnostics.fieldsDiscovered).toBe(0);
+    expect(diagnostics.mappings.placeholder).toBe(diagnostics.mappings.total);
+    expect(diagnostics.lastValidation).toBeNull();
+    expect(diagnostics).not.toHaveProperty('fields');
+    noPII(res.json());
+
+    // lenient: an unknown portal id still returns the adapter-level snapshot
+    const unknown = await app.inject({
+      method: 'GET',
+      url: '/api/portals/does-not-exist/adapter-diagnostics',
+    });
+    expect(unknown.statusCode).toBe(200);
+  });
+
   it('POST /api/discovery-sessions/:id/promote → 200 { mappingEdit }', async () => {
     const { portalId } = await build(new FakeDiscoveryController());
     const db = (app as unknown as { db: DatabaseSync }).db;

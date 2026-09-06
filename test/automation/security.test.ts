@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import pino from 'pino';
@@ -14,6 +14,7 @@ import { AutomationService } from '../../src/server/automation/automationService
 import { BrowserManager } from '../../src/server/automation/engine/browserManager.js';
 import { EVENT_MESSAGES } from '../../src/shared/automation/events.js';
 import { startFixturePortal, type FixturePortal } from '../helpers/fixturePortal.js';
+import { DiscoveryController } from '../../src/server/automation/discovery/discoveryController.js';
 import { makeFixtureIndiaAdapter } from './support/fixtureIndiaAdapter.js';
 import type {
   ApplicationPlan,
@@ -153,6 +154,20 @@ let portal: FixturePortal;
 let dbPath: string;
 let captured: string[];
 let testLogger: FastifyBaseLogger;
+let portalId: string;
+const tmpDirs: string[] = [];
+
+/** Every `.png` file anywhere under `dir` (recursive). `[]` if `dir` is absent. */
+function walkPng(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkPng(full));
+    else if (entry.name.endsWith('.png')) out.push(full);
+  }
+  return out;
+}
 
 function seed(db: DatabaseSync): void {
   db.prepare(
@@ -174,6 +189,7 @@ function seed(db: DatabaseSync): void {
     enabled: true,
   });
   setActivePortal(db, p.id);
+  portalId = p.id;
 }
 
 function makeSvc(opts?: {
@@ -199,11 +215,13 @@ async function build(opts?: {
   evidence?: 'off' | 'screenshots';
   automationDir?: string;
   withLogger?: boolean;
+  discovery?: DiscoveryController;
 }): Promise<void> {
   svc = makeSvc(opts);
   app = await buildServer({
     dbPath,
     automation: svc,
+    ...(opts?.discovery ? { discovery: opts.discovery } : {}),
     ...(opts?.withLogger ? { loggerInstance: testLogger } : {}),
   });
   seed(app.db);
@@ -278,6 +296,7 @@ afterEach(async () => {
   if (app) await app.close().catch(() => undefined);
   await portal?.close().catch(() => undefined);
   cleanupTempDb(dbPath);
+  for (const d of tmpDirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
 describe('automation security suite (behavioural)', () => {
@@ -430,4 +449,200 @@ describe('automation security suite (behavioural)', () => {
       .get() as { c: number };
     expect(c).toBe(0);
   });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 6 (spec §11 / §13.21 / §13.23 / §13.24): the same behavioural proof
+// extended over the India portal-adapter surface — a full fixture-v2 autofill
+// run AND a user-driven discovery session (real headed context, tmp profile).
+// No field value, no conflict value, no rendered control value may reach a log
+// line, an `automation_events` row, a `portal_discovery_pages` / …_sessions row,
+// or a screenshot file; and every persisted discovery `url_pattern` is masked.
+// ---------------------------------------------------------------------------
+
+describe('phase 6 security suite (behavioural)', () => {
+  /** Field VALUES seeded into the run plan + the values a `?prefill=conflict`
+   *  page renders into its controls. None of these is structure — all are PII. */
+  const SECRETS = [
+    'RANA', // plan surname
+    'BG1234567', // plan passport number
+    '2032-01-01', // plan passport expiry (a date value)
+    'MITHU SULTANA', // plan spouse name
+    'Dhaka', // plan address city
+    'SOMEONE-ELSE', // rendered #surname on ?prefill=conflict
+    'DIFFERENT', // rendered #given-names on ?prefill=conflict
+  ];
+
+  async function discoveryRoundTrip(controller: DiscoveryController): Promise<string> {
+    const started = await app.inject({
+      method: 'POST',
+      url: `/api/portals/${portalId}/discovery-sessions`,
+    });
+    expect(started.statusCode).toBe(201);
+    const sessionId = started.json().session.id as string;
+
+    await controller.activePage!.goto(`${portal.url}/personal?prefill=conflict`, {
+      waitUntil: 'domcontentloaded',
+    });
+    // Guard against a vacuous leak check: the values really are in the live DOM.
+    expect(await controller.activePage!.locator('#surname').inputValue()).toBe('SOMEONE-ELSE');
+    expect(await controller.activePage!.locator('#given-names').inputValue()).toBe('DIFFERENT');
+
+    // Also exercise the adapter self-diagnostic so `last_validation_json` is populated.
+    const validated = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${sessionId}/validate-adapter`,
+    });
+    expect(validated.statusCode).toBe(200);
+
+    const captured = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${sessionId}/capture`,
+    });
+    expect(captured.statusCode).toBe(201);
+
+    const ended = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${sessionId}/end`,
+    });
+    expect(ended.statusCode).toBe(202);
+    return sessionId;
+  }
+
+  it(
+    '5. full autofill run + discovery session: no field/rendered value in the log, automation_events, portal_discovery_pages/…_sessions; messages stay in the closed vocab; last_validation_json is value-free; url_pattern masked',
+    async () => {
+      const profileDir = mkdtempSync(path.join(tmpdir(), 'phase6-sec-disco-'));
+      const automationDir = path.join(
+        mkdtempSync(path.join(tmpdir(), 'phase6-sec-auto-')),
+        'evidence',
+      );
+      tmpDirs.push(profileDir, path.dirname(automationDir));
+      const controller = new DiscoveryController({
+        resolveAdapter: () => makeFixtureIndiaAdapter(portal.url),
+        profileDir,
+      });
+
+      // evidence deliberately left at its 'off' default.
+      await build({ withLogger: true, discovery: controller, automationDir });
+
+      // --- autofill half: a full populated run to review_ready ---
+      portal.setChallenge('ok');
+      const id = await startRun();
+      await waitFor(async () => (await getRun(id)).status === 'review_ready', 40000);
+
+      // --- discovery half: a round-trip over a prefilled (conflict) page ---
+      await discoveryRoundTrip(controller);
+
+      const log = captured.join('');
+      expect(log.length).toBeGreaterThan(0);
+
+      const eventRows = app.db.prepare('SELECT * FROM automation_events').all();
+      const eventsJson = JSON.stringify(eventRows);
+      const discoPagesJson = JSON.stringify(
+        app.db.prepare('SELECT * FROM portal_discovery_pages').all(),
+      );
+      const sessionRows = app.db
+        .prepare('SELECT * FROM portal_discovery_sessions')
+        .all() as { last_validation_json: string | null; notes: string | null }[];
+      const sessionsJson = JSON.stringify(sessionRows);
+
+      for (const s of SECRETS) {
+        expect(log, `log leaked ${s}`).not.toContain(s);
+        expect(eventsJson, `automation_events leaked ${s}`).not.toContain(s);
+        expect(discoPagesJson, `portal_discovery_pages leaked ${s}`).not.toContain(s);
+        expect(sessionsJson, `portal_discovery_sessions leaked ${s}`).not.toContain(s);
+      }
+
+      // Every persisted event message is a value of the closed EVENT_MESSAGES map.
+      const vocab = new Set(Object.values(EVENT_MESSAGES));
+      const messages = app.db
+        .prepare('SELECT DISTINCT message FROM automation_events')
+        .all() as { message: string }[];
+      expect(messages.length).toBeGreaterThan(0);
+      for (const { message } of messages) {
+        expect(vocab.has(message), `unexpected event message: ${message}`).toBe(true);
+      }
+
+      // last_validation_json, minus its own metadata, carries no value shape.
+      const withValidation = sessionRows.filter((r) => r.last_validation_json !== null);
+      expect(withValidation.length).toBeGreaterThan(0);
+      for (const r of withValidation) {
+        const report = JSON.parse(r.last_validation_json!) as Record<string, unknown>;
+        // Drop the report's own metadata (a timestamp + two ISO-dated version
+        // strings — none of it PII) before scanning the substance for values.
+        delete report.ranAt;
+        delete report.adapterVersion;
+        delete report.mappingRevision;
+        const rest = JSON.stringify(report);
+        for (const s of SECRETS) expect(rest).not.toContain(s);
+        expect(rest, 'passport-shaped token in last_validation_json').not.toMatch(
+          /\b[A-Z]{1,2}\d{6,8}\b/,
+        );
+        expect(rest, 'ISO date value in last_validation_json').not.toMatch(/\d{4}-\d{2}-\d{2}/);
+      }
+
+      // Every persisted discovery url_pattern is masked: no hex blob anywhere and
+      // no raw 5+ digit run in the path/query (`sanitizeUrlToPattern` keeps the
+      // host:port verbatim — the fixture port is not PII — so the digit check is
+      // applied to everything after the host).
+      const patterns = app.db
+        .prepare('SELECT url_pattern FROM portal_discovery_pages')
+        .all() as { url_pattern: string | null }[];
+      expect(patterns.length).toBeGreaterThan(0);
+      for (const { url_pattern } of patterns) {
+        expect(url_pattern).not.toBeNull();
+        expect(url_pattern!, `hex blob in ${url_pattern}`).not.toMatch(/[0-9a-f]{8,}/i);
+        const afterHost = url_pattern!.replace(/^[^/]*/, '');
+        expect(afterHost, `raw 5+ digit run in ${url_pattern}`).not.toMatch(/\d{5,}/);
+      }
+
+      // evidence stayed 'off': no screenshot file, no evidence_path column value.
+      expect(walkPng(automationDir)).toEqual([]);
+      const evidencePaths = app.db
+        .prepare('SELECT evidence_path FROM automation_events')
+        .all() as { evidence_path: string | null }[];
+      expect(evidencePaths.every((r) => r.evidence_path === null)).toBe(true);
+    },
+    90000,
+  );
+
+  it(
+    '6. AUTOMATION_EVIDENCE off: a value_conflict pause writes no screenshot file',
+    async () => {
+      const automationDir = path.join(
+        mkdtempSync(path.join(tmpdir(), 'phase6-sec-nopng-')),
+        'evidence',
+      );
+      tmpDirs.push(path.dirname(automationDir));
+
+      const sections = defaultSections();
+      sections[0]!.fields = [f('personal_particulars', 'identity.surname', 'RANA')];
+      await build({ plan: makeReadyPlan({ sections }), automationDir });
+      portal.setPrefill('conflict');
+      portal.setChallenge('ok');
+
+      const id = await startRun();
+      await waitFor(async () => {
+        const s = (await getRun(id)).status;
+        return s !== 'pending' && s !== 'running';
+      });
+      expect((await getRun(id)).waiting_reason).toBe('value_conflict');
+
+      expect(walkPng(automationDir)).toEqual([]);
+      expect(existsSync(automationDir)).toBe(false);
+      const evidencePaths = app.db
+        .prepare('SELECT evidence_path FROM automation_events')
+        .all() as { evidence_path: string | null }[];
+      expect(evidencePaths.every((r) => r.evidence_path === null)).toBe(true);
+
+      // The conflict pair never reached the persisted events.
+      const json = JSON.stringify(
+        app.db.prepare('SELECT * FROM automation_events').all(),
+      );
+      expect(json).not.toContain('RANA');
+      expect(json).not.toContain('SOMEONE-ELSE');
+    },
+    45000,
+  );
 });

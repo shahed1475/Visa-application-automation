@@ -28,6 +28,12 @@
       <p><label for="email">Email</label>
         <input id="email" name="email" type="email" value="john.doe@example.com" /></p>
 
+      <!-- No <label for> and no wrapping <label>: labelFor must NOT fall back to
+           the prefilled value ("Jonathan" is plain-word PII that no value-shape
+           regex would catch). The control must still appear structurally. -->
+      <p>Middle Name
+        <input id="middle-name" name="middleName" type="text" value="Jonathan" /></p>
+
       <fieldset>
         <legend>Sex</legend>
         <label><input type="radio" name="sex" value="M" /> Male</label>

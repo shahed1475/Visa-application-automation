@@ -124,30 +124,55 @@ export function sanitizeUrlToPattern(url: string): string {
   return `${parsed.host}${maskedPath}${query}`;
 }
 
-function sanitizeDeep(value: unknown): unknown {
-  if (typeof value === 'string') return sanitizeString(value);
-  if (Array.isArray(value)) return value.map(sanitizeDeep);
-  if (value !== null && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) out[k] = sanitizeDeep(v);
-    return out;
+function sanitizeStringMap<T extends string | boolean>(
+  map: Record<string, T>,
+): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [k, v] of Object.entries(map)) {
+    out[k] = (typeof v === 'string' ? sanitizeString(v) : v) as T;
   }
-  return value;
+  return out;
 }
 
 /**
- * Scrub every string leaf of a discovery report before it is persisted. `url`
- * is reduced to a pattern; every other string goes through `sanitizeString`.
+ * Scrub a discovery report before it is persisted. CONTENT strings (labels,
+ * headings, option/button text, page title, fingerprint/signal values) go
+ * through `sanitizeString`. STRUCTURAL strings (CSS selectors, the group `name`
+ * attribute, required-indicator labels, `discoveryVersion`) are kept verbatim so
+ * a legit digit-bearing DOM id (`#ctl00_field1234`) is not gutted — EXCEPT that
+ * an `aria-label`-based selector is dropped when its candidate label was itself
+ * scrubbed to `''` (that is the one path a PII label could leak via a selector).
+ * `url` is reduced to a host+path pattern.
  */
 export function sanitizeReport(r: DiscoveryReportV2): DiscoveryReportV2 {
-  const deep = sanitizeDeep(r) as DiscoveryReportV2;
+  const candidates = r.candidates.map((c) => {
+    const label = sanitizeString(c.label);
+    let primarySelector = c.primarySelector;
+    let fallbackSelector = c.fallbackSelector;
+    if (label === '') {
+      if (primarySelector.includes('aria-label=')) primarySelector = '';
+      if (fallbackSelector?.includes('aria-label=')) fallbackSelector = '';
+    }
+    return { ...c, label, primarySelector, fallbackSelector };
+  });
+
   return {
-    ...deep,
-    // `url` is reduced to a pattern; `discoveryVersion` is a build constant, not
-    // page content, so it is preserved verbatim (its year would otherwise be
-    // scrubbed as a digit run).
+    ...r,
     url: sanitizeUrlToPattern(r.url),
+    pageTitle: r.pageTitle === null ? null : sanitizeString(r.pageTitle),
+    fingerprint: sanitizeStringMap(r.fingerprint),
+    candidates,
+    signals: sanitizeStringMap(r.signals),
     discoveryVersion: r.discoveryVersion,
+    headings: r.headings.map(sanitizeString).filter((h) => h !== ''),
+    groups: r.groups.map((g) => ({ ...g, options: g.options.map(sanitizeString) })),
+    buttons: r.buttons.map((b) => ({ ...b, text: sanitizeString(b.text) })),
+    requiredIndicators: r.requiredIndicators,
+    selectCatalogue: r.selectCatalogue.map((s) => ({
+      ...s,
+      optionLabels: s.optionLabels.map(sanitizeString),
+    })),
+    stableAttributes: r.stableAttributes,
   };
 }
 
@@ -189,7 +214,10 @@ export async function captureDiscoveryV2(page: Page): Promise<DiscoveryReportV2>
       if (ph) return ph;
       const prev = el.previousElementSibling;
       if (prev?.textContent) return prev.textContent.trim();
-      return (el.getAttribute('value') ?? '').trim();
+      // No label found. NEVER fall back to the control's `value` attribute — on a
+      // returning-applicant / prefilled form that IS the saved PII. Matches the
+      // base `captureDiscovery`'s `labelFor`.
+      return '';
     };
 
     // Headings ------------------------------------------------------------

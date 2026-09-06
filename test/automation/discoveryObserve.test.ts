@@ -16,7 +16,9 @@ const FIXTURE_HTML = readFileSync(
 
 // Fake PII seeded into the fixture's control values. The observer must never
 // read a value, so none of these may appear in a persisted report.
-const SEEDED_PII = ['Z1234567', '1990-04-12', 'john.doe@example.com'];
+// 'Jonathan' is on an UNLABELLED control — a plain-word value no value-shape
+// regex would catch, so it proves `labelFor` does not fall back to `value`.
+const SEEDED_PII = ['Z1234567', '1990-04-12', 'john.doe@example.com', 'Jonathan'];
 
 interface FixtureServer {
   url: string;
@@ -101,5 +103,11 @@ describe('captureDiscoveryV2 — read-only structural discovery', () => {
     for (const pii of SEEDED_PII) {
       expect(serialized).not.toContain(pii);
     }
+
+    // The unlabelled control is still discovered structurally — just with an
+    // empty label (proving the guard is non-trivial: a branch actually runs).
+    const middle = report.candidates.find((c) => c.primarySelector === '#middle-name');
+    expect(middle).toBeDefined();
+    expect(middle?.label).toBe('');
   });
 });

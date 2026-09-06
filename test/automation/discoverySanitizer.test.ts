@@ -2,6 +2,9 @@ import { expect, it, describe } from 'vitest';
 import {
   sanitizeString,
   sanitizeUrlToPattern,
+  sanitizeReport,
+  DISCOVERY_VERSION,
+  type DiscoveryReportV2,
 } from '../../src/server/automation/discovery/observe.js';
 
 describe('sanitizeString', () => {
@@ -51,5 +54,83 @@ describe('sanitizeUrlToPattern', () => {
 
   it('returns a malformed URL unchanged', () => {
     expect(sanitizeUrlToPattern('not a url')).toBe('not a url');
+  });
+});
+
+function makeReport(overrides: Partial<DiscoveryReportV2> = {}): DiscoveryReportV2 {
+  return {
+    url: 'https://x.gov.in/apply/step/personal?appId=AB1234567',
+    pageTitle: 'Apply',
+    fingerprint: { rendering: 'html', hasViewState: false },
+    candidates: [],
+    signals: { recaptcha: false },
+    discoveryVersion: DISCOVERY_VERSION,
+    headings: [],
+    groups: [],
+    buttons: [],
+    requiredIndicators: [],
+    selectCatalogue: [],
+    stableAttributes: {},
+    ...overrides,
+  };
+}
+
+describe('sanitizeReport', () => {
+  it('keeps digit-bearing structural selectors verbatim', () => {
+    const out = sanitizeReport(
+      makeReport({
+        candidates: [
+          {
+            label: 'Given Names',
+            primarySelector: '#ctl00_field1234',
+            fallbackSelector: 'input[name="q00012345"]',
+            selectorConfidence: 'stable',
+            control: 'text',
+          },
+        ],
+        selectCatalogue: [{ selector: '#ctl00_country9999', optionLabels: ['India'] }],
+        requiredIndicators: ['Field 1234'],
+      }),
+    );
+    expect(out.candidates[0]?.primarySelector).toBe('#ctl00_field1234');
+    expect(out.candidates[0]?.fallbackSelector).toBe('input[name="q00012345"]');
+    expect(out.candidates[0]?.label).toBe('Given Names');
+    expect(out.selectCatalogue[0]?.selector).toBe('#ctl00_country9999');
+    expect(out.requiredIndicators).toEqual(['Field 1234']);
+  });
+
+  it('drops an aria-label selector when its label was scrubbed to ""', () => {
+    const out = sanitizeReport(
+      makeReport({
+        candidates: [
+          {
+            label: 'Z1234567',
+            primarySelector: 'input[aria-label="Z1234567"]',
+            fallbackSelector: null,
+            selectorConfidence: 'fragile',
+            control: 'text',
+          },
+        ],
+      }),
+    );
+    expect(out.candidates[0]?.label).toBe('');
+    expect(out.candidates[0]?.primarySelector).toBe('');
+    expect(JSON.stringify(out)).not.toContain('Z1234567');
+  });
+
+  it('scrubs content strings and reduces the url to a pattern', () => {
+    const out = sanitizeReport(
+      makeReport({
+        pageTitle: 'Application AB1234567',
+        headings: ['Personal Details', '1990-04-12'],
+        buttons: [{ text: 'Save & Continue', type: 'submit', isNavCandidate: true }],
+        groups: [{ name: 'sex', kind: 'radio', options: ['Male', 'Female'] }],
+      }),
+    );
+    expect(out.url).toBe('x.gov.in/apply/step/personal?appId=*');
+    expect(out.pageTitle).toBe('');
+    expect(out.headings).toEqual(['Personal Details']);
+    expect(out.groups[0]?.options).toEqual(['Male', 'Female']);
+    expect(out.discoveryVersion).toBe(DISCOVERY_VERSION);
   });
 });

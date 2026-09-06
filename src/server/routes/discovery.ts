@@ -14,6 +14,12 @@ import {
 } from '../automation/discovery/discoveryController.js';
 import { ToSNotAcknowledgedError, recordPolicyAck } from '../automation/discovery/policyGate.js';
 import { NoActivePortalError } from '../automation/automationService.js';
+import {
+  DiscoveryCandidateNotFoundError,
+  getIndiaMappingStatus,
+  getIndiaMappings,
+  promoteCandidate,
+} from '../automation/adapters/india/indiaMappingRegistry.js';
 import { PortalNotFoundError } from '../services/errors.js';
 import { getPortal } from '../services/portalService.js';
 import {
@@ -24,6 +30,12 @@ import {
 import { errorBody, notFoundError, validationError } from './errors.js';
 
 const idParamSchema = z.object({ id: z.string().min(1) });
+
+const promoteBodySchema = z.object({
+  pageSeq: z.number().int().positive(),
+  candidateIndex: z.number().int().nonnegative(),
+  canonicalFieldPath: z.string().min(1),
+});
 
 function mapDiscoveryError(e: unknown, reply: FastifyReply): FastifyReply | undefined {
   if (e instanceof DiscoverySessionActiveError) {
@@ -51,6 +63,9 @@ function mapDiscoveryError(e: unknown, reply: FastifyReply): FastifyReply | unde
   }
   if (e instanceof DiscoverySessionNotFoundError) {
     return reply.code(404).send(notFoundError('discovery session'));
+  }
+  if (e instanceof DiscoveryCandidateNotFoundError) {
+    return reply.code(404).send(notFoundError('discovery candidate'));
   }
   if (e instanceof PortalNotFoundError) {
     return reply.code(404).send(notFoundError('portal'));
@@ -127,6 +142,36 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
       try {
         const session = await app.discovery.abort(app.db, req.params.id);
         return reply.code(202).send({ session });
+      } catch (e) {
+        const mapped = mapDiscoveryError(e, reply);
+        if (mapped) return mapped;
+        throw e;
+      }
+    },
+  );
+
+  // Adapter-mappings read model (Phase 6 §7.3). Value-free view of the India
+  // canonical→portal mapping table plus its lifecycle status counts. The map is
+  // adapter-level, not portal-specific — `:id` is accepted for URL symmetry with
+  // the other portal routes but does not scope the result.
+  app.get('/api/portals/:id/adapter-mappings', async () => ({
+    mappings: getIndiaMappings(),
+    status: getIndiaMappingStatus(),
+  }));
+
+  // Promote a discovered selector candidate to a paste-ready indiaPortalMap.ts
+  // edit (§13.12). Returns a TS string for a human to review and paste — the app
+  // never writes adapter source.
+  app.post<{ Params: { id: string } }>(
+    '/api/discovery-sessions/:id/promote',
+    async (req, reply) => {
+      const parsedParams = idParamSchema.safeParse(req.params);
+      if (!parsedParams.success) return reply.code(400).send(validationError(parsedParams.error));
+      const parsedBody = promoteBodySchema.safeParse(req.body);
+      if (!parsedBody.success) return reply.code(400).send(validationError(parsedBody.error));
+      try {
+        const mappingEdit = promoteCandidate(app.db, parsedParams.data.id, parsedBody.data);
+        return reply.send({ mappingEdit });
       } catch (e) {
         const mapped = mapDiscoveryError(e, reply);
         if (mapped) return mapped;

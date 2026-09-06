@@ -286,6 +286,98 @@ describe('discovery routes', () => {
     expect(cap.statusCode).toBe(404);
   });
 
+  it('GET /api/portals/:id/adapter-mappings → 200 { mappings, status }', async () => {
+    const { portalId } = await build(new FakeDiscoveryController());
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/portals/${portalId}/adapter-mappings`,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(Array.isArray(body.mappings)).toBe(true);
+    expect(body.mappings.length).toBeGreaterThan(0);
+    expect(body.status.total).toBe(body.mappings.length);
+    expect(body.status.placeholder).toBe(body.mappings.length);
+    for (const m of body.mappings) {
+      expect(m.status).toBe('placeholder');
+      expect(m).not.toHaveProperty('value');
+    }
+    noPII(body);
+  });
+
+  it('POST /api/discovery-sessions/:id/promote → 200 { mappingEdit }', async () => {
+    const { portalId } = await build(new FakeDiscoveryController());
+    const db = (app as unknown as { db: DatabaseSync }).db;
+    const session = createDiscoverySession(db, {
+      id: randomUUID(),
+      portalId,
+      adapterId: ADAPTER_ID,
+      now: new Date().toISOString(),
+    });
+    appendDiscoveryPage(db, {
+      id: randomUUID(),
+      sessionId: session.id,
+      now: new Date().toISOString(),
+      stateGuess: 'PERSONAL_DETAILS',
+      urlPattern: '/personal',
+      pageTitle: 'Personal',
+      headingsJson: '[]',
+      fingerprintJson: '{}',
+      candidatesJson: JSON.stringify([
+        {
+          label: 'Surname',
+          primarySelector: '#f_surname',
+          fallbackSelector: null,
+          selectorConfidence: 'stable',
+          control: 'text',
+        },
+      ]),
+      signalsJson: '[]',
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${session.id}/promote`,
+      payload: { pageSeq: 1, candidateIndex: 0, canonicalFieldPath: 'identity.surname' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.mappingEdit.canonicalFieldPath).toBe('identity.surname');
+    expect(body.mappingEdit.literal).toContain("selector: '#f_surname'");
+    expect(body.mappingEdit.literal).toContain("status: 'discovered'");
+    expect(body.mappingEdit.warnings).toStrictEqual([]);
+    noPII(body);
+  });
+
+  it('POST /promote on an unknown session → 404', async () => {
+    await build(new FakeDiscoveryController());
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/discovery-sessions/does-not-exist/promote',
+      payload: { pageSeq: 1, candidateIndex: 0, canonicalFieldPath: 'identity.surname' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe('NOT_FOUND');
+  });
+
+  it('POST /promote with an invalid body → 400', async () => {
+    const { portalId } = await build(new FakeDiscoveryController());
+    const db = (app as unknown as { db: DatabaseSync }).db;
+    const session = createDiscoverySession(db, {
+      id: randomUUID(),
+      portalId,
+      adapterId: ADAPTER_ID,
+      now: new Date().toISOString(),
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${session.id}/promote`,
+      payload: { pageSeq: 'nope' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_ERROR');
+  });
+
   it('unknown portal → 404 for create and policy-ack', async () => {
     await build(new FakeDiscoveryController());
     const create = await app.inject({

@@ -24,6 +24,7 @@ describe('genericAdapter', () => {
     expect(genericAdapter.isFinalReview('FINAL_REVIEW')).toBe(false);
     expect(genericAdapter.getFieldMap()).toEqual({});
     expect(genericAdapter.sectionIdsForState('X')).toEqual([]);
+    expect(genericAdapter.documentIdsForState('X')).toEqual([]);
   });
   it('resolveAdapter falls back to generic for any url', () => {
     expect(resolveAdapter('https://anything.example/').id).toBe('generic');

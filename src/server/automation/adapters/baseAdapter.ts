@@ -26,6 +26,8 @@ export interface PortalAdapter {
   entryUrl(portalUrl: string): string;
   getPageIdentity(page: Page, inspection: PageInspection): Promise<PageIdentity>;
   sectionIdsForState(state: PortalState): string[];
+  /** Document ids (matching `ApplicationPlan.documents[].id`) the portal collects while in `state`. */
+  documentIdsForState(state: PortalState): string[];
   getFieldMap(): PortalFieldMap;
   canContinue(page: Page): Promise<{ ok: boolean; reason?: string }>;
   clickNext(page: Page): Promise<void>;

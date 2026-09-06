@@ -12,6 +12,7 @@ export const genericAdapter: PortalAdapter = {
   entryUrl: (u) => u,
   getPageIdentity: async () => ({ state: UNKNOWN_STATE, confidence: 0, signals: [] }),
   sectionIdsForState: () => [],
+  documentIdsForState: () => [],
   getFieldMap: () => ({}),
   canContinue: async () => ({ ok: false, reason: 'unknown portal' }),
   clickNext: async () => {

@@ -3,6 +3,7 @@ import {
   UNKNOWN_STATE,
   type PageIdentity,
   type PortalFieldMap,
+  type PortalFieldSpec,
   type PortalState,
 } from '../../../src/shared/automation/types.js';
 
@@ -91,11 +92,36 @@ const DEFAULT_DOCUMENT_IDS: Record<string, string[]> = {
   DOCUMENTS: ['invitation_letter_indian_company'],
 };
 
+export interface FixtureIndiaAdapterOptions {
+  /** Replaces the default `state -> documentId[]` table wholesale. */
+  documentIds?: Record<string, string[]>;
+  /**
+   * Test hook (Task 15 scenario 3): `canContinue` returns `{ ok: false }` for
+   * any state named here, simulating a portal that rejected the page after the
+   * engine filled what it could. The real fixture only shows `.validation-error`
+   * on `?invalid=1`, which the adapter's link-based navigation never sets.
+   */
+  failCanContinueOn?: string[];
+  /**
+   * Test hook (Task 15 scenario 5): override the entry path (default
+   * `/personal`) so the engine lands on an unrecognised page.
+   */
+  entryPath?: string;
+  /**
+   * Test hook (Task 15 scenario 6): merge these specs over the field map so a
+   * scenario can point a canonical field at a self-mutating fixture control.
+   */
+  fieldMapOverride?: Record<string, PortalFieldSpec>;
+}
+
 export function makeFixtureIndiaAdapter(
   baseUrl: string,
-  opts?: { documentIds?: Record<string, string[]> },
+  opts?: FixtureIndiaAdapterOptions,
 ): PortalAdapter {
   const documentIds = opts?.documentIds ?? DEFAULT_DOCUMENT_IDS;
+  const failCanContinueOn = new Set(opts?.failCanContinueOn ?? []);
+  const entryPath = opts?.entryPath ?? '/personal';
+  const fieldMap: PortalFieldMap = { ...FIELD_MAP, ...(opts?.fieldMapOverride ?? {}) };
 
   return {
     id: 'fixture-india',
@@ -107,7 +133,8 @@ export function makeFixtureIndiaAdapter(
 
     matches: (url) => url.startsWith(baseUrl),
 
-    entryUrl: (portalUrl) => `${portalUrl.replace(/\/$/, '')}/personal`,
+    entryUrl: (portalUrl) =>
+      `${portalUrl.replace(/\/$/, '')}/${entryPath.replace(/^\//, '')}`,
 
     getPageIdentity: async (page): Promise<PageIdentity> => {
       const pathname = new URL(page.url()).pathname;
@@ -130,9 +157,14 @@ export function makeFixtureIndiaAdapter(
 
     documentIdsForState: (state) => documentIds[state] ?? [],
 
-    getFieldMap: () => FIELD_MAP,
+    getFieldMap: () => fieldMap,
 
     canContinue: async (page) => {
+      const pathname = new URL(page.url()).pathname;
+      const state = PATH_TO_STATE[pathname];
+      if (state !== undefined && failCanContinueOn.has(state)) {
+        return { ok: false, reason: 'the portal rejected the page (required field missing)' };
+      }
       const err = await page.locator('.validation-error:visible').count();
       return err > 0
         ? { ok: false, reason: 'the page shows a validation error' }

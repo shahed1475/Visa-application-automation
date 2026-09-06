@@ -3,6 +3,11 @@
 <p class="validation-error" hidden>Please correct the errors.</p>
 <script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
 <label for="surname">Surname</label><input id="surname" type="text">
+<!-- Task 15 scenario 6: a self-mutating control. Any typed value reads back with a
+     trailing "X" appended, so a fill can never verify. Not wired unless a test
+     points a field at it via makeFixtureIndiaAdapter({ fieldMapOverride }). -->
+<label for="surname-bad">Surname (mismatch probe)</label>
+<input id="surname-bad" type="text" oninput="this.value = this.value + 'X'">
 <label for="given-names">Given names</label><input id="given-names" type="text">
 <label for="sex">Sex</label>
 <select id="sex"><option value="M">Male</option><option value="F">Female</option></select>

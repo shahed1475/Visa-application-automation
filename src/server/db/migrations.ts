@@ -254,6 +254,47 @@ const migrations: Migration[] = [
       CREATE INDEX idx_application_field_values_app ON application_field_values(application_id);
     `,
   },
+  {
+    version: 5,
+    up: `
+      CREATE TABLE automation_runs (
+        id                    TEXT PRIMARY KEY,
+        application_id        TEXT NOT NULL REFERENCES visa_applications(id) ON DELETE CASCADE,
+        portal_id             TEXT REFERENCES visa_portals(id) ON DELETE SET NULL,
+        portal_url_snapshot   TEXT NOT NULL,
+        adapter_id            TEXT NOT NULL,
+        status                TEXT NOT NULL CHECK (status IN ('pending','running','waiting_for_user','paused','review_ready','failed','aborted')),
+        waiting_reason        TEXT CHECK (waiting_reason IN ('otp','captcha','mfa','anti_bot','unknown_page','missing_field_mapping','value_mismatch','document_upload_required','session_expired','validation_error','user_paused') OR waiting_reason IS NULL),
+        current_portal_state  TEXT,
+        current_section_id    TEXT,
+        fields_total          INTEGER NOT NULL DEFAULT 0,
+        fields_verified       INTEGER NOT NULL DEFAULT 0,
+        documents_total       INTEGER NOT NULL DEFAULT 0,
+        documents_ready       INTEGER NOT NULL DEFAULT 0,
+        error_code            TEXT,
+        error_message         TEXT,
+        started_at            TEXT NOT NULL,
+        updated_at            TEXT NOT NULL,
+        ended_at              TEXT
+      );
+      CREATE INDEX idx_automation_runs_application ON automation_runs(application_id);
+
+      CREATE TABLE automation_events (
+        id            TEXT PRIMARY KEY,
+        run_id        TEXT NOT NULL REFERENCES automation_runs(id) ON DELETE CASCADE,
+        seq           INTEGER NOT NULL,
+        created_at    TEXT NOT NULL,
+        type          TEXT NOT NULL,
+        portal_state  TEXT,
+        field_path    TEXT,
+        status        TEXT,
+        message       TEXT NOT NULL,
+        evidence_path TEXT,
+        UNIQUE (run_id, seq)
+      );
+      CREATE INDEX idx_automation_events_run ON automation_events(run_id);
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations[migrations.length - 1]!.version;

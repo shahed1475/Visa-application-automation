@@ -47,6 +47,17 @@ const SUBMIT_PATTERNS: RegExp[] = [
   /page\.on\(\s*['"]dialog['"]/,
 ];
 
+/**
+ * The idiom this codebase actually uses is `page.locator(sel).click()` /
+ * `page.getByRole('button', { name: 'Submit' }).click()`, NOT the `page.click(sel)`
+ * shorthand the patterns above catch. This one bites a submit/confirm/lodge
+ * affordance named in ANY selector-bearing locator or a `.click(...)` argument.
+ * `pay` is deliberately NOT in this pattern (`payload`, `page` false positives);
+ * the narrow `/\.click\([^)]*\bpay\b/i` above still covers `page.click('...pay...')`.
+ */
+const SUBMIT_LOCATOR_PATTERN =
+  /(?:locator|getByRole|getByText|getByLabel|getByPlaceholder|getByTestId|click)\s*\([^)]*\b(?:submit|confirm|lodge)\b/i;
+
 /** CAPTCHA / OTP solver libraries — referencing any of these would mean the
  *  automation is trying to defeat a challenge instead of handing it to the user. */
 const SOLVER_PATTERN =
@@ -59,7 +70,7 @@ it('has a non-empty scan set', () => {
 it('never clicks a submit/confirm/lodge/pay control', () => {
   for (const file of SCAN) {
     const src = stripComments(readFileSync(file, 'utf8'));
-    for (const pattern of SUBMIT_PATTERNS) {
+    for (const pattern of [...SUBMIT_PATTERNS, SUBMIT_LOCATOR_PATTERN]) {
       expect(
         src,
         `${file} matches ${pattern} — the automation must never submit/confirm/lodge/pay ` +
@@ -67,6 +78,23 @@ it('never clicks a submit/confirm/lodge/pay control', () => {
       ).not.toMatch(pattern);
     }
   }
+});
+
+it('the submit-click guard is non-vacuous', () => {
+  expect(
+    SUBMIT_LOCATOR_PATTERN.test("await page.locator('#submit-application').click()"),
+  ).toBe(true);
+  expect(
+    SUBMIT_LOCATOR_PATTERN.test(
+      "await page.getByRole('button', { name: 'Confirm & Pay' }).click()",
+    ),
+  ).toBe(true);
+  expect(
+    SUBMIT_LOCATOR_PATTERN.test("await page.getByRole('button', { name: 'Lodge' }).click()"),
+  ).toBe(true);
+  // benign controls must NOT trip it
+  expect(SUBMIT_LOCATOR_PATTERN.test("await page.locator('#surname').click()")).toBe(false);
+  expect(SUBMIT_LOCATOR_PATTERN.test('const payload = buildPayload(page)')).toBe(false);
 });
 
 it('the PortalAdapter interface pins submitSelector to null', () => {

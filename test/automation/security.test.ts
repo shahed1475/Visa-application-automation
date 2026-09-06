@@ -481,9 +481,13 @@ describe('phase 6 security suite (behavioural)', () => {
     expect(started.statusCode).toBe(201);
     const sessionId = started.json().session.id as string;
 
-    await controller.activePage!.goto(`${portal.url}/personal?prefill=conflict`, {
-      waitUntil: 'domcontentloaded',
-    });
+    // `ref=` carries a token that `sanitizeUrlToPattern` MUST strip — a hex blob
+    // AND a 5+ digit run. The fixture is a plain static server that ignores
+    // unknown query params, so the page still serves personal.html with prefill.
+    await controller.activePage!.goto(
+      `${portal.url}/personal?prefill=conflict&ref=deadbeefcafe12345678`,
+      { waitUntil: 'domcontentloaded' },
+    );
     // Guard against a vacuous leak check: the values really are in the live DOM.
     expect(await controller.activePage!.locator('#surname').inputValue()).toBe('SOMEONE-ELSE');
     expect(await controller.activePage!.locator('#given-names').inputValue()).toBe('DIFFERENT');
@@ -495,11 +499,11 @@ describe('phase 6 security suite (behavioural)', () => {
     });
     expect(validated.statusCode).toBe(200);
 
-    const captured = await app.inject({
+    const captureRes = await app.inject({
       method: 'POST',
       url: `/api/discovery-sessions/${sessionId}/capture`,
     });
-    expect(captured.statusCode).toBe(201);
+    expect(captureRes.statusCode).toBe(201);
 
     const ended = await app.inject({
       method: 'POST',
@@ -582,16 +586,23 @@ describe('phase 6 security suite (behavioural)', () => {
         expect(rest, 'ISO date value in last_validation_json').not.toMatch(/\d{4}-\d{2}-\d{2}/);
       }
 
-      // Every persisted discovery url_pattern is masked: no hex blob anywhere and
-      // no raw 5+ digit run in the path/query (`sanitizeUrlToPattern` keeps the
-      // host:port verbatim — the fixture port is not PII — so the digit check is
-      // applied to everything after the host).
+      // Every persisted discovery url_pattern is masked. The captured page URL
+      // carried `?ref=deadbeefcafe12345678` — a hex blob AND a 5+ digit run that
+      // `sanitizeUrlToPattern` must strip to `ref=*`. (`sanitizeUrlToPattern`
+      // keeps the host:port verbatim — the fixture port is not PII — so the raw
+      // digit-run check is applied to everything after the host.)
       const patterns = app.db
         .prepare('SELECT url_pattern FROM portal_discovery_pages')
         .all() as { url_pattern: string | null }[];
       expect(patterns.length).toBeGreaterThan(0);
       for (const { url_pattern } of patterns) {
         expect(url_pattern).not.toBeNull();
+        // the assertion that bites if query-value masking regresses:
+        expect(url_pattern!, `raw ref token in ${url_pattern}`).not.toContain(
+          'deadbeefcafe12345678',
+        );
+        // …and it was a real capture, not an empty row passing vacuously:
+        expect(url_pattern!, `no /personal segment in ${url_pattern}`).toContain('/personal');
         expect(url_pattern!, `hex blob in ${url_pattern}`).not.toMatch(/[0-9a-f]{8,}/i);
         const afterHost = url_pattern!.replace(/^[^/]*/, '');
         expect(afterHost, `raw 5+ digit run in ${url_pattern}`).not.toMatch(/\d{5,}/);

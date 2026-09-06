@@ -1,6 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
-import { applyField, verifyControl } from '../../src/server/automation/engine/fieldActions.js';
+import {
+  applyField,
+  classifyPreFill,
+  verifyControl,
+} from '../../src/server/automation/engine/fieldActions.js';
 import { SelectorNotFoundError } from '../../src/server/automation/engine/pageActions.js';
 import type { ControlKind, MappedField } from '../../src/shared/automation/types.js';
 import { startFixtureServer, type FixtureServer } from '../helpers/fixtureServer.js';
@@ -9,6 +13,8 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Fi
   <input id="t" type="text">
   <input id="tblur" type="text" oninput="this.value = this.value + 'X'">
   <select id="ns"><option value="a">Alpha</option><option value="b">Bravo</option></select>
+  <input type="radio" name="r" id="r1" value="a">
+  <input type="radio" name="r" id="r2" value="b">
 </body></html>`;
 
 function mf(
@@ -92,6 +98,48 @@ describe('fieldActions', () => {
     await expect(applyField(page, mf('#nope', 'text', 'x'))).rejects.toBeInstanceOf(
       SelectorNotFoundError,
     );
+  });
+
+  it('classifyPreFill: a blank control reads as empty', async () => {
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#t', control: 'text', selectorConfidence: 'stable' },
+        'RANA',
+      ),
+    ).toBe('empty');
+  });
+
+  it('classifyPreFill: a control already holding the expected value reads as match', async () => {
+    await page.locator('#t').fill('  RANA  ');
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#t', control: 'text', selectorConfidence: 'stable' },
+        'RANA',
+      ),
+    ).toBe('match');
+  });
+
+  it('classifyPreFill: a control holding a different non-empty string reads as conflict', async () => {
+    await page.locator('#t').fill('SMITH');
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#t', control: 'text', selectorConfidence: 'stable' },
+        'RANA',
+      ),
+    ).toBe('conflict');
+  });
+
+  it('classifyPreFill: an unreadable control (readControl → null) defers to applyField as empty', async () => {
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: 'input[name="r"]', control: 'radio', selectorConfidence: 'stable' },
+        'a',
+      ),
+    ).toBe('empty');
   });
 
   it('verifyControl returns verified / mismatch against the live control', async () => {

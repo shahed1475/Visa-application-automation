@@ -10,6 +10,7 @@ import {
   type EngineProgress,
 } from '../../src/server/automation/engine/automationEngine.js';
 import type {
+  ConflictDecision,
   MappedField,
   PortalFieldMap,
   VerificationOutcome,
@@ -172,6 +173,8 @@ interface CtxOpts {
   ) => { filled: boolean; outcome: VerificationOutcome; alreadySet: boolean };
   readControlValue?: string | null;
   initialVerifiedCount?: number;
+  classifyPreFill?: EngineContext['classifyPreFill'];
+  conflictDecisions?: ReadonlyMap<string, ConflictDecision>;
 }
 
 function makeCtx(o: CtxOpts) {
@@ -211,6 +214,8 @@ function makeCtx(o: CtxOpts) {
     readControl: async () => (o.readControlValue === undefined ? null : o.readControlValue),
     settle: async () => {},
     initialVerifiedCount: o.initialVerifiedCount,
+    classifyPreFill: o.classifyPreFill ?? (async () => 'empty'),
+    conflictDecisions: o.conflictDecisions ?? new Map(),
   };
   return { ctx, events, progress, mismatches, applyFieldCalls };
 }
@@ -520,5 +525,144 @@ describe('runLoop', () => {
     expect(stop).toEqual({ kind: 'review_ready' });
     // 1 carried in + 1 verified on this page = 2
     expect(progress.at(-1)).toMatchObject({ fields_verified: 2, fields_total: 2 });
+  });
+
+  // ---- value_conflict branch --------------------------------------------------------------
+
+  const conflictPlan = () =>
+    makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({ appliesTo: 'identity.surname', sectionId: 'personal_particulars', value: 'RANA' }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+  const conflictFieldMap: PortalFieldMap = {
+    'identity.surname': { selector: '#surname', control: 'text', selectorConfidence: 'stable' },
+  };
+
+  it('12. pre-existing different value, no decision → pauses on value_conflict, does not fill', async () => {
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'PERSONAL', sectionIds: ['personal_particulars'] }],
+      conflictFieldMap,
+    );
+    const { ctx, events, mismatches, applyFieldCalls } = makeCtx({
+      adapter,
+      plan: conflictPlan(),
+      classifyPreFill: async () => 'conflict',
+      readControlValue: 'SMITH',
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({
+      kind: 'waiting',
+      reason: 'value_conflict',
+      conflictFieldPath: 'identity.surname',
+    });
+    expect(types(events)).toContain('VALUE_CONFLICT');
+    expect(mismatches).toEqual([
+      { fieldPath: 'identity.surname', expected: 'RANA', actual: 'SMITH' },
+    ]);
+    expect(applyFieldCalls).toEqual([]);
+    for (const e of events) {
+      const blob = `${e.type} ${e.status ?? ''} ${e.fieldPath ?? ''}`;
+      expect(blob).not.toMatch(/RANA|SMITH/);
+    }
+  });
+
+  it('13. conflict + keep_portal decision → emits FIELD_CONFLICT_KEPT, skips the field, loop continues', async () => {
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      conflictFieldMap,
+    );
+    const { ctx, events, applyFieldCalls } = makeCtx({
+      adapter,
+      plan: conflictPlan(),
+      classifyPreFill: async () => 'conflict',
+      conflictDecisions: new Map<string, ConflictDecision>([['identity.surname', 'keep_portal']]),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    expect(types(events)).toContain('FIELD_CONFLICT_KEPT');
+    expect(types(events)).not.toContain('VALUE_CONFLICT');
+    expect(applyFieldCalls).toEqual([]);
+  });
+
+  it('14. conflict + use_application decision → emits FIELD_CONFLICT_OVERWRITTEN then fills and verifies', async () => {
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      conflictFieldMap,
+    );
+    const { ctx, events, applyFieldCalls } = makeCtx({
+      adapter,
+      plan: conflictPlan(),
+      classifyPreFill: async () => 'conflict',
+      conflictDecisions: new Map<string, ConflictDecision>([
+        ['identity.surname', 'use_application'],
+      ]),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    expect(types(events)).toContain('FIELD_CONFLICT_OVERWRITTEN');
+    expect(applyFieldCalls).toEqual(['identity.surname']);
+    expect(types(events)).toContain('FIELD_VERIFIED');
+  });
+
+  it("15. classifyPreFill 'match' → no conflict event, applyField still called (unchanged behaviour)", async () => {
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      conflictFieldMap,
+    );
+    const { ctx, events, applyFieldCalls } = makeCtx({
+      adapter,
+      plan: conflictPlan(),
+      classifyPreFill: async () => 'match',
+      applyFieldFn: () => ({ filled: false, outcome: 'verified', alreadySet: true }),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    expect(applyFieldCalls).toEqual(['identity.surname']);
+    expect(types(events)).not.toContain('VALUE_CONFLICT');
+    expect(types(events)).not.toContain('FIELD_CONFLICT_KEPT');
+    expect(types(events)).not.toContain('FIELD_CONFLICT_OVERWRITTEN');
+  });
+
+  it('16. a required field kept as a portal-value conflict is not counted toward fields_verified', async () => {
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      conflictFieldMap,
+    );
+    const { ctx, progress } = makeCtx({
+      adapter,
+      plan: conflictPlan(),
+      classifyPreFill: async () => 'conflict',
+      conflictDecisions: new Map<string, ConflictDecision>([['identity.surname', 'keep_portal']]),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    const personal = progress.filter((p) => p.current_portal_state === 'PERSONAL');
+    expect(personal.at(-1)).toMatchObject({ fields_verified: 0, fields_total: 1 });
   });
 });

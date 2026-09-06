@@ -18,9 +18,11 @@ import { mapFields } from '../../../shared/automation/fieldMapping.js';
 import { UNKNOWN_STATE } from '../../../shared/automation/types.js';
 import type {
   AutomationRunRow,
+  ConflictDecision,
   ControlKind,
   MappedField,
   PageIdentity,
+  PortalFieldSpec,
   VerificationOutcome,
   WaitingReason,
 } from '../../../shared/automation/types.js';
@@ -72,6 +74,22 @@ export interface EngineContext {
     m: MappedField,
   ) => Promise<{ filled: boolean; outcome: VerificationOutcome; alreadySet: boolean }>;
   readControl: (page: Page, selector: string, control: ControlKind) => Promise<string | null>;
+  /**
+   * Read-only pre-fill triage of the portal's current value for a field.
+   * `'conflict'` (portal holds a different non-empty value) makes the loop pause
+   * on `value_conflict` unless `conflictDecisions` already carries a ruling.
+   */
+  classifyPreFill: (
+    page: Page,
+    spec: PortalFieldSpec,
+    expected: string,
+  ) => Promise<'empty' | 'match' | 'conflict'>;
+  /**
+   * Per-field user rulings on value conflicts, keyed by `fieldPath`. Task 12
+   * feeds the runner's live decision map here so a resumed re-walk does not
+   * re-pause on a field the user already decided.
+   */
+  conflictDecisions: ReadonlyMap<string, ConflictDecision>;
   settle: (page: Page) => Promise<void>;
   /**
    * Required-field verified count carried in from an earlier `runLoop` call on
@@ -85,7 +103,7 @@ export interface EngineContext {
 
 export type EngineStop =
   | { kind: 'review_ready' }
-  | { kind: 'waiting'; reason: WaitingReason }
+  | { kind: 'waiting'; reason: WaitingReason; conflictFieldPath?: string }
   | { kind: 'failed'; errorCode: string };
 
 /** checkpoint.kind → the specific event to emit (all four kinds are valid WaitingReasons). */
@@ -186,6 +204,29 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
         continue;
       }
       if (!m.present) continue;
+
+      // §6 — the portal already holds a *different* value: never blind-overwrite.
+      // Pause for a decision unless the user already ruled on this field.
+      const pre = await ctx.classifyPreFill(ctx.page, m.spec, m.expected ?? '');
+      if (pre === 'conflict') {
+        const decision = ctx.conflictDecisions.get(m.fieldPath);
+        if (decision === undefined) {
+          const actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
+          ctx.recordMismatch({
+            fieldPath: m.fieldPath,
+            expected: m.expected ?? '',
+            actual: actual ?? '',
+          });
+          await ctx.emit({ type: 'VALUE_CONFLICT', fieldPath: m.fieldPath, status: 'blocked' });
+          return { kind: 'waiting', reason: 'value_conflict', conflictFieldPath: m.fieldPath };
+        }
+        if (decision === 'keep_portal') {
+          await ctx.emit({ type: 'FIELD_CONFLICT_KEPT', fieldPath: m.fieldPath });
+          continue;
+        }
+        await ctx.emit({ type: 'FIELD_CONFLICT_OVERWRITTEN', fieldPath: m.fieldPath });
+        // fall through to the normal fill path
+      }
 
       await ctx.emit({ type: 'FIELD_FILL_STARTED', fieldPath: m.fieldPath });
 

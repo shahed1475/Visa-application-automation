@@ -12,10 +12,29 @@ describe('event vocabulary', () => {
     }
   });
   it('includes the safety-critical event types and no submit type', () => {
-    for (const t of ['OTP_REQUIRED', 'CAPTCHA_REQUIRED', 'REVIEW_READY', 'BLOCKED_MISSING_DOCUMENT', 'CHECKPOINT_STILL_PRESENT']) {
+    for (const t of [
+      'OTP_REQUIRED',
+      'CAPTCHA_REQUIRED',
+      'REVIEW_READY',
+      'BLOCKED_MISSING_DOCUMENT',
+      'CHECKPOINT_STILL_PRESENT',
+      'VALUE_CONFLICT',
+      'FIELD_CONFLICT_KEPT',
+      'FIELD_CONFLICT_OVERWRITTEN',
+    ]) {
       expect(EVENT_TYPES).toContain(t);
     }
     expect(EVENT_TYPES.some((t) => /submit|confirm|lodge|pay/i.test(t))).toBe(false);
     expect(isEventType('NOT_A_REAL_EVENT')).toBe(false);
+  });
+
+  it('carries the value-conflict vocabulary with plain, uninterpolated messages', () => {
+    for (const t of ['VALUE_CONFLICT', 'FIELD_CONFLICT_KEPT', 'FIELD_CONFLICT_OVERWRITTEN'] as const) {
+      expect(EVENT_TYPES).toContain(t);
+      expect(Object.keys(EVENT_MESSAGES)).toContain(t);
+      expect(typeof EVENT_MESSAGES[t]).toBe('string');
+      expect(EVENT_MESSAGES[t]).not.toMatch(/\$\{|%s|\{\{|\bvalue\b:/i);
+      expect(/submit|confirm|lodge|pay/i.test(t)).toBe(false);
+    }
   });
 });

@@ -1,5 +1,7 @@
 export type RunStatus = 'pending' | 'running' | 'waiting_for_user' | 'paused' | 'review_ready' | 'failed' | 'aborted';
-export type WaitingReason = 'otp' | 'captcha' | 'mfa' | 'anti_bot' | 'unknown_page' | 'missing_field_mapping' | 'value_mismatch' | 'document_upload_required' | 'session_expired' | 'validation_error' | 'user_paused';
+export type WaitingReason = 'otp' | 'captcha' | 'mfa' | 'anti_bot' | 'unknown_page' | 'missing_field_mapping' | 'value_mismatch' | 'value_conflict' | 'document_upload_required' | 'session_expired' | 'validation_error' | 'user_paused';
+/** A user's ruling on a pre-fill value conflict (spec §6). */
+export type ConflictDecision = 'use_application' | 'keep_portal';
 export type PortalState = string; // adapter-defined; 'UNKNOWN' is reserved
 export const UNKNOWN_STATE = 'UNKNOWN';
 export type ControlKind = 'text' | 'textarea' | 'native_select' | 'custom_select' | 'radio' | 'checkbox' | 'date' | 'number' | 'autocomplete' | 'searchable_select';

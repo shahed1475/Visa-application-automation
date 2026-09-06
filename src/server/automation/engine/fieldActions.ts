@@ -56,6 +56,29 @@ export async function verifyControl(
   return norm(actual) === norm(expected) ? 'verified' : 'mismatch';
 }
 
+/**
+ * Read-only pre-fill triage: what does the portal already hold for this field?
+ *
+ * - `readControl` returned `null` (unreadable / nothing selected) -> `'empty'`
+ *   (defer to `applyField`, which handles the write and read-back).
+ * - The control is blank after trimming -> `'empty'`.
+ * - It already equals `expected` (same trim-equality / select-by-value rule
+ *   `verifyControl` uses, so a value-matched `<select>` is never a false
+ *   conflict) -> `'match'`.
+ * - It holds some other non-empty value -> `'conflict'`.
+ *
+ * Never writes to the page and never returns, logs, or persists the read value.
+ */
+export async function classifyPreFill(
+  page: Page,
+  spec: PortalFieldSpec,
+  expected: string,
+): Promise<'empty' | 'match' | 'conflict'> {
+  const actual = await readControl(page, spec.selector, spec.control);
+  if (actual === null || norm(actual) === '') return 'empty';
+  return (await verifyControl(page, spec, expected)) === 'verified' ? 'match' : 'conflict';
+}
+
 /** Dispatch `m.expected` to the right pageActions writer for `m.spec.control`. */
 async function writeControl(page: Page, spec: PortalFieldSpec, expected: string): Promise<void> {
   const sel = spec.selector;

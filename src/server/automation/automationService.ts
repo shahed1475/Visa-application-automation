@@ -42,7 +42,7 @@ import { BrowserManager } from './engine/browserManager.js';
 import { resolveAdapter as realResolveAdapter } from './adapters/registry.js';
 import type { PortalAdapter } from './adapters/baseAdapter.js';
 import { detectPage } from './engine/pageDetector.js';
-import { applyField } from './engine/fieldActions.js';
+import { applyField, classifyPreFill } from './engine/fieldActions.js';
 import { readControl, waitForPageSettled } from './engine/pageActions.js';
 import { inspectPage, type PageInspection } from './engine/pageInspector.js';
 import { getApplication as realGetApplication } from '../services/applicationService.js';
@@ -457,6 +457,9 @@ export class AutomationRunner {
       detectPage,
       applyField,
       readControl,
+      classifyPreFill: (p, spec, exp) => classifyPreFill(p, spec, exp),
+      // Task 11: replaced by the runner's live decision map
+      conflictDecisions: new Map(),
       settle: waitForPageSettled,
       initialVerifiedCount: this.lastVerifiedCount,
     };

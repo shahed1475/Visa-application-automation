@@ -247,8 +247,10 @@ export class AutomationService {
     if (!signalled) {
       // Crash-recovery path: no in-memory runner is parked on this run (the
       // process restarted while it was waiting). Phase 5 simplification — start
-      // a fresh runner from the entry URL. The loop re-walks the pages and
-      // `FIELD_ALREADY_SET` keeps the re-fills idempotent.
+      // a fresh runner from the entry URL with a fresh browser context. The loop
+      // genuinely re-walks and re-fills every page from scratch (the blank
+      // context has no earlier progress); this is idempotent in effect because
+      // the portal accepts the same values a second time.
       const loaded = this.getApplication(db, cur.application_id);
       if (!loaded) throw new ApplicationNotFoundError(cur.application_id);
       const adapter = this.resolveAdapter(cur.portal_url_snapshot);

@@ -1,8 +1,27 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import type { PageInspection } from '../../src/server/automation/engine/pageInspector.js';
-import { indiaAdapter } from '../../src/server/automation/adapters/india/indiaAdapter.js';
+import { indiaAdapter, INDIA_ADAPTER_VERSION } from '../../src/server/automation/adapters/india/indiaAdapter.js';
 import { indiaPortalMap } from '../../src/server/automation/adapters/india/indiaPortalMap.js';
+
+/**
+ * Minimal fake `Page` for identity scoring: only `url()` + `locator().first().innerText()`
+ * and `locator().count()` are exercised by `getIndiaPageIdentity`.
+ */
+function makeScoringPage(opts: { url?: string; heading?: string; anchors?: Record<string, number> }): Page {
+  return {
+    url: () => opts.url ?? '',
+    locator: (sel: string) => ({
+      first: () => ({
+        innerText: async () => {
+          if (opts.heading === undefined) throw new Error('no heading');
+          return opts.heading;
+        },
+      }),
+      count: async () => opts.anchors?.[sel] ?? 0,
+    }),
+  } as unknown as Page;
+}
 import { resolveAdapter } from '../../src/server/automation/adapters/registry.js';
 import { startFixtureServer, type FixtureServer } from '../helpers/fixtureServer.js';
 
@@ -74,6 +93,50 @@ describe('indiaAdapter — scaffold', () => {
 
   it('getPageIdentity on a fake page yields UNKNOWN / 0', async () => {
     const id = await indiaAdapter.getPageIdentity(fakePage, fakeInspection);
+    expect(id.state).toBe('UNKNOWN');
+    expect(id.confidence).toBe(0);
+  });
+
+  it('exposes the adapter/map contract version', () => {
+    expect(INDIA_ADAPTER_VERSION).toBe(indiaPortalMap.adapterVersion);
+    expect(INDIA_ADAPTER_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});
+
+describe('indiaAdapter.getPageIdentity — URL + heading + anchor scoring', () => {
+  it('URL-only match scores 0.5 and names the state honestly (below detectPage floor)', async () => {
+    const page = makeScoringPage({ url: 'https://indianvisaonline.gov.in/apply/personal-details' });
+    const id = await indiaAdapter.getPageIdentity(page, fakeInspection);
+    expect(id.state).toBe('PERSONAL_DETAILS');
+    expect(id.confidence).toBe(0.5);
+    expect(id.signals).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: 'url', matched: true })]),
+    );
+  });
+
+  it('URL + heading match scores 0.8 and resolves the state', async () => {
+    const page = makeScoringPage({
+      url: 'https://indianvisaonline.gov.in/apply/personal-details',
+      heading: 'Personal Details',
+    });
+    const id = await indiaAdapter.getPageIdentity(page, fakeInspection);
+    expect(id.state).toBe('PERSONAL_DETAILS');
+    expect(id.confidence).toBeCloseTo(0.8, 5);
+  });
+
+  it('heading-only match scores 0.3 (fail-closed: below the 0.6 detectPage floor)', async () => {
+    const page = makeScoringPage({
+      url: 'https://indianvisaonline.gov.in/apply/step',
+      heading: 'Passport Details',
+    });
+    const id = await indiaAdapter.getPageIdentity(page, fakeInspection);
+    expect(id.state).toBe('PASSPORT_DETAILS');
+    expect(id.confidence).toBeCloseTo(0.3, 5);
+  });
+
+  it('no signal match → UNKNOWN / 0', async () => {
+    const page = makeScoringPage({ url: 'https://indianvisaonline.gov.in/dashboard', heading: 'Welcome' });
+    const id = await indiaAdapter.getPageIdentity(page, fakeInspection);
     expect(id.state).toBe('UNKNOWN');
     expect(id.confidence).toBe(0);
   });

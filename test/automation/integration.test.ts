@@ -328,6 +328,7 @@ describe('fixture-portal integration (real engine + real headless chromium)', ()
     // The engine filled personal/passport/address/family but never advanced.
     expect(portal.requests.some((r) => r.url === '/occupation')).toBe(false);
     expect(portal.requests.some((r) => r.url === '/family')).toBe(true);
+    assertNoSubmitEvents(await getEvents(id));
     expect(portal.submitCount).toBe(0);
   });
 
@@ -418,6 +419,7 @@ describe('fixture-portal integration (real engine + real headless chromium)', ()
     const json = JSON.stringify(rows);
     expect(json).not.toContain('RANA');
     expect(json).not.toContain('RANAX');
+    assertNoSubmitEvents(await getEvents(id));
     expect(portal.submitCount).toBe(0);
   });
 

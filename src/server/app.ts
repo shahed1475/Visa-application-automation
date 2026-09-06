@@ -16,12 +16,14 @@ import { registerPortalRoutes } from './routes/portals.js';
 import { registerApplicantRoutes } from './routes/applicants.js';
 import { registerApplicationRoutes } from './routes/applications.js';
 import { registerAutomationRoutes } from './routes/automation.js';
+import { registerDiscoveryRoutes } from './routes/discovery.js';
 import { registerDocumentRoutes } from './routes/documents.js';
 import { errorBody, notFoundError } from './routes/errors.js';
 import { createTesseractEngine } from './documents/tesseractEngine.js';
 import { MAX_DOCUMENT_BYTES } from './documents/fileType.js';
 import type { OcrEngine } from './documents/ocrEngine.js';
 import { AutomationService } from './automation/automationService.js';
+import { DiscoveryController } from './automation/discovery/discoveryController.js';
 
 export interface BuildServerOptions {
   dbPath: string;
@@ -32,6 +34,8 @@ export interface BuildServerOptions {
   ocr?: OcrEngine;
   /** Test seam: swap the automation service. Production uses a real one. */
   automation?: AutomationService;
+  /** Test seam: swap the discovery controller. Production uses a real one. */
+  discovery?: DiscoveryController;
 }
 
 export async function buildServer(
@@ -91,6 +95,13 @@ export async function buildServer(
     await automation.dispose().catch(() => undefined);
   });
   await registerAutomationRoutes(app);
+
+  const discovery = opts.discovery ?? new DiscoveryController();
+  app.decorate('discovery', discovery);
+  app.addHook('onClose', async () => {
+    await discovery.dispose().catch(() => undefined);
+  });
+  await registerDiscoveryRoutes(app);
 
   await app.register(multipart, {
     // Signal an oversize file via `file.truncated` (→ route returns a sanitized

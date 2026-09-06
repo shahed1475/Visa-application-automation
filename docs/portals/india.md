@@ -17,11 +17,56 @@
 
 ## ToS / robots.txt position
 
-Not yet assessed. Before any live-portal discovery run: check the portal's Terms
-of Service for a prohibition on automated/assisted access, and its robots.txt for
-the application paths. If assisted automation is prohibited, record it here and do
-not use the tool against this portal (`automation-risks.md` R15). Discovery is
-public-pages-only, read-only, human-paced; the authenticated flow is user-driven.
+**VERDICT: UNCLEAR** — assessed 2026-09-06 (Phase 6, Task 1). Could not verify —
+operator must confirm before a live run. A runtime gate
+(`src/server/automation/discovery/policyGate.ts`, `assertPolicyAck`) now blocks
+any live connection to `indianvisaonline.gov.in` / `ivacbd.com` via the `india`
+adapter until the operator records an acknowledgement
+(`app_settings` key `portal_policy_ack:<portalId>`).
+
+**robots.txt findings (2026-09-06):**
+
+- `https://indianvisaonline.gov.in/robots.txt` → **HTTP 404** (no robots.txt
+  served). Also tried `…/visa/robots.txt` (404). No `Disallow` lines could be
+  retrieved for the application paths (`/visa/…`, `/evisa/…`). Public landing and
+  e-Visa info pages carry advisory notices about unauthorized intermediaries and
+  non-refundable fees, but **no statement found for or against automated /
+  assisted access**. The registration/authenticated flow could not be reached
+  unauthenticated to review its inline Terms.
+- `https://www.ivacbd.com/robots.txt` → retrieved. Cloudflare-managed file with a
+  `Content-Signal: search=yes,ai-train=no,use=reference` directive, explicit
+  `Disallow: /` for a list of AI crawlers (ClaudeBot, GPTBot, CCBot, Amazonbot,
+  Bytespider, Google-Extended, meta-externalagent, Applebot-Extended,
+  CloudflareBrowserRenderingCrawler), and a trailing catch-all:
+
+  ```
+  User-agent: *
+  Disallow: /
+  ```
+
+  (An earlier `User-agent: * / Allow: /` block also appears — the file has two
+  conflicting `*` records.) Direct non-browser fetches of `www.ivacbd.com` pages
+  returned **HTTP 403**. The published Terms & Conditions page
+  (`/terms-and-conditions`) also returned 403 and could not be reviewed.
+
+**Rationale.** For `indianvisaonline.gov.in` the position is genuinely
+unverifiable from outside the authenticated flow: no robots.txt, no located ToS
+clause on automation. For `ivacbd.com` the robots.txt contains a catch-all
+`Disallow: /` and the host actively blocks non-browser clients (403), which
+should be treated as **effectively prohibiting automated access to ivacbd.com**
+pending an operator review of the real Terms & Conditions; the conflicting
+`Allow: /` record and the fact that the primary target is a human-driven,
+read-only discovery session (not a crawler) leave enough doubt that the overall
+verdict is UNCLEAR rather than PROHIBITED. The operator must open each portal's
+Terms while authenticated and confirm before enabling Track B; treat
+`ivacbd.com` as PROHIBITED unless that review clears it.
+
+**If PROHIBITED, Track B is not executed; the tool remains a manual-entry aid for
+this portal.**
+
+Constraints that apply even if a review returns PERMITTED: read-only public-page
+discovery only, user-driven authentication, no automated submission, human-only
+OTP/CAPTCHA, human-paced navigation (`automation-risks.md` R15).
 
 ## Fingerprint
 

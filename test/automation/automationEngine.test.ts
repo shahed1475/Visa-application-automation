@@ -259,7 +259,11 @@ describe('runLoop', () => {
     ]);
     expect(types(events)).not.toContain('FIELD_FILLED_UNVERIFIED');
     expect(events.some((e) => /submit|confirm|lodge|pay/i.test(e.type))).toBe(false);
-    expect(progress.at(0)).toMatchObject({ current_portal_state: 'PERSONAL', fields_verified: 1, fields_total: 1 });
+    // Two progress calls per page: an early one (location, counters as they stand)
+    // then one after the field loop (updated verified count).
+    expect(progress[0]).toMatchObject({ current_portal_state: 'PERSONAL', fields_verified: 0, fields_total: 1 });
+    expect(progress[1]).toMatchObject({ current_portal_state: 'PERSONAL', fields_verified: 1, fields_total: 1 });
+    expect(progress.at(-1)).toMatchObject({ current_portal_state: 'REVIEW' });
   });
 
   it('2. unknown page: pauses immediately, never fills a field', async () => {
@@ -406,5 +410,64 @@ describe('runLoop', () => {
     expect(stop).toEqual({ kind: 'failed', errorCode: 'missing_document' });
     const blocked = events.find((e) => e.type === 'BLOCKED_MISSING_DOCUMENT');
     expect(blocked).toMatchObject({ fieldPath: 'invitation', status: 'blocked' });
+  });
+
+  it('8. optional verified fields emit FIELD_VERIFIED but never inflate the required-only count', async () => {
+    const fieldMap: PortalFieldMap = {
+      'identity.surname': { selector: '#surname', control: 'text', selectorConfidence: 'stable' },
+      'identity.givenNames': { selector: '#given', control: 'text', selectorConfidence: 'stable' },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({
+            appliesTo: 'identity.surname',
+            sectionId: 'personal_particulars',
+            value: 'RANA',
+            verified: true,
+          }),
+          fld({
+            appliesTo: 'identity.givenNames',
+            sectionId: 'personal_particulars',
+            value: 'MITHU',
+            verified: true,
+            required: false,
+          }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      fieldMap,
+    );
+    const { ctx, events, progress } = makeCtx({ adapter, plan });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    // both fields verified → two events …
+    expect(events.filter((e) => e.type === 'FIELD_VERIFIED')).toHaveLength(2);
+    // … but only the required one counts toward fields_verified (== fields_total).
+    const personal = progress.filter((p) => p.current_portal_state === 'PERSONAL');
+    expect(personal.at(-1)).toMatchObject({ fields_verified: 1, fields_total: 1 });
+    expect(personal.every((p) => (p.fields_verified ?? 0) <= (p.fields_total ?? 0))).toBe(true);
+  });
+
+  it('9. iteration cap: an adapter that cycles states forever is stopped', async () => {
+    const pages: FakePageDef[] = Array.from({ length: 200 }, (_, k) => ({
+      state: k % 2 === 0 ? 'A' : 'B',
+      sectionIds: [],
+    }));
+    const { adapter } = makeFakeAdapter(pages, {});
+    const { ctx, events } = makeCtx({ adapter, plan: makePlan({}) });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'unknown_page' });
+    expect(types(events)).toContain('NAVIGATION_STALLED');
   });
 });

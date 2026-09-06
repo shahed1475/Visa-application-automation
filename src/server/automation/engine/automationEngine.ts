@@ -91,14 +91,42 @@ const CHECKPOINT_EVENT: Record<CheckpointKind, EventType> = {
 const requiredDocuments = (plan: ApplicationPlan) =>
   plan.documents.filter((d) => d.effectiveRequirement === 'required');
 
+/**
+ * Hard cap on page iterations. The `leftState` check only catches an *immediate*
+ * non-advance (A→A); this is the backstop against an adapter that cycles
+ * A→B→A→B… forever.
+ */
+const MAX_ITERATIONS = 60;
+
 export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
   await ctx.emit({ type: 'RUN_STARTED' });
 
   let countVerified = 0;
   /** The state we navigated away from at the end of the previous iteration. */
   let leftState: string | null = null;
+  let iterations = 0;
+
+  /** Report counters + the run's real location. Called twice per page: once as
+   *  soon as a recognised state is known (so a mid-page pause records where it
+   *  paused), once after the field loop (with the updated verified count). */
+  const reportProgress = (state: string, sectionId: string | null) => {
+    const reqDocs = requiredDocuments(ctx.plan);
+    return ctx.onProgress({
+      current_portal_state: state,
+      current_section_id: sectionId,
+      fields_total: ctx.plan.verification.requiredTotal,
+      fields_verified: countVerified,
+      documents_total: reqDocs.length,
+      documents_ready: reqDocs.filter((d) => d.uploaded).length,
+    });
+  };
 
   for (;;) {
+    if ((iterations += 1) > MAX_ITERATIONS) {
+      await ctx.emit({ type: 'NAVIGATION_STALLED' });
+      return { kind: 'waiting', reason: 'unknown_page' };
+    }
+
     // ---- top of page: settle + inspect + detect -------------------------------
     await ctx.settle(ctx.page);
     const inspection = await ctx.inspect(ctx.page);
@@ -118,6 +146,13 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     }
     await ctx.emit({ type: 'PAGE_DETECTED', portalState: state });
 
+    // §5.3 head — this page's sections (pure adapter lookup; needed for the
+    // early progress report too).
+    const sectionIds = ctx.adapter.sectionIdsForState(state);
+
+    // Persist the run's real location BEFORE any mid-page suspension.
+    await reportProgress(state, sectionIds[0] ?? null);
+
     // §5.2 — security checkpoint → bring the tab forward and pause.
     const checkpoint = await detectCheckpoint(
       inspection,
@@ -131,7 +166,6 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     }
 
     // §5.3 — map, fill and verify this page's fields.
-    const sectionIds = ctx.adapter.sectionIdsForState(state);
     const mapped = mapFields(ctx.plan.sections, ctx.adapter.getFieldMap(), sectionIds);
 
     for (const m of mapped) {
@@ -161,12 +195,14 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
 
       if (r.alreadySet) {
         await ctx.emit({ type: 'FIELD_ALREADY_SET', fieldPath: m.fieldPath });
-        countVerified += 1;
+        // Only required fields count toward `fields_verified` — `fields_total` is
+        // `verification.requiredTotal` (required-only). Optionals still get their event.
+        if (m.required) countVerified += 1;
         continue;
       }
       if (r.outcome === 'verified') {
         await ctx.emit({ type: 'FIELD_VERIFIED', fieldPath: m.fieldPath });
-        countVerified += 1;
+        if (m.required) countVerified += 1;
         if (!m.verified) {
           await ctx.emit({ type: 'FIELD_FILLED_UNVERIFIED', fieldPath: m.fieldPath });
         }
@@ -195,18 +231,11 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
       }
     }
 
-    // §5 tail — progress after every fully-handled page, before documents.
-    const reqDocs = requiredDocuments(ctx.plan);
-    await ctx.onProgress({
-      current_portal_state: state,
-      current_section_id: sectionIds[0] ?? null,
-      fields_total: ctx.plan.verification.requiredTotal,
-      fields_verified: countVerified,
-      documents_total: reqDocs.length,
-      documents_ready: reqDocs.filter((d) => d.uploaded).length,
-    });
+    // §5 tail — progress again after the field loop, with the updated verified count.
+    await reportProgress(state, sectionIds[0] ?? null);
 
     // §5.4 — required documents for this page.
+    const reqDocs = requiredDocuments(ctx.plan);
     const docIds = ctx.adapter.documentIdsForState(state);
     const pageRequiredDocs = reqDocs.filter((d) => docIds.includes(d.id));
     const notUploaded = pageRequiredDocs.filter((d) => !d.uploaded);

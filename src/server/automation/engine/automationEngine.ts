@@ -85,11 +85,18 @@ export interface EngineContext {
     expected: string,
   ) => Promise<'empty' | 'match' | 'conflict'>;
   /**
-   * Per-field user rulings on value conflicts, keyed by `fieldPath`. Task 12
+   * Per-field user rulings on value conflicts, keyed by `fieldPath`. Task 11
    * feeds the runner's live decision map here so a resumed re-walk does not
    * re-pause on a field the user already decided.
    */
   conflictDecisions: ReadonlyMap<string, ConflictDecision>;
+  /**
+   * Fallback ruling applied to ANY unresolved value conflict that has no
+   * per-field entry in `conflictDecisions`. Task 11 sets this to `keep_portal`
+   * on a crash-recovery re-walk, where the fresh runner cannot know which field
+   * paused or what the portal now holds — so it must never blind-overwrite.
+   */
+  defaultConflictDecision?: ConflictDecision;
   settle: (page: Page) => Promise<void>;
   /**
    * Required-field verified count carried in from an earlier `runLoop` call on
@@ -209,7 +216,7 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
       // Pause for a decision unless the user already ruled on this field.
       const pre = await ctx.classifyPreFill(ctx.page, m.spec, m.expected ?? '');
       if (pre === 'conflict') {
-        const decision = ctx.conflictDecisions.get(m.fieldPath);
+        const decision = ctx.conflictDecisions.get(m.fieldPath) ?? ctx.defaultConflictDecision;
         if (decision === undefined) {
           const actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
           ctx.recordMismatch({

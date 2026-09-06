@@ -286,6 +286,67 @@ describe('automation routes', () => {
     expect(badApp.json().error.code).toBe('NOT_FOUND');
   });
 
+  it('case 9: POST resume with { decision } on a value_conflict wait → 202', async () => {
+    await build(
+      makeSvc(readyApp, {
+        stops: [
+          { kind: 'waiting', reason: 'value_conflict', conflictFieldPath: 'identity.surname' },
+          { kind: 'review_ready' },
+        ],
+      }),
+    );
+    const created = (
+      await app.inject({ method: 'POST', url: '/api/applications/app1/automation-runs' })
+    ).json();
+    await waitForStatus(created.run.id, 'waiting_for_user');
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/automation-runs/${created.run.id}/resume`,
+      payload: { decision: 'use_application' },
+    });
+    expect(res.statusCode).toBe(202);
+    await waitForStatus(created.run.id, 'review_ready');
+  });
+
+  it('case 10: POST resume with no body on a value_conflict wait → 400 DECISION_REQUIRED', async () => {
+    await build(
+      makeSvc(readyApp, {
+        stops: [{ kind: 'waiting', reason: 'value_conflict', conflictFieldPath: 'identity.surname' }],
+      }),
+    );
+    const created = (
+      await app.inject({ method: 'POST', url: '/api/applications/app1/automation-runs' })
+    ).json();
+    await waitForStatus(created.run.id, 'waiting_for_user');
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/automation-runs/${created.run.id}/resume`,
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('DECISION_REQUIRED');
+    await app.automation.dispose();
+  });
+
+  it('case 11: POST resume with { decision: "bogus" } → 400 VALIDATION_ERROR', async () => {
+    await build(
+      makeSvc(readyApp, {
+        stops: [{ kind: 'waiting', reason: 'value_conflict', conflictFieldPath: 'identity.surname' }],
+      }),
+    );
+    const created = (
+      await app.inject({ method: 'POST', url: '/api/applications/app1/automation-runs' })
+    ).json();
+    await waitForStatus(created.run.id, 'waiting_for_user');
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/automation-runs/${created.run.id}/resume`,
+      payload: { decision: 'bogus' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_ERROR');
+    await app.automation.dispose();
+  });
+
   it('case 8: cross-application isolation', async () => {
     await build(
       makeSvc((_db, id) =>

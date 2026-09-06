@@ -1,11 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Page } from 'playwright';
 import { openDatabase } from '../../src/server/db/connection.js';
 import { runMigrations } from '../../src/server/db/migrations.js';
 import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
 import { createPortal, setActivePortal } from '../../src/server/services/portalService.js';
+import { logger } from '../../src/server/logger.js';
 import type { ApplicationPlan } from '../../src/shared/application/types.js';
+import type { ConflictDecision } from '../../src/shared/automation/types.js';
 import type {
   EngineContext,
   EngineStop,
@@ -15,6 +17,7 @@ import type { PageInspection } from '../../src/server/automation/engine/pageInsp
 import {
   AutomationService,
   CheckpointStillPresentError,
+  ConflictDecisionRequiredError,
   NotReadyError,
   NotWaitingError,
   RunInProgressError,
@@ -334,6 +337,65 @@ describe('AutomationService', () => {
     // a stuck `running` row would make resumeRun throw NotWaitingError.
     await expect(svc.resumeRun(db, run.id)).resolves.toBeDefined();
     await waitFor(() => svc.getRun(db, run.id)?.run.status === 'review_ready');
+  });
+
+  it('case 12: resumeRun with no decision on a value_conflict wait throws ConflictDecisionRequiredError', async () => {
+    const svc = makeService({
+      stops: [
+        { kind: 'waiting', reason: 'value_conflict', conflictFieldPath: 'identity.surname' },
+        { kind: 'review_ready' },
+      ],
+    });
+    const run = await svc.startRun(db, 'app1');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'waiting_for_user');
+    await expect(svc.resumeRun(db, run.id)).rejects.toBeInstanceOf(ConflictDecisionRequiredError);
+    // still parked — the run did not advance.
+    expect(svc.getRun(db, run.id)!.run.status).toBe('waiting_for_user');
+    await svc.dispose();
+  });
+
+  it('case 13: resumeRun(decision) threads the ruling into the runner conflictDecisions map', async () => {
+    const seen: (ConflictDecision | undefined)[] = [];
+    let calls = 0;
+    const svc = makeService({
+      runLoop: async (ctx: EngineContext) => {
+        calls += 1;
+        if (calls === 1) {
+          return { kind: 'waiting', reason: 'value_conflict', conflictFieldPath: 'identity.surname' };
+        }
+        seen.push(ctx.conflictDecisions.get('identity.surname'));
+        return { kind: 'review_ready' };
+      },
+    });
+    const run = await svc.startRun(db, 'app1');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'waiting_for_user');
+    await svc.resumeRun(db, run.id, 'keep_portal');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'review_ready');
+    expect(seen).toEqual(['keep_portal']);
+  });
+
+  it('case 14: crash-recovery resume on a value_conflict wait defaults to keep_portal regardless of the passed decision', async () => {
+    const debugSpy = vi.spyOn(logger, 'debug');
+    let calls = 0;
+    const svc = makeService({
+      runLoop: async () => {
+        calls += 1;
+        if (calls === 1) {
+          return { kind: 'waiting', reason: 'value_conflict', conflictFieldPath: 'identity.surname' };
+        }
+        return { kind: 'review_ready' };
+      },
+    });
+    const run = await svc.startRun(db, 'app1');
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'waiting_for_user');
+    await svc.dispose();
+    await waitFor(() => svc.activeRunner === null);
+
+    await svc.resumeRun(db, run.id, 'use_application');
+    expect(svc.activeRunner?.defaultConflictDecision).toBe('keep_portal');
+    expect(debugSpy).toHaveBeenCalled();
+    await waitFor(() => svc.getRun(db, run.id)?.run.status === 'review_ready');
+    debugSpy.mockRestore();
   });
 
   it('case 7: dispose while a runner is parked at a wait resolves and closes the browser', async () => {

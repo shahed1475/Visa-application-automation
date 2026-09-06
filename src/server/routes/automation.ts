@@ -10,6 +10,7 @@ import {
   AnotherRunActiveError,
   ApplicationNotFoundError,
   CheckpointStillPresentError,
+  ConflictDecisionRequiredError,
   NoActivePortalError,
   NotReadyError,
   NotWaitingError,
@@ -21,6 +22,11 @@ import { errorBody, notFoundError, validationError } from './errors.js';
 const idParamSchema = z.object({ id: z.string().min(1) });
 const eventsQuerySchema = z.object({
   after: z.coerce.number().int().min(0).optional(),
+});
+// A body-less resume POST is legitimate (checkpoint / value_mismatch waits carry
+// no decision) — parse `req.body ?? {}` so an absent body is valid, not a 400.
+const resumeBodySchema = z.object({
+  decision: z.enum(['use_application', 'keep_portal']).optional(),
 });
 
 function mapAutomationError(e: unknown, reply: FastifyReply): FastifyReply | undefined {
@@ -63,6 +69,16 @@ function mapAutomationError(e: unknown, reply: FastifyReply): FastifyReply | und
         errorBody(
           'CHECKPOINT_STILL_PRESENT',
           'the challenge is still on the page — complete it, then resume',
+        ),
+      );
+  }
+  if (e instanceof ConflictDecisionRequiredError) {
+    return reply
+      .code(400)
+      .send(
+        errorBody(
+          'DECISION_REQUIRED',
+          'this run is paused on a value conflict — resume with a decision',
         ),
       );
   }
@@ -123,8 +139,10 @@ export async function registerAutomationRoutes(app: FastifyInstance): Promise<vo
   app.post<{ Params: { id: string } }>(
     '/api/automation-runs/:id/resume',
     async (req, reply) => {
+      const parsed = resumeBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) return reply.code(400).send(validationError(parsed.error));
       try {
-        const run = await app.automation.resumeRun(app.db, req.params.id);
+        const run = await app.automation.resumeRun(app.db, req.params.id, parsed.data.decision);
         return reply.code(202).send({ run });
       } catch (e) {
         const mapped = mapAutomationError(e, reply);

@@ -17,9 +17,11 @@ import { env } from '../env.js';
 import type {
   AutomationEventRow,
   AutomationRunRow,
+  ConflictDecision,
   RunStatus,
   WaitingReason,
 } from '../../shared/automation/types.js';
+import { logger } from '../logger.js';
 import { assertTransition, isTerminal } from '../../shared/automation/states.js';
 import { EVENT_MESSAGES } from '../../shared/automation/events.js';
 import type { ApplicationPlan } from '../../shared/application/types.js';
@@ -127,6 +129,13 @@ export class CheckpointStillPresentError extends Error {
   }
 }
 
+export class ConflictDecisionRequiredError extends Error {
+  constructor(readonly runId: string) {
+    super(`automation run ${runId} is paused on a value conflict and needs a decision to resume`);
+    this.name = 'ConflictDecisionRequiredError';
+  }
+}
+
 // ---- service --------------------------------------------------------------
 
 interface LoadedApplication {
@@ -231,11 +240,22 @@ export class AutomationService {
       : null;
   }
 
-  async resumeRun(db: DatabaseSync, id: string): Promise<AutomationRunRow> {
+  async resumeRun(
+    db: DatabaseSync,
+    id: string,
+    decision?: ConflictDecision,
+  ): Promise<AutomationRunRow> {
     const cur = getRunRow(db, id);
     if (!cur) throw new RunNotFoundError(id);
     if (cur.status !== 'waiting_for_user' && cur.status !== 'paused') {
       throw new NotWaitingError(id);
+    }
+
+    // A run parked on a value conflict cannot resume without the operator's
+    // ruling — the engine would only re-pause on the same field. Checked after
+    // the NotWaitingError guard, before the checkpoint re-check.
+    if (cur.waiting_reason === 'value_conflict' && decision === undefined) {
+      throw new ConflictDecisionRequiredError(id);
     }
 
     if (CHECKPOINT_REASONS.has(cur.waiting_reason ?? '')) {
@@ -270,6 +290,19 @@ export class AutomationService {
       }
     }
 
+    // In-memory runner still parked on this run: hand its live decision map the
+    // operator's ruling BEFORE `signalResume` wakes the loop, so the resumed
+    // re-walk applies it on the next iteration and does not re-pause on the
+    // field the user just decided.
+    const parked = this.activeRunner;
+    if (
+      parked?.runId === id &&
+      cur.waiting_reason === 'value_conflict' &&
+      parked.pausedConflictFieldPath !== null
+    ) {
+      parked.conflictDecisions.set(parked.pausedConflictFieldPath, decision!);
+    }
+
     const signalled = this.checkpoints.signalResume(id);
     if (!signalled) {
       // Crash-recovery path: no in-memory runner is parked on this run (the
@@ -289,6 +322,18 @@ export class AutomationService {
         loaded.plan,
         cur.portal_url_snapshot,
       );
+      if (cur.waiting_reason === 'value_conflict') {
+        // The fresh runner re-walks every page blind: it cannot know which field
+        // paused the original run or what the portal now holds. Resolve ANY
+        // conflict it re-encounters conservatively to `keep_portal` — never
+        // blind-overwrite on a blind re-walk. This deliberately ignores the
+        // `decision` argument (which was for one specific, now-unknown field).
+        this.activeRunner.defaultConflictDecision = 'keep_portal';
+        logger.debug(
+          { runId: id },
+          'value_conflict crash-recovery: defaulting all unresolved conflicts to keep_portal',
+        );
+      }
       void this.activeRunner.run();
     }
 
@@ -345,6 +390,20 @@ export class AutomationRunner {
   aborted = false;
   /** Set by `dispose` — stop the loop but leave the persisted run resumable. */
   stopped = false;
+  /**
+   * Live per-field conflict rulings. `resumeRun(decision)` writes into this map
+   * BEFORE waking the loop; `buildContext` passes it by reference so the next
+   * iteration's `EngineContext` sees the ruling with no copy.
+   */
+  readonly conflictDecisions = new Map<string, ConflictDecision>();
+  /** The field the loop last paused on with `value_conflict` (for `resumeRun`). */
+  pausedConflictFieldPath: string | null = null;
+  /**
+   * Set only on a crash-recovery re-walk (`resumeRun` with no in-memory runner):
+   * every unresolved conflict resolves to this instead of pausing. `keep_portal`
+   * — a blind re-walk must never blind-overwrite.
+   */
+  defaultConflictDecision: ConflictDecision | null = null;
   /**
    * Last `fields_verified` the engine reported. `runLoop` restarts its own
    * counter at 0 every call, so on a resume we feed this back in as
@@ -458,8 +517,10 @@ export class AutomationRunner {
       applyField,
       readControl,
       classifyPreFill: (p, spec, exp) => classifyPreFill(p, spec, exp),
-      // Task 11: replaced by the runner's live decision map
-      conflictDecisions: new Map(),
+      // Task 11: the runner's live decision map — `resumeRun` mutates it, and
+      // because `buildContext` re-runs each iteration the resumed loop sees it.
+      conflictDecisions: this.conflictDecisions,
+      defaultConflictDecision: this.defaultConflictDecision ?? undefined,
       settle: waitForPageSettled,
       initialVerifiedCount: this.lastVerifiedCount,
     };
@@ -494,6 +555,11 @@ export class AutomationRunner {
         }
 
         // waiting
+        if (stop.reason === 'value_conflict') {
+          // Remember which field blocked us so `resumeRun(decision)` can post the
+          // ruling into `conflictDecisions` before the loop re-enters.
+          this.pausedConflictFieldPath = stop.conflictFieldPath ?? null;
+        }
         this.transition('waiting_for_user');
         updateRun(db, runId, { waiting_reason: stop.reason as WaitingReason }, now());
         this.emitEvent('USER_ACTION_REQUIRED');

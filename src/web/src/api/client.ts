@@ -192,8 +192,11 @@ export const api = {
     request<{ mismatches: { fieldPath: string; expected: string; actual: string }[] }>(
       `/automation-runs/${runId}/live`,
     ),
-  resumeAutomationRun: (runId: string) =>
-    request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/resume`, { method: 'POST' }),
+  resumeAutomationRun: (runId: string, decision?: 'use_application' | 'keep_portal') =>
+    request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/resume`, {
+      method: 'POST',
+      body: decision ? JSON.stringify({ decision }) : undefined,
+    }),
   abortAutomationRun: (runId: string) =>
     request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/abort`, { method: 'POST' }),
 };

@@ -21,6 +21,7 @@ const WAITING_REASON_TEXT: Record<string, string> = {
   unknown_page: 'Unrecognised page',
   missing_field_mapping: 'Missing field mapping',
   value_mismatch: 'Value needs review',
+  value_conflict: 'Value conflict — decision needed',
   document_upload_required: 'Attach documents',
   session_expired: 'Session expired',
   validation_error: 'Portal validation error',
@@ -34,6 +35,8 @@ const REASON_INSTRUCTION: Record<string, string> = {
   anti_bot: 'Complete the anti-bot challenge in the browser window, then resume.',
   value_mismatch:
     'Review the values below, fix them in the portal or the applicant profile, then resume.',
+  value_conflict:
+    'The portal already holds a different value for this field. Choose which value to keep, or edit the application.',
   document_upload_required: 'Attach the required documents in the browser, then resume.',
   missing_field_mapping:
     'A field has no portal mapping. Enter it in the browser, then resume or abort.',
@@ -145,6 +148,59 @@ export function ActionRequiredPanel({
         </button>
         <button type="button" onClick={onAbort}>
           Abort
+        </button>
+      </div>
+      {resumeError ? <p className="error">{resumeError}</p> : null}
+    </section>
+  );
+}
+
+/**
+ * Phase 6 §13.25 — the dedicated `value_conflict` decision panel. The portal
+ * already holds a value for a field that differs from the application's. The
+ * operator picks which value wins, or bails out to edit the application.
+ *
+ * This is the ONLY run-page surface that shows applicant values, and only the
+ * single in-memory `/live` pair (already the `value_mismatch` pattern). No
+ * `<form>`, no `type="submit"`, no submit-labelled control — the Phase 5 web
+ * guard greps this page for those.
+ */
+export function ValueConflictPanel({
+  mismatch,
+  resumeError,
+  busy,
+  onUseApplication,
+  onKeepPortal,
+  onEditApplication,
+}: {
+  mismatch: Mismatch | null;
+  resumeError: string | null;
+  busy: boolean;
+  onUseApplication: () => void;
+  onKeepPortal: () => void;
+  onEditApplication: () => void;
+}) {
+  return (
+    <section className="action-required value-conflict" role="alert">
+      <h2>Value conflict</h2>
+      <p>{REASON_INSTRUCTION.value_conflict}</p>
+      {mismatch ? (
+        <ul className="mismatch-list">
+          <li>
+            {mismatch.fieldPath}: application has <code>{mismatch.expected}</code>, portal shows{' '}
+            <code>{mismatch.actual}</code>
+          </li>
+        </ul>
+      ) : null}
+      <div className="action-required__buttons">
+        <button type="button" onClick={onUseApplication} disabled={busy}>
+          Use application value
+        </button>
+        <button type="button" onClick={onKeepPortal} disabled={busy}>
+          Keep portal value
+        </button>
+        <button type="button" onClick={onEditApplication} disabled={busy}>
+          Edit application
         </button>
       </div>
       {resumeError ? <p className="error">{resumeError}</p> : null}

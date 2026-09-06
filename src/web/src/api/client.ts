@@ -25,6 +25,15 @@ import type {
   ApplicationPut,
 } from '../../../shared/application/schemas';
 import type { AutomationRunRow, AutomationEventRow } from '../../../shared/automation/types';
+import type {
+  DiscoverySessionDTO,
+  DiscoveryPageDTO,
+  MappingView,
+  MappingStatusCounts,
+  PromotedMappingEdit,
+  IndiaDiagnostics,
+  AdapterValidationReport,
+} from '../../../shared/discovery/types';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -199,4 +208,48 @@ export const api = {
     }),
   abortAutomationRun: (runId: string) =>
     request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/abort`, { method: 'POST' }),
+
+  // ---- Portal discovery & India adapter (Phase 6) -----------------------
+  startDiscoverySession: (portalId: string) =>
+    request<{ session: DiscoverySessionDTO }>(`/portals/${portalId}/discovery-sessions`, {
+      method: 'POST',
+    }),
+  listDiscoverySessions: (portalId: string) =>
+    request<{ sessions: DiscoverySessionDTO[] }>(`/portals/${portalId}/discovery-sessions`),
+  getDiscoverySession: (sessionId: string) =>
+    request<{ session: DiscoverySessionDTO; pages: DiscoveryPageDTO[] }>(
+      `/discovery-sessions/${sessionId}`,
+    ),
+  captureDiscoveryPage: (sessionId: string) =>
+    request<{ page: DiscoveryPageDTO }>(`/discovery-sessions/${sessionId}/capture`, {
+      method: 'POST',
+    }),
+  endDiscoverySession: (sessionId: string) =>
+    request<{ session: DiscoverySessionDTO }>(`/discovery-sessions/${sessionId}/end`, {
+      method: 'POST',
+    }),
+  promoteCandidate: (
+    sessionId: string,
+    input: { pageSeq: number; candidateIndex: number; canonicalFieldPath: string },
+  ) =>
+    request<{ mappingEdit: PromotedMappingEdit }>(`/discovery-sessions/${sessionId}/promote`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  validateAdapter: (sessionId: string) =>
+    request<{ report: AdapterValidationReport }>(
+      `/discovery-sessions/${sessionId}/validate-adapter`,
+      { method: 'POST' },
+    ),
+  getAdapterMappings: (portalId: string) =>
+    request<{ mappings: MappingView[]; status: MappingStatusCounts }>(
+      `/portals/${portalId}/adapter-mappings`,
+    ),
+  getAdapterDiagnostics: (portalId: string) =>
+    request<{ diagnostics: IndiaDiagnostics }>(`/portals/${portalId}/adapter-diagnostics`),
+  recordPolicyAck: (portalId: string) =>
+    request<{ status: { portalId: string; acknowledgedAt: string } }>(
+      `/portals/${portalId}/policy-ack`,
+      { method: 'POST' },
+    ),
 };

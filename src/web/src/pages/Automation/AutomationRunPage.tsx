@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { isTerminal } from '../../../../shared/automation/states';
 import type {
@@ -13,6 +13,7 @@ import {
   ProgressBar,
   SafeStopBanner,
   StatusBadge,
+  ValueConflictPanel,
 } from './runChrome';
 
 type Mismatch = { fieldPath: string; expected: string; actual: string };
@@ -29,6 +30,7 @@ function maxSeq(rows: AutomationEventRow[], fallback: number): number {
 
 export function AutomationRunPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [run, setRun] = useState<AutomationRunRow | null>(null);
   const [events, setEvents] = useState<AutomationEventRow[]>([]);
   const [headerNames, setHeaderNames] = useState<{ applicant?: string; category?: string }>({});
@@ -114,9 +116,10 @@ export function AutomationRunPage() {
 
   // ---- value_mismatch: pull the in-memory mismatch list ----------------
   const waitingReason = run?.waiting_reason ?? null;
+  const needsLive = waitingReason === 'value_mismatch' || waitingReason === 'value_conflict';
   useEffect(() => {
-    if (!id || waitingReason !== 'value_mismatch') {
-      if (waitingReason !== 'value_mismatch') setMismatches(null);
+    if (!id || !needsLive) {
+      if (!needsLive) setMismatches(null);
       return;
     }
     let cancelled = false;
@@ -131,27 +134,41 @@ export function AutomationRunPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, waitingReason]);
+  }, [id, needsLive]);
 
-  const handleResume = useCallback(async () => {
-    if (!id) return;
-    setBusy(true);
-    setResumeError(null);
+  const handleResume = useCallback(
+    async (decision?: 'use_application' | 'keep_portal') => {
+      if (!id) return;
+      setBusy(true);
+      setResumeError(null);
+      try {
+        if (decision) await api.resumeAutomationRun(id, decision);
+        else await api.resumeAutomationRun(id);
+        const { run: fresh } = await api.getAutomationRun(id);
+        setRun(fresh);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Resume failed.';
+        setResumeError(
+          /checkpoint/i.test(msg)
+            ? 'The challenge is still on the page — complete it in the browser, then resume.'
+            : msg,
+        );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [id],
+  );
+
+  const handleEditApplication = useCallback(async () => {
+    if (!id || !run) return;
     try {
-      await api.resumeAutomationRun(id);
-      const { run: fresh } = await api.getAutomationRun(id);
-      setRun(fresh);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Resume failed.';
-      setResumeError(
-        /checkpoint/i.test(msg)
-          ? 'The challenge is still on the page — complete it in the browser, then resume.'
-          : msg,
-      );
-    } finally {
-      setBusy(false);
+      await api.abortAutomationRun(id);
+    } catch {
+      /* proceed to the editor regardless — the run is a dead end here */
     }
-  }, [id]);
+    navigate(`/applications/${run.application_id}`);
+  }, [id, run, navigate]);
 
   const handleAbort = useCallback(async () => {
     if (!id) return;
@@ -200,13 +217,24 @@ export function AutomationRunPage() {
 
       <EventLog events={events} />
 
-      {run.status === 'waiting_for_user' && (
+      {run.status === 'waiting_for_user' && run.waiting_reason === 'value_conflict' && (
+        <ValueConflictPanel
+          mismatch={mismatches?.[0] ?? null}
+          resumeError={resumeError}
+          busy={busy}
+          onUseApplication={() => void handleResume('use_application')}
+          onKeepPortal={() => void handleResume('keep_portal')}
+          onEditApplication={() => void handleEditApplication()}
+        />
+      )}
+
+      {run.status === 'waiting_for_user' && run.waiting_reason !== 'value_conflict' && (
         <ActionRequiredPanel
           reason={run.waiting_reason}
           mismatches={mismatches}
           resumeError={resumeError}
           busy={busy}
-          onResume={handleResume}
+          onResume={() => void handleResume()}
           onAbort={handleAbort}
         />
       )}

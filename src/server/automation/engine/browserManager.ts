@@ -8,6 +8,7 @@ import { env } from '../../env.js';
 
 export class BrowserManager {
   private browser: Browser | null = null;
+  private discoveryContext: BrowserContext | null = null;
 
   /**
    * `opts.headless` overrides the default, which stays `env.PW_HEADLESS` so
@@ -44,6 +45,38 @@ export class BrowserManager {
     if (this.browser) {
       await this.browser.close();
       this.browser = null;
+    }
+  }
+
+  /**
+   * Headed, persistent-user-data-dir Chromium context for portal discovery.
+   * The user drives discovery by hand, so this is NEVER headless — `headless:
+   * false` is passed explicitly and cannot be overridden. The persistent
+   * `userDataDir` (default `env.DISCOVERY_PROFILE_DIR`) keeps a portal login
+   * alive across discovery sessions.
+   *
+   * `chromium.launchPersistentContext` returns a `BrowserContext` directly (no
+   * `Browser` handle). Idempotent while open: a second call returns the same
+   * context. Separate from `launch`/`newPage`/`close`.
+   */
+  async launchPersistentDiscovery(opts: {
+    userDataDir: string;
+  }): Promise<BrowserContext> {
+    if (this.discoveryContext && this.discoveryContext.browser()?.isConnected()) {
+      return this.discoveryContext;
+    }
+    this.discoveryContext = await chromium.launchPersistentContext(
+      opts.userDataDir,
+      { headless: false, viewport: null },
+    );
+    return this.discoveryContext;
+  }
+
+  /** Closes the persistent discovery context if one is open. */
+  async closeDiscovery(): Promise<void> {
+    if (this.discoveryContext) {
+      await this.discoveryContext.close();
+      this.discoveryContext = null;
     }
   }
 }

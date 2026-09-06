@@ -34,4 +34,5 @@ export const env = {
   SCREENSHOT_DIR: path.join(dataDir, 'screenshots'),
   DOCUMENTS_DIR: path.join(dataDir, 'documents'),
   AUTOMATION_DIR: path.join(dataDir, 'automation'),
+  DISCOVERY_PROFILE_DIR: path.join(dataDir, 'discovery', 'profile'),
 };

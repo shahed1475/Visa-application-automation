@@ -208,6 +208,32 @@ bypassed. No field value is ever stored or logged. The engine is proven end-to-e
 against a local fixture portal; no run has touched a real India portal. See
 `docs/PHASE-5-REPORT.md`.
 
+**Phase 6 (real India portal adapter + live discovery + controlled autofill):**
+`src/server/automation/discovery/` adds a **read-only** live-discovery layer — a
+headed persistent Chromium context the operator drives, `captureDiscoveryV2` (the
+Phase 5 DOM observer extended with headings, radio/checkbox groups, enumerated
+buttons, nav-candidates, required indicators and `<select>` option labels), a
+hardened PII sanitizer that never reads an input `.value`, and a `DiscoveryController`
+whose only `page.goto` is the configured portal URL; migration 6 persists **page
+structure only** (`portal_discovery_sessions` / `portal_discovery_pages`, zero
+applicant values, `url_pattern` masks id/token segments) and drops the
+`automation_runs.waiting_reason` CHECK. `adapters/india/indiaPortalMap.ts` gains a
+per-mapping lifecycle — `placeholder → discovered → validated` — where a
+non-placeholder selector without a recorded `discoverySessionRef` is a build
+failure (the provenance guard), `discovered` needs that ref and `validated` also
+needs a `validatedAt` from `validateIndiaAdapter`; `promoteCandidate` renders a
+paste-ready map edit but the app never auto-writes adapter source. `indiaAdapter`
+identity is now URL + heading + anchor scored against the 0.6 floor. A **runtime**
+ToS gate (`discovery/policyGate.ts`) refuses discovery and `startRun` for a real
+India host until an operator acknowledgement row exists. The one generic engine
+addition is **value-conflict**: a pre-fill classifier pauses `value_conflict` when
+the portal already holds a different non-empty value, and `POST /resume {decision}`
+carries the operator's Use-application / Keep-portal choice (the `{expected, actual}`
+pair stays in-memory `/live` only; a crash-recovery resume defaults to `keep_portal`,
+never blind-overwrite). Real-portal work (Tests A–G) is an operator runbook in
+`docs/portals/india.md` behind `INDIA_LIVE=1`, never in CI; the engine remains
+fixture-proven and still has **no submit path**. See `docs/PHASE-6-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live

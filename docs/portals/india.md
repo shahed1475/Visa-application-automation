@@ -68,6 +68,190 @@ Constraints that apply even if a review returns PERMITTED: read-only public-page
 discovery only, user-driven authentication, no automated submission, human-only
 OTP/CAPTCHA, human-paced navigation (`automation-risks.md` R15).
 
+## Track B runbook — progressive live discovery & real-portal validation
+
+**This procedure is operator-only and runs against the real authenticated portal.
+It is NEVER run in CI.** Every command that talks to the real portal is gated on
+the environment flag `INDIA_LIVE=1`; without it, no live integration check runs and
+CI exercises the fixture portal only. Before starting, the operator must have:
+
+- a `PERMITTED` or (operator's-call) `UNCLEAR` verdict in the "ToS / robots.txt
+  position" section above — and, for `ivacbd.com`, an authenticated review of the
+  real Terms & Conditions that clears it (it is `PROHIBITED` by default);
+- a recorded policy acknowledgement for the configured portal
+  (`app_settings` key `portal_policy_ack:<portalId>`, written via the Settings
+  India card's inline ToS prompt or `POST /api/portals/:id/policy-ack`) — without
+  it `DiscoveryController.start()` and `AutomationService.startRun()` both refuse
+  with `409 TOS_NOT_ACKNOWLEDGED`;
+- an authenticated account on the configured portal and a real in-progress visa
+  application to walk;
+- `AUTOMATION_HEADLESS=false` for every controlled autofill run (Tests D–G) so the
+  operator watches every page.
+
+Run the tests in order. **If a test cannot proceed, stop and record it as
+`BLOCKED — <reason>` in the "Live discovery session log" below; Phase 6 still
+completes on Track A** (fixture-proven infrastructure + this runbook). Completion
+does not require Test G to pass on the real portal — it requires G to pass on
+fixture v2 (it does, see `docs/PHASE-6-REPORT.md` §"Fixture-v2 E2E") and this
+runbook plus whatever live progress was made to be documented.
+
+### Test A — Start Discovery opens the real portal (headed)
+
+1. Settings → the "India Visa Portal" card → **Start Discovery**.
+   (If the card shows an inline ToS prompt first, read `docs/portals/india.md`,
+   then confirm the acknowledgement and retry.)
+2. **Expected:** a **headed** Chromium window opens at the configured portal URL
+   (the single permitted `page.goto`); `POST /api/portals/:id/discovery-sessions`
+   returns `201 { session }` with `status: 'active'`; the app navigates to
+   `/discovery/:sessionId`.
+3. **Stop condition:** browser window open, one `portal_discovery_sessions` row
+   with `status = 'active'`.
+4. Record `BLOCKED — <reason>` if the window does not open, the ToS gate refuses,
+   or a second active session is (correctly) refused with `409 SESSION_ACTIVE`.
+
+### Test B — operator navigates and Captures each page
+
+1. In the headed window the operator logs in, completes any OTP / CAPTCHA **by
+   hand**, and navigates the authenticated application flow one page at a time.
+   The tool never fills, clicks, types, or navigates.
+2. On each meaningful page, in `/discovery/:sessionId` click **Capture this page**.
+3. **Expected:** `POST /api/discovery-sessions/:id/capture` returns `201 { page }`;
+   a `portal_discovery_pages` row is appended (`seq` increments, `page_count`
+   bumps); the page shows the state guess, masked `url_pattern`, title, and
+   control/candidate counts — **no applicant values anywhere** (the sanitizer runs
+   before insert; `.value` is never read).
+4. **Stop condition:** one sanitized `portal_discovery_pages` row per captured
+   page; fill the "Fingerprint", "Public-page map", "Authenticated-flow map",
+   "Field-analysis table", "Dropdown catalogue", "Validation catalogue" and
+   "Security-checkpoint catalogue" tables above from the captured data (by hand —
+   Phase 6 persists the data, the markdown is updated manually).
+5. Record `BLOCKED — <reason>` if a capture returns `409 SESSION_NOT_ACTIVE`, the
+   sanitizer test surfaces a leaked value, or a page cannot be reached.
+
+### Test C — transcribe 3–5 personal-details selectors and Validate
+
+1. On a captured personal-details page, expand the per-page **candidate table**.
+   For 3–5 personal-details fields, use **Promote → canonical field** (pick the
+   unmapped `appliesTo` path from the `<select>`); this calls
+   `POST /api/discovery-sessions/:id/promote` and renders the exact
+   `indiaPortalMap.ts` `IndiaFieldMapping` literal (`status: 'discovered'`,
+   `discoveredAt`, `discoverySessionRef`).
+2. Paste each rendered literal into `src/server/automation/adapters/india/indiaPortalMap.ts`.
+   **Never hand-edit a selector the promote output did not produce** — the
+   provenance guard test fails the build on a non-placeholder selector without a
+   `discoverySessionRef`.
+3. Re-run the gate (`npm run typecheck && npm run lint && npm test && npm run build`).
+4. In `/discovery/:sessionId` click **Validate Adapter** while the live page is the
+   personal-details page.
+5. **Expected:** `POST /api/discovery-sessions/:id/validate-adapter` returns
+   `200 { report }`; each transcribed selector resolves to exactly one node with a
+   matching control kind (`AdapterValidationReport.fields[*].resolvable === true &&
+   controlMatches === true`); the report is value-free and persisted as
+   `portal_discovery_sessions.last_validation_json`.
+6. **Stop condition:** those 3–5 mappings show `resolvable` + `controlMatches` in
+   the report; commit them as `feat(phase-6): india personal-details selectors from
+   discovery session <id>`.
+7. Record `BLOCKED — <reason>` if a selector fails to resolve, the control kind
+   mismatches, or the gate goes red.
+
+### Test D — controlled autofill of the first real page, verify-and-pause
+
+1. Complete the personal-details mapping for that page (all required fields
+   `discovered`, `nextSelector` set). Start an automation run from
+   `/applications/:id` → **Start automation** (`AUTOMATION_HEADLESS=false`).
+2. **Expected:** the run detects the personal-details page (identity ≥ 0.6 from
+   URL + heading + anchor), fills each mapped field, **reads it back**, emits
+   `FIELD_VERIFIED` per field; on reaching the next page whose selectors are still
+   placeholders `indiaAdapter.clickNext` throws / the loop pauses `unknown_page`.
+3. **Stop condition:** the personal-details section shows every field verified in
+   `AutomationRunPage`; the run is paused (not `review_ready`); `submitCount`
+   is not applicable (no submit affordance exists).
+4. Record `BLOCKED — <reason>` if a field will not verify (`value_mismatch` pause),
+   the page is misidentified (`UNKNOWN_PORTAL_STATE`), or navigation stalls.
+
+### Test E — a pre-existing-value conflict on the real portal → the 3-way panel
+
+1. On a real page where the portal already holds a **different, non-empty** value
+   for a mapped field (a prior session, or manual entry), start / continue a
+   controlled run.
+2. **Expected:** the engine's pre-fill classifier returns `conflict`; the run emits
+   `VALUE_CONFLICT`, records the `{ expected, actual }` pair **in memory only**
+   (`GET /api/automation-runs/:id/live`), and pauses `waiting_reason =
+   'value_conflict'`. `AutomationRunPage` shows the ACTION REQUIRED panel with the
+   single `/live` pair and three buttons: **Use application value**, **Keep portal
+   value**, **Edit application**.
+3. Choose one:
+   - **Use application value** → `POST /resume { decision: 'use_application' }` →
+     `FIELD_CONFLICT_OVERWRITTEN` → field overwritten + read-back-verified.
+   - **Keep portal value** → `POST /resume { decision: 'keep_portal' }` →
+     `FIELD_CONFLICT_KEPT` → field skipped (not counted toward `fields_verified`).
+4. **Stop condition:** the run continues past the field per the chosen decision;
+   the re-walk after resume does **not** re-pause on the same field; neither value
+   appears in `automation_events` or any log (only in `/live`).
+5. Record `BLOCKED — <reason>` if resume without a decision is not rejected `400`,
+   the re-walk re-pauses, or a value leaks into an event.
+
+### Test F — an OTP / CAPTCHA checkpoint on the real portal → pause + human
+
+1. Let a controlled run reach a portal page carrying an OTP or CAPTCHA challenge.
+2. **Expected:** `detectCheckpoint` fires; the run emits `OTP_REQUIRED` /
+   `CAPTCHA_REQUIRED` (precedence `captcha > anti_bot > mfa > otp`),
+   `page.bringToFront()` foregrounds the browser, and the run pauses
+   `waiting_reason = otp | captcha`. Nothing is solved, retrieved, or bypassed.
+3. The operator completes the challenge **by hand** in the browser, then clicks
+   **Resume**. Resume re-runs `detectCheckpoint`: still present → `409
+   CHECKPOINT_STILL_PRESENT` + a `CHECKPOINT_STILL_PRESENT` event; cleared → the
+   run continues.
+4. **Stop condition:** the run advances past the checkpoint page after the human
+   completes it and resumes.
+5. Record `BLOCKED — <reason>` if the checkpoint is not detected, `bringToFront`
+   does not foreground, or resume proceeds while the challenge is still present.
+
+### Test G — a full controlled walk to the portal's final review page → stop, never submit
+
+1. With every applicable section mapped and `validated` across earlier sessions,
+   start a full controlled preparation run over all applicable fields + required
+   documents (`AUTOMATION_HEADLESS=false`). Required documents that are not
+   uploaded block with `BLOCKED_MISSING_DOCUMENT`; an in-portal attach step pauses
+   `document_upload_required` for the operator to attach files by hand.
+2. **Expected:** the run walks every section, fills and verifies each field,
+   reaches the portal's final review page, sets `status = review_ready`, emits
+   `REVIEW_READY`, and **STOPS**. The loop never calls a submit control —
+   `submitSelector` is the literal `null`, there is no `submitted` / `completed`
+   run status or event type, and the loop `return`s at `isFinalReview` before any
+   further action.
+3. **Stop condition:** `review_ready`; the SAFE STOP banner is shown; the operator
+   confirms in the browser that **nothing was submitted** and no payment or
+   appointment step ran.
+4. Record `BLOCKED — <reason>` if the run fails to reach the final review page, or
+   `PARTIAL` with the furthest section reached.
+
+### Live discovery session log
+
+**NOT ATTEMPTED — deferred: requires the operator present + an authenticated ToS
+review clearing the portal; Phase 6 is complete on Track A (fixture-proven
+infrastructure + operator runbook).**
+
+Tests A–G have not been run against `indianvisaonline.gov.in` or any IVAC portal.
+No live discovery session has been started; `indiaPortalMap.ts` still ships every
+selector as `'TODO:discover'` / `status: 'placeholder'`; no
+`portal_discovery_sessions` row has ever been created against a real host. The ToS
+verdict is `UNCLEAR` and `ivacbd.com` is treated as `PROHIBITED` pending an
+authenticated operator review; the operator was not available for a live session.
+When a session is run, record per test: date, session id, portal host, the result
+(`PASS` / `PARTIAL` / `BLOCKED — <reason>`), and the commit SHA of any
+`indiaPortalMap.ts` selector edits.
+
+| Test | Date | Session id | Result | Notes |
+|------|------|------------|--------|-------|
+| A | — | — | NOT ATTEMPTED | deferred — operator + ToS review required |
+| B | — | — | NOT ATTEMPTED | deferred |
+| C | — | — | NOT ATTEMPTED | deferred |
+| D | — | — | NOT ATTEMPTED | deferred |
+| E | — | — | NOT ATTEMPTED | deferred |
+| F | — | — | NOT ATTEMPTED | deferred |
+| G | — | — | NOT ATTEMPTED | deferred |
+
 ## Fingerprint
 
 <!-- §8.2 table — populate from a discovery run -->

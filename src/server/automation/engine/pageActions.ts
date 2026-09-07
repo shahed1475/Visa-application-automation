@@ -1,7 +1,14 @@
 import type { Page } from 'playwright';
 import type { ControlKind } from '../../../shared/automation/types.js';
+import type { TimingProfile } from './timing.js';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
+
+/** A pause primitive — real (`page.waitForTimeout`) in production, a spy in tests. */
+export type Delay = (ms: number) => Promise<void>;
+
+/** Default no-op pause: callers that pass no `delay` get zero real waiting. */
+const noWait: Delay = async () => {};
 
 /**
  * Thrown when a selector matches no element on the page at action time.
@@ -60,10 +67,11 @@ const RESOLVE_PROBE_MS = 2_000;
 export async function resolveSelector(
   page: Page,
   spec: { selector: string; fallbackSelector?: string },
+  probeMs: number = RESOLVE_PROBE_MS,
 ): Promise<{ selector: string; usedFallback: boolean }> {
   const attached = async (s: string): Promise<boolean> => {
     try {
-      await page.locator(s).first().waitFor({ state: 'attached', timeout: RESOLVE_PROBE_MS });
+      await page.locator(s).first().waitFor({ state: 'attached', timeout: probeMs });
       return true;
     } catch {
       return false;
@@ -74,6 +82,36 @@ export async function resolveSelector(
     return { selector: spec.fallbackSelector, usedFallback: true };
   }
   throw new SelectorNotFoundError(spec.selector);
+}
+
+/**
+ * Bring `selector` into the viewport the way a person would before touching a
+ * field: scroll it into view (guarded by `timing.pageStabilizeTimeoutMs`), then
+ * pause `timing.scrollDelayMs` so a lazily-rendered / animated region can settle.
+ *
+ * Reliability + realistic interaction only — NEVER anti-bot evasion. The delay is
+ * the deterministic profile value, no jitter.
+ *
+ * `scrollIntoViewIfNeeded` is best-effort: if the element is already visible it
+ * is a no-op, and if the scroll cannot complete this does NOT throw — the
+ * subsequent Playwright write auto-scrolls and will surface a real fault itself.
+ */
+export async function scrollIntoViewAndSettle(
+  page: Page,
+  selector: string,
+  timing: TimingProfile,
+  delay: Delay = noWait,
+): Promise<void> {
+  await requireSelector(page, selector);
+  try {
+    await page
+      .locator(selector)
+      .first()
+      .scrollIntoViewIfNeeded({ timeout: timing.pageStabilizeTimeoutMs });
+  } catch {
+    // already visible, or un-scrollable — the write step handles positioning.
+  }
+  await delay(timing.scrollDelayMs);
 }
 
 /**

@@ -6,9 +6,11 @@ import type {
 } from '../../../shared/automation/types.js';
 import {
   assertNativeOptionAvailable,
+  type Delay,
   fillText,
   readControl,
   resolveSelector,
+  scrollIntoViewAndSettle,
   SelectorNotFoundError,
   selectCustom,
   selectNative,
@@ -17,6 +19,17 @@ import {
   setRadio,
   typeAutocomplete,
 } from './pageActions.js';
+import { TIMING_PROFILES, type TimingProfile } from './timing.js';
+
+/**
+ * Optional timing controls for a single field application. Omitting them (or any
+ * member) is fully backward compatible: the `normal` profile is the default and
+ * `delay` falls back to a real `page.waitForTimeout`.
+ */
+export interface FieldActionOptions {
+  timing?: TimingProfile;
+  delay?: Delay;
+}
 
 /** Trim-only normalisation applied to both sides of every comparison. */
 const norm = (s: string): string => s.trim();
@@ -114,7 +127,7 @@ export async function classifyPreFill(
   let rspec: PortalFieldSpec;
   let actual: string | null;
   try {
-    const { selector } = await resolveSelector(page, spec);
+    const { selector } = await resolveSelector(page, spec, TIMING_PROFILES.normal.resolveProbeMs);
     rspec = { ...spec, selector };
     actual = await readControl(page, selector, spec.control);
   } catch (e) {
@@ -196,8 +209,16 @@ async function writeControl(page: Page, spec: PortalFieldSpec, expected: string)
  *    control (not a detached primary).
  * 2. Read the current value. If it already equals `expected` ->
  *    `{ filled: false, outcome: 'verified', alreadySet: true, … }`.
- * 3. Otherwise write via the control's writer, then `verifyControl`.
- * 4. On `'mismatch'`, re-run the writer exactly once and verify again.
+ * 3. Otherwise scroll the control into view, pause the profile's interaction
+ *    delay, write via the control's writer, pause the post-fill delay, then
+ *    `verifyControl`.
+ * 4. On `'mismatch'`, pause the retry delay, re-run the writer exactly once and
+ *    verify again.
+ *
+ * All pauses are the deterministic {@link TimingProfile} values (default
+ * `normal`) — reliability + realistic interaction only, never anti-bot evasion,
+ * no jitter. `opts` omitted ⇒ identical behaviour to before, bar small real
+ * `page.waitForTimeout` pauses the `normal` profile already tolerated.
  *
  * Returns only an outcome enum + booleans + the resolved selector — never the
  * value read or written.
@@ -205,6 +226,7 @@ async function writeControl(page: Page, spec: PortalFieldSpec, expected: string)
 export async function applyField(
   page: Page,
   m: MappedField,
+  opts?: FieldActionOptions,
 ): Promise<{
   filled: boolean;
   outcome: VerificationOutcome;
@@ -218,8 +240,11 @@ export async function applyField(
       'applyField precondition violated: requires m.spec !== null, m.present, m.expected !== null',
     );
   }
+  const timing = opts?.timing ?? TIMING_PROFILES.normal;
+  const delay: Delay = opts?.delay ?? ((ms) => page.waitForTimeout(ms));
+
   const expected = m.expected;
-  const { selector, usedFallback } = await resolveSelector(page, m.spec);
+  const { selector, usedFallback } = await resolveSelector(page, m.spec, timing.resolveProbeMs);
   const spec: PortalFieldSpec = { ...m.spec, selector };
 
   const current = await readControl(page, spec.selector, spec.control);
@@ -227,10 +252,16 @@ export async function applyField(
     return { filled: false, outcome: 'verified', alreadySet: true, usedFallback, selector };
   }
 
+  await scrollIntoViewAndSettle(page, spec.selector, timing, delay);
+  await delay(timing.fieldInteractionDelayMs);
+
   await writeControl(page, spec, expected);
+  await delay(timing.postFillVerifyDelayMs);
   let outcome = await verifyControl(page, spec, expected);
   if (outcome === 'mismatch') {
+    await delay(timing.retryDelayMs);
     await writeControl(page, spec, expected);
+    await delay(timing.postFillVerifyDelayMs);
     outcome = await verifyControl(page, spec, expected);
   }
   return { filled: true, outcome, alreadySet: false, usedFallback, selector };

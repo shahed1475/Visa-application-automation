@@ -9,6 +9,7 @@ import {
   OptionNotFoundError,
   SelectorNotFoundError,
 } from '../../src/server/automation/engine/pageActions.js';
+import { TIMING_PROFILES } from '../../src/server/automation/engine/timing.js';
 import {
   parseDMY,
   parseIso,
@@ -117,6 +118,24 @@ describe('fieldActions', () => {
     expect(result.filled).toBe(true);
     expect(result.alreadySet).toBe(false);
     expect(result.outcome).toBe('mismatch');
+  });
+
+  it('applyField scrolls the target into view and waits the configured interaction + verify delays', async () => {
+    const spy: number[] = [];
+    const delay = async (ms: number) => {
+      spy.push(ms);
+    };
+    const timing = { ...TIMING_PROFILES.careful };
+    await page.locator('#t').evaluate((el) => {
+      (el as unknown as { style: { marginTop: string } }).style.marginTop = '3000px';
+    });
+    const r = await applyField(page, mf('#t', 'text', 'RANA'), { timing, delay });
+    expect(r.outcome).toBe('verified');
+    expect(spy).toContain(timing.scrollDelayMs);
+    expect(spy).toContain(timing.fieldInteractionDelayMs);
+    expect(spy).toContain(timing.postFillVerifyDelayMs);
+    // the element was actually brought into the viewport before the fill
+    expect(await page.locator('#t').isVisible()).toBe(true);
   });
 
   it('selects a native option by label and verifies', async () => {

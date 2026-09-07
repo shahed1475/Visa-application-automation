@@ -6,6 +6,7 @@ import {
   OptionNotFoundError,
   readControl,
   resolveSelector,
+  scrollIntoViewAndSettle,
   selectCustom,
   selectNative,
   setCheckbox,
@@ -15,6 +16,7 @@ import {
   typeAutocomplete,
   waitForPageSettled,
 } from '../../src/server/automation/engine/pageActions.js';
+import { TIMING_PROFILES } from '../../src/server/automation/engine/timing.js';
 import { startFixtureServer, type FixtureServer } from '../helpers/fixtureServer.js';
 
 const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Controls</title>
@@ -186,6 +188,32 @@ describe('pageActions', () => {
 
   it('waitForPageSettled resolves once the anchor is visible', async () => {
     await expect(waitForPageSettled(page, '#t')).resolves.toBeUndefined();
+  });
+
+  describe('scrollIntoViewAndSettle', () => {
+    it('scrolls an off-screen element into view and waits the profile scrollDelayMs', async () => {
+      const spy: number[] = [];
+      await page.locator('#num').evaluate((el) => {
+        (el as unknown as { style: { marginTop: string } }).style.marginTop = '4000px';
+      });
+      await scrollIntoViewAndSettle(page, '#num', TIMING_PROFILES.careful, async (ms) => {
+        spy.push(ms);
+      });
+      expect(spy).toEqual([TIMING_PROFILES.careful.scrollDelayMs]);
+      expect(await page.locator('#num').isVisible()).toBe(true);
+    });
+
+    it('is a no-op (does not throw) for an already-visible element', async () => {
+      await expect(
+        scrollIntoViewAndSettle(page, '#t', TIMING_PROFILES.fast),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws SelectorNotFoundError when the element is absent', async () => {
+      await expect(
+        scrollIntoViewAndSettle(page, '#nope', TIMING_PROFILES.fast),
+      ).rejects.toBeInstanceOf(SelectorNotFoundError);
+    });
   });
 
   describe('resolveSelector (Phase 7 fallback resolution)', () => {

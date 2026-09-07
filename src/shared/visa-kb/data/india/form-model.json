@@ -1,0 +1,667 @@
+{
+  "sections": [
+    {
+      "id": "personal_particulars",
+      "label": "Personal particulars",
+      "fields": [
+        {
+          "id": "standard_personal_block",
+          "label": "Standard personal particulars",
+          "appliesTo": null,
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Satisfied by identity.surname, identity.givenNames, identity.dateOfBirth, identity.sex, identity.placeOfBirth, identity.nationality — the applicant particulars block visible on both the Regular and e-Visa online forms."
+          }
+        },
+        {
+          "id": "religion",
+          "label": "Religion",
+          "appliesTo": "identity.religion",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the personal-particulars page of the online form."
+          }
+        },
+        {
+          "id": "education",
+          "label": "Educational qualification",
+          "appliesTo": "identity.education",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the personal-particulars page of the online form."
+          }
+        },
+        {
+          "id": "national_id",
+          "label": "National identity number (NID)",
+          "appliesTo": "identity.nationalId",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the personal-particulars page of the online form."
+          }
+        },
+        {
+          "id": "visible_marks",
+          "label": "Visible distinguishing marks",
+          "appliesTo": "identity.visibleMarks",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the personal-particulars page of the online form."
+          }
+        },
+        {
+          "id": "nationality_at_birth",
+          "label": "Nationality at birth (if different)",
+          "appliesTo": "identity.nationalityAtBirth",
+          "dataType": "country",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the personal-particulars page of the online form (asked when nationality by birth differs from current nationality)."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "passport_details",
+      "label": "Passport details",
+      "fields": [
+        {
+          "id": "standard_passport_block",
+          "label": "Standard passport particulars",
+          "appliesTo": null,
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Satisfied by passport.number, passport.issueDate, passport.expiryDate, passport.placeOfIssue — the passport-particulars block visible on both the Regular and e-Visa online forms."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "address",
+      "label": "Address & contact",
+      "fields": [
+        {
+          "id": "standard_address_block",
+          "label": "Standard address particulars",
+          "appliesTo": null,
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Satisfied by address.line1, address.city, address.country — the present-address block visible on both the Regular and e-Visa online forms."
+          }
+        },
+        {
+          "id": "phone",
+          "label": "Phone number",
+          "appliesTo": "contact.phone",
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        },
+        {
+          "id": "email",
+          "label": "Email address",
+          "appliesTo": "contact.email",
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "family",
+      "label": "Family particulars",
+      "fields": [
+        {
+          "id": "father_name",
+          "label": "Father's name",
+          "appliesTo": "family.fatherName",
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the family-particulars page of the online form."
+          }
+        },
+        {
+          "id": "father_nationality",
+          "label": "Father's nationality",
+          "appliesTo": "family.fatherNationality",
+          "dataType": "country",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the family-particulars page of the online form."
+          }
+        },
+        {
+          "id": "mother_name",
+          "label": "Mother's name",
+          "appliesTo": "family.motherName",
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the family-particulars page of the online form."
+          }
+        },
+        {
+          "id": "marital_status",
+          "label": "Marital status",
+          "appliesTo": "family.maritalStatus",
+          "dataType": "enum",
+          "standardBlock": true,
+          "enumValues": ["single", "married", "divorced", "widowed"],
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the family-particulars page of the online form."
+          }
+        },
+        {
+          "id": "spouse_name",
+          "label": "Spouse's name",
+          "appliesTo": "family.spouseName",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the family-particulars page of the online form, asked when marital_status is married."
+          }
+        },
+        {
+          "id": "spouse_nationality",
+          "label": "Spouse's nationality",
+          "appliesTo": "family.spouseNationality",
+          "dataType": "country",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the family-particulars page of the online form, asked when marital_status is married."
+          }
+        },
+        {
+          "id": "pakistan_ancestry",
+          "label": "Pakistani parentage or origin",
+          "appliesTo": "family.pakistanAncestry",
+          "dataType": "enum",
+          "standardBlock": false,
+          "enumValues": ["yes", "no"],
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/evisa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "The universal e-Visa exclusion for applicants of Pakistani origin/parentage (documented in eligibility.bgd.json from S1, tvoa.html) is also asked as a direct declaration field on the online form; the exact on-page wording for this declaration was not independently re-verified for Phase 4, so this rests on the exclusion guidance rather than a captured form screenshot."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "occupation",
+      "label": "Occupation",
+      "fields": [
+        {
+          "id": "occupation",
+          "label": "Present occupation",
+          "appliesTo": "occupation.occupation",
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the occupation-particulars page of the online form."
+          }
+        },
+        {
+          "id": "employer_name",
+          "label": "Employer's name",
+          "appliesTo": "occupation.employerName",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the occupation-particulars page of the online form."
+          }
+        },
+        {
+          "id": "employer_address",
+          "label": "Employer's address",
+          "appliesTo": "occupation.employerAddress",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the occupation-particulars page of the online form."
+          }
+        },
+        {
+          "id": "designation",
+          "label": "Designation",
+          "appliesTo": "occupation.designation",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the occupation-particulars page of the online form."
+          }
+        },
+        {
+          "id": "military_police",
+          "label": "Present or past military, para-military, police or security background",
+          "appliesTo": "occupation.militaryPolice",
+          "dataType": "enum",
+          "standardBlock": false,
+          "enumValues": ["yes", "no"],
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/evisa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "The e-Visa universal exclusion for defence/military/security/police background (eligibility.bgd.json, from S1 tvoa.html) is asked as a direct declaration field on the online form; the exact on-page wording was not independently re-verified for Phase 4."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "visa_details",
+      "label": "Visa details",
+      "fields": [
+        {
+          "id": "purpose",
+          "label": "Purpose of visit",
+          "appliesTo": "application.purpose",
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        },
+        {
+          "id": "port_of_arrival",
+          "label": "Port of arrival in India",
+          "appliesTo": "application.portOfArrival",
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        },
+        {
+          "id": "intended_arrival_date",
+          "label": "Expected date of arrival",
+          "appliesTo": "application.intendedArrivalDate",
+          "dataType": "date",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        },
+        {
+          "id": "intended_stay_days",
+          "label": "Duration of intended stay (days)",
+          "appliesTo": "application.intendedStayDays",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "previous_visits",
+      "label": "Previous visits to India",
+      "fields": [
+        {
+          "id": "visited_india_before",
+          "label": "Visited India before",
+          "appliesTo": "application.visitedIndiaBefore",
+          "dataType": "enum",
+          "standardBlock": true,
+          "enumValues": ["yes", "no"],
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        },
+        {
+          "id": "previous_visa_number",
+          "label": "Previous Indian visa number",
+          "appliesTo": "application.previousVisaNumber",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Asked when visited_india_before is yes."
+          }
+        },
+        {
+          "id": "previous_visit_cities",
+          "label": "Cities visited in India",
+          "appliesTo": "application.previousVisitCities",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Asked when visited_india_before is yes."
+          }
+        },
+        {
+          "id": "countries_visited_10y",
+          "label": "Countries visited in the last 10 years",
+          "appliesTo": "application.countriesVisited10y",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance"
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "references",
+      "label": "References",
+      "fields": [
+        {
+          "id": "home_country_reference",
+          "label": "Reference in home country",
+          "appliesTo": null,
+          "dataType": "text",
+          "standardBlock": true,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Satisfied by a Reference row with any kind — the home-country-reference block visible on the online form (name, address, phone/email of a reference in the home country)."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "business_details",
+      "label": "Business details",
+      "fields": [
+        {
+          "id": "india_company_name",
+          "label": "Name of company/firm/institution in India to be visited",
+          "appliesTo": "application.indiaCompanyName",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the business-details page of the online form (shown for Business-purpose applications)."
+          }
+        },
+        {
+          "id": "india_company_address",
+          "label": "Address of company/firm/institution in India",
+          "appliesTo": "application.indiaCompanyAddress",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the business-details page of the online form (shown for Business-purpose applications)."
+          }
+        },
+        {
+          "id": "nature_of_business",
+          "label": "Nature of business/duration of visit",
+          "appliesTo": "application.natureOfBusiness",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the business-details page of the online form (shown for Business-purpose applications)."
+          }
+        },
+        {
+          "id": "bd_company_name",
+          "label": "Name of applicant's own company/employer in Bangladesh",
+          "appliesTo": "application.bdCompanyName",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://hcidhaka.gov.in/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Requested as part of the Business-visa supporting-document set per HCI Dhaka / IVAC Bangladesh guidance (the category-wise document-requirements PDF was not machine-retrievable on 2026-09-03 — see SOURCES.md); re-verify against hcidhaka.gov.in. Not a separately labelled field on the online form itself (which asks for the India-side company only)."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "study_details",
+      "label": "Study details",
+      "fields": [
+        {
+          "id": "institution_name",
+          "label": "Name of institution in India",
+          "appliesTo": "application.institutionName",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the study-details page of the online form (shown for Student-purpose applications)."
+          }
+        },
+        {
+          "id": "institution_address",
+          "label": "Address of institution in India",
+          "appliesTo": "application.institutionAddress",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the study-details page of the online form (shown for Student-purpose applications)."
+          }
+        },
+        {
+          "id": "course_of_study",
+          "label": "Course of study",
+          "appliesTo": "application.courseOfStudy",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the study-details page of the online form (shown for Student-purpose applications)."
+          }
+        },
+        {
+          "id": "course_duration",
+          "label": "Duration of course",
+          "appliesTo": "application.courseDuration",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/visa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the study-details page of the online form (shown for Student-purpose applications)."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/visa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    },
+    {
+      "id": "medical_details",
+      "label": "Medical details",
+      "fields": [
+        {
+          "id": "hospital_name",
+          "label": "Name of hospital/medical institution in India",
+          "appliesTo": "application.hospitalName",
+          "dataType": "text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/evisa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the medical-details page of the online form (shown for Medical-purpose applications)."
+          }
+        },
+        {
+          "id": "hospital_address",
+          "label": "Address of hospital/medical institution in India",
+          "appliesTo": "application.hospitalAddress",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/evisa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the medical-details page of the online form (shown for Medical-purpose applications)."
+          }
+        },
+        {
+          "id": "nature_of_ailment",
+          "label": "Nature of ailment/treatment sought",
+          "appliesTo": "application.natureOfAilment",
+          "dataType": "long_text",
+          "standardBlock": false,
+          "source": {
+            "officialUrl": "https://indianvisaonline.gov.in/evisa/",
+            "retrievedAt": "2026-09-05",
+            "confidence": "secondary_guidance",
+            "notes": "Visible field on the medical-details page of the online form (shown for Medical-purpose applications)."
+          }
+        }
+      ],
+      "source": {
+        "officialUrl": "https://indianvisaonline.gov.in/evisa/",
+        "retrievedAt": "2026-09-05",
+        "confidence": "secondary_guidance"
+      }
+    }
+  ]
+}

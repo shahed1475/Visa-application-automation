@@ -2,7 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { ConnectionTestResult } from '../../../shared/types.js';
 import { BrowserManager } from '../engine/browserManager.js';
-import { resolveAdapter } from '../adapters/registry.js';
+import { inspectPage } from '../engine/pageInspector.js';
 import { env } from '../../env.js';
 
 const NAV_TIMEOUT_MS = 30_000;
@@ -50,8 +50,7 @@ export async function runConnectionTest(
         timeout: NAV_TIMEOUT_MS,
       });
 
-      const adapter = resolveAdapter(url);
-      const inspection = await adapter.inspect(page);
+      const inspection = await inspectPage(page);
 
       const redirectChain: string[] = [];
       let prev = response?.request().redirectedFrom() ?? null;

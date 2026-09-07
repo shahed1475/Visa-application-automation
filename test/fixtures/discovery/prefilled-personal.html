@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Applicant form</title>
+  </head>
+  <body>
+    <h1>Personal Details</h1>
+    <h2>Identity</h2>
+
+    <!-- Proof the observer never clicked anything. A real click handler flips
+         this from "no" to "yes"; the observer must leave it untouched. -->
+    <span id="clicked" hidden>no</span>
+
+    <form id="personal" action="/apply/step/passport" method="post">
+      <p><label for="surname">Surname</label>
+        <input id="surname" name="surname" type="text" value="Doe" required /></p>
+
+      <p><label for="given-names">Given Names</label>
+        <input id="given-names" name="givenNames" type="text" value="John" /></p>
+
+      <p><label for="passport-number">Passport Number</label>
+        <input id="passport-number" name="passportNumber" type="text" value="Z1234567" required /></p>
+
+      <p><label for="dob">Date of Birth</label>
+        <input id="dob" name="dob" type="text" value="1990-04-12" /></p>
+
+      <p><label for="email">Email</label>
+        <input id="email" name="email" type="email" value="john.doe@example.com" /></p>
+
+      <!-- No <label for> and no wrapping <label>: labelFor must NOT fall back to
+           the prefilled value ("Jonathan" is plain-word PII that no value-shape
+           regex would catch). The control must still appear structurally. -->
+      <p>Middle Name
+        <input id="middle-name" name="middleName" type="text" value="Jonathan" /></p>
+
+      <fieldset>
+        <legend>Sex</legend>
+        <label><input type="radio" name="sex" value="M" /> Male</label>
+        <label><input type="radio" name="sex" value="F" /> Female</label>
+      </fieldset>
+
+      <p>
+        <label for="nationality">Nationality</label>
+        <select id="nationality" name="nationality">
+          <option value="">-- select --</option>
+          <option value="IN">India</option>
+          <option value="US">United States</option>
+          <option value="GB">United Kingdom</option>
+        </select>
+      </p>
+
+      <button type="submit" id="next">Save &amp; Continue</button>
+    </form>
+
+    <script>
+      // If the observer ever clicked, this would run and the test would catch it.
+      document.getElementById('next').addEventListener('click', function (e) {
+        e.preventDefault();
+        document.getElementById('clicked').textContent = 'yes';
+      });
+    </script>
+  </body>
+</html>

@@ -18,6 +18,22 @@ import type {
   FieldMetaPatchInput,
 } from '../../../shared/applicant/schemas';
 import type { DocumentSummary, DocumentDetail } from '../../../shared/documents/types';
+import type { ApplicationPlan, VisaApplication, VisaApplicationSummary } from '../../../shared/application/types';
+import type {
+  ApplicationCreate,
+  ApplicationFieldValueInput,
+  ApplicationPut,
+} from '../../../shared/application/schemas';
+import type { AutomationRunRow, AutomationEventRow } from '../../../shared/automation/types';
+import type {
+  DiscoverySessionDTO,
+  DiscoveryPageDTO,
+  MappingView,
+  MappingStatusCounts,
+  PromotedMappingEdit,
+  IndiaDiagnostics,
+  AdapterValidationReport,
+} from '../../../shared/discovery/types';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -146,4 +162,94 @@ export const api = {
     }),
   deleteDocument: (id: string) =>
     request<{ deleted: true }>(`/documents/${id}`, { method: 'DELETE' }),
+
+  // ---- Applications (Phase 4) ----------------------------------------------
+  createApplication: (applicantId: string, input: ApplicationCreate) =>
+    request<{ application: VisaApplicationSummary }>(`/applicants/${applicantId}/applications`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  listApplications: (applicantId: string) =>
+    request<{ applications: VisaApplicationSummary[] }>(`/applicants/${applicantId}/applications`),
+  getApplication: (id: string) =>
+    request<{ application: VisaApplication; plan: ApplicationPlan }>(`/applications/${id}`),
+  updateApplication: (id: string, patch: ApplicationPut) =>
+    request<{ application: VisaApplication; plan: ApplicationPlan }>(`/applications/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
+  setApplicationFieldValue: (id: string, input: ApplicationFieldValueInput) =>
+    request<{ application: VisaApplication; plan: ApplicationPlan }>(`/applications/${id}/field-values`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  deleteApplication: (id: string) =>
+    request<{ deleted: true }>(`/applications/${id}`, { method: 'DELETE' }),
+
+  // ---- Automation runs (Phase 5) -----------------------------------------
+  startAutomationRun: (applicationId: string) =>
+    request<{ run: AutomationRunRow }>(`/applications/${applicationId}/automation-runs`, {
+      method: 'POST',
+    }),
+  listAutomationRuns: (applicationId: string) =>
+    request<{ runs: AutomationRunRow[] }>(`/applications/${applicationId}/automation-runs`),
+  getAutomationRun: (runId: string) =>
+    request<{ run: AutomationRunRow; events: AutomationEventRow[] }>(`/automation-runs/${runId}`),
+  getAutomationEvents: (runId: string, afterSeq: number) =>
+    request<{ events: AutomationEventRow[] }>(`/automation-runs/${runId}/events?after=${afterSeq}`),
+  getAutomationLive: (runId: string) =>
+    request<{ mismatches: { fieldPath: string; expected: string; actual: string }[] }>(
+      `/automation-runs/${runId}/live`,
+    ),
+  resumeAutomationRun: (runId: string, decision?: 'use_application' | 'keep_portal') =>
+    request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/resume`, {
+      method: 'POST',
+      body: decision ? JSON.stringify({ decision }) : undefined,
+    }),
+  abortAutomationRun: (runId: string) =>
+    request<{ run: AutomationRunRow }>(`/automation-runs/${runId}/abort`, { method: 'POST' }),
+
+  // ---- Portal discovery & India adapter (Phase 6) -----------------------
+  startDiscoverySession: (portalId: string) =>
+    request<{ session: DiscoverySessionDTO }>(`/portals/${portalId}/discovery-sessions`, {
+      method: 'POST',
+    }),
+  listDiscoverySessions: (portalId: string) =>
+    request<{ sessions: DiscoverySessionDTO[] }>(`/portals/${portalId}/discovery-sessions`),
+  getDiscoverySession: (sessionId: string) =>
+    request<{ session: DiscoverySessionDTO; pages: DiscoveryPageDTO[] }>(
+      `/discovery-sessions/${sessionId}`,
+    ),
+  captureDiscoveryPage: (sessionId: string) =>
+    request<{ page: DiscoveryPageDTO }>(`/discovery-sessions/${sessionId}/capture`, {
+      method: 'POST',
+    }),
+  endDiscoverySession: (sessionId: string) =>
+    request<{ session: DiscoverySessionDTO }>(`/discovery-sessions/${sessionId}/end`, {
+      method: 'POST',
+    }),
+  promoteCandidate: (
+    sessionId: string,
+    input: { pageSeq: number; candidateIndex: number; canonicalFieldPath: string },
+  ) =>
+    request<{ mappingEdit: PromotedMappingEdit }>(`/discovery-sessions/${sessionId}/promote`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  validateAdapter: (sessionId: string) =>
+    request<{ report: AdapterValidationReport }>(
+      `/discovery-sessions/${sessionId}/validate-adapter`,
+      { method: 'POST' },
+    ),
+  getAdapterMappings: (portalId: string) =>
+    request<{ mappings: MappingView[]; status: MappingStatusCounts }>(
+      `/portals/${portalId}/adapter-mappings`,
+    ),
+  getAdapterDiagnostics: (portalId: string) =>
+    request<{ diagnostics: IndiaDiagnostics }>(`/portals/${portalId}/adapter-diagnostics`),
+  recordPolicyAck: (portalId: string) =>
+    request<{ status: { portalId: string; acknowledgedAt: string } }>(
+      `/portals/${portalId}/policy-ack`,
+      { method: 'POST' },
+    ),
 };

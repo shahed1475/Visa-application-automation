@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Passport details</title></head><body>
+<h1>Passport details</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<label for="passport-number">Passport number</label><input id="passport-number" type="text">
+<label for="passport-expiry">Passport expiry</label><input type="date" id="passport-expiry">
+<a class="next" href="/address">Save &amp; Continue</a>
+</body></html>

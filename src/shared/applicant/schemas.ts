@@ -74,6 +74,11 @@ export const identitySchema = z.object({
   placeOfBirth: nstr(120),
   nationality: nstr(80),
   otherNationalities: nstr(200),
+  religion: nstr(80),
+  education: nstr(160),
+  nationalId: nstr(80),
+  visibleMarks: nstr(300),
+  nationalityAtBirth: nstr(80),
 });
 
 export const passportSchema = z.object({
@@ -99,6 +104,31 @@ export const addressSchema = z.object({
   region: nstr(120),
   postalCode: nstr(40),
   country: nstr(80),
+});
+
+export const familySchema = z.object({
+  fatherName: nstr(160),
+  fatherNationality: nstr(80),
+  fatherPrevNationality: nstr(80),
+  fatherPlaceOfBirth: nstr(120),
+  motherName: nstr(160),
+  motherNationality: nstr(80),
+  motherPrevNationality: nstr(80),
+  motherPlaceOfBirth: nstr(120),
+  maritalStatus: z.union([z.enum(['single', 'married', 'divorced', 'widowed']), z.null()]).optional(),
+  spouseName: nstr(160),
+  spouseNationality: nstr(80),
+  spousePrevNationality: nstr(80),
+  spousePlaceOfBirth: nstr(120),
+  pakistanAncestry: z.union([z.enum(['yes', 'no']), z.null()]).optional(),
+});
+
+export const occupationSchema = z.object({
+  occupation: nstr(160),
+  employerName: nstr(160),
+  employerAddress: nstr(300),
+  designation: nstr(120),
+  militaryPolice: z.union([z.enum(['yes', 'no']), z.null()]).optional(),
 });
 
 export const travelSchema = z.object({
@@ -168,6 +198,8 @@ export const applicantCreateSchema = z.object({
   passport: passportSchema.optional(),
   contact: contactSchema.optional(),
   address: addressSchema.optional(),
+  family: familySchema.optional(),
+  occupation: occupationSchema.optional(),
 });
 
 export const applicantPutSchema = z.object({
@@ -177,6 +209,8 @@ export const applicantPutSchema = z.object({
   passport: passportSchema.optional(),
   contact: contactSchema.optional(),
   address: addressSchema.optional(),
+  family: familySchema.optional(),
+  occupation: occupationSchema.optional(),
 });
 
 // Parsed (server-side) shapes — what the service layer receives after `safeParse`.
@@ -184,6 +218,8 @@ export type IdentityPatch = z.infer<typeof identitySchema>;
 export type PassportPatch = z.infer<typeof passportSchema>;
 export type ContactPatch = z.infer<typeof contactSchema>;
 export type AddressPatch = z.infer<typeof addressSchema>;
+export type FamilyPatch = z.infer<typeof familySchema>;
+export type OccupationPatch = z.infer<typeof occupationSchema>;
 export type TravelInput = z.infer<typeof travelSchema>;
 export type ReferenceInput = z.infer<typeof referenceSchema>;
 export type FieldMetaInput = z.infer<typeof fieldMetaInputSchema>;
@@ -197,6 +233,8 @@ export type IdentityPatchInput = z.input<typeof identitySchema>;
 export type PassportPatchInput = z.input<typeof passportSchema>;
 export type ContactPatchInput = z.input<typeof contactSchema>;
 export type AddressPatchInput = z.input<typeof addressSchema>;
+export type FamilyPatchInput = z.input<typeof familySchema>;
+export type OccupationPatchInput = z.input<typeof occupationSchema>;
 export type TravelPatchInput = z.input<typeof travelSchema>;
 export type ReferencePatchInput = z.input<typeof referenceSchema>;
 export type FieldMetaPatchInput = z.input<typeof fieldMetaInputSchema>;

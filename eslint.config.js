@@ -28,4 +28,24 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
     },
   },
+  {
+    // The Phase 5 field-mapper spec is checked in verbatim (see task-2-brief.md):
+    // it builds deliberately partial `FieldPlan` / `SectionPlan` fixtures with
+    // `{ ... } as any` and probes `m.fieldPath === null as any`. No exported type
+    // describes those partial slices; the test body must not be restructured.
+    files: ['test/automation/fieldMapping.test.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    // The Phase 6 migration-6 spec is checked in verbatim (see
+    // .superpowers/sdd/2026-09-06-phase-6-india-portal-adapter/task-2-brief.md): it reads
+    // untyped PRAGMA / count rows as `(... as any).user_version` etc. The test body must
+    // not be restructured away from the brief.
+    files: ['test/automation/discoveryMigrations.test.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 );

@@ -3,6 +3,7 @@ import type { VisaPortal } from '../../../../shared/types';
 import { api } from '../../api/client';
 import { PortalForm } from './PortalForm';
 import { TestConnectionPanel } from './TestConnectionPanel';
+import { IndiaPortalCard } from './IndiaPortalCard';
 
 type Editing = { mode: 'create' } | { mode: 'edit'; portal: VisaPortal } | null;
 
@@ -12,6 +13,8 @@ export function PortalsPage() {
   const [editing, setEditing] = useState<Editing>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const activePortal = portals.find((p) => p.id === activeId) ?? null;
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -125,6 +128,7 @@ export function PortalsPage() {
             Clear active portal
           </button>
           <TestConnectionPanel portalId={activeId} />
+          {activePortal && <IndiaPortalCard portal={activePortal} />}
         </>
       )}
     </section>

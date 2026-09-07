@@ -17,6 +17,11 @@ const schema = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
+  AUTOMATION_HEADLESS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  AUTOMATION_EVIDENCE: z.enum(['off', 'screenshots']).default('off'),
 });
 
 const parsed = schema.parse(process.env);
@@ -28,4 +33,6 @@ export const env = {
   DB_PATH: path.join(dataDir, 'visa-autofill.db'),
   SCREENSHOT_DIR: path.join(dataDir, 'screenshots'),
   DOCUMENTS_DIR: path.join(dataDir, 'documents'),
+  AUTOMATION_DIR: path.join(dataDir, 'automation'),
+  DISCOVERY_PROFILE_DIR: path.join(dataDir, 'discovery', 'profile'),
 };

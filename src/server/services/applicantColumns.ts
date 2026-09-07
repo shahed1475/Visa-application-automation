@@ -13,6 +13,14 @@ export const SECTION_TABLES = {
       placeOfBirth: 'place_of_birth',
       nationality: 'nationality',
       otherNationalities: 'other_nationalities',
+      // Task 5: 5 columns migration 4 added to applicant_identity but never
+      // mapped here — without this, readSection/writeSection could never
+      // reach them, defeating the whole point of the identity extension.
+      religion: 'religion',
+      education: 'education',
+      nationalId: 'national_id',
+      visibleMarks: 'visible_marks',
+      nationalityAtBirth: 'nationality_at_birth',
     },
   },
   passport: {
@@ -40,6 +48,26 @@ export const SECTION_TABLES = {
       region: 'region',
       postalCode: 'postal_code',
       country: 'country',
+    },
+  },
+  family: {
+    table: 'applicant_family',
+    cols: {
+      fatherName: 'father_name', fatherNationality: 'father_nationality',
+      fatherPrevNationality: 'father_prev_nationality', fatherPlaceOfBirth: 'father_place_of_birth',
+      motherName: 'mother_name', motherNationality: 'mother_nationality',
+      motherPrevNationality: 'mother_prev_nationality', motherPlaceOfBirth: 'mother_place_of_birth',
+      maritalStatus: 'marital_status',
+      spouseName: 'spouse_name', spouseNationality: 'spouse_nationality',
+      spousePrevNationality: 'spouse_prev_nationality', spousePlaceOfBirth: 'spouse_place_of_birth',
+      pakistanAncestry: 'pakistan_ancestry',
+    },
+  },
+  occupation: {
+    table: 'applicant_occupation',
+    cols: {
+      occupation: 'occupation', employerName: 'employer_name', employerAddress: 'employer_address',
+      designation: 'designation', militaryPolice: 'military_police',
     },
   },
 } as const;

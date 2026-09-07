@@ -21,9 +21,11 @@ describe('migration 3 — document tables', () => {
   const cols = (t: string) =>
     (db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((r) => r.name);
 
-  it('bumps the schema version to 3', () => {
-    expect(LATEST_SCHEMA_VERSION).toBe(3);
-    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(3);
+  it('bumps the schema version to at least 3', () => {
+    expect(LATEST_SCHEMA_VERSION).toBeGreaterThanOrEqual(3);
+    expect(
+      (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
+    ).toBe(LATEST_SCHEMA_VERSION);
   });
 
   it('creates documents with the expected columns', () => {
@@ -110,7 +112,7 @@ describe('migration 3 — document tables', () => {
     runMigrations(d3);
     expect(
       (d3.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    ).toBe(3);
+    ).toBe(LATEST_SCHEMA_VERSION);
     expect(d3.prepare(`SELECT display_name FROM applicants WHERE id='a1'`).get()).toEqual({
       display_name: 'A',
     });

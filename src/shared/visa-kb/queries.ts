@@ -3,6 +3,7 @@ import type {
   ApplicationMode,
   EligibilityCondition,
   EligibilityRecord,
+  FormSection,
   KnowledgeBase,
   Source,
   VisaCategory,
@@ -33,6 +34,17 @@ export function listCategories(
 
 export function getCategory(id: string, kb: KnowledgeBase = loadKnowledgeBase()): VisaCategory | null {
   return kb.categories.find((c) => c.id === id) ?? null;
+}
+
+export function getFormModel(kb: KnowledgeBase = loadKnowledgeBase()): { sections: FormSection[] } {
+  return { sections: [...kb.formModel.sections] };
+}
+
+export function getFormSection(
+  id: string,
+  kb: KnowledgeBase = loadKnowledgeBase(),
+): FormSection | null {
+  return kb.formModel.sections.find((s) => s.id === id) ?? null;
 }
 
 export function getCategoriesForMode(

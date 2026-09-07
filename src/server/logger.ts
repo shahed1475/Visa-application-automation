@@ -25,6 +25,45 @@ export const REDACT_PATHS = [
   // catches exactly one level deep — deliberate belt-and-suspenders scope.
   'ocrText', 'mrzLine', 'mrzLines', 'extractedFields', 'text', 'lines', 'fields',
   '*.ocrText', '*.mrzLine', '*.mrzLines', '*.extractedFields', '*.text', '*.lines', '*.fields',
+  // Phase 4 — family/occupation
+  'fatherName', 'father_name', 'motherName', 'mother_name', 'spouseName', 'spouse_name',
+  'employerName', 'employer_name', 'employerAddress', 'employer_address',
+  'nationalId', 'national_id', 'visibleMarks', 'visible_marks',
+  'nationalityAtBirth', 'nationality_at_birth',
+  '*.fatherName', '*.father_name', '*.motherName', '*.mother_name',
+  '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
+  '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
+  '*.visibleMarks', '*.visible_marks', '*.nationalityAtBirth', '*.nationality_at_birth',
+  // Phase 4 (review follow-up) — the rest of the sensitive columns migration 4 added.
+  // Religion, education, marital status, the Pakistan-ancestry and military/police
+  // declarations, and every parent/spouse place-of-birth and nationality are all
+  // special-category personal data that Phase 4 now stores; they were missed above.
+  'religion', 'education', 'maritalStatus', 'marital_status',
+  'pakistanAncestry', 'pakistan_ancestry', 'militaryPolice', 'military_police',
+  'fatherPlaceOfBirth', 'father_place_of_birth', 'motherPlaceOfBirth', 'mother_place_of_birth',
+  'spousePlaceOfBirth', 'spouse_place_of_birth',
+  'fatherNationality', 'father_nationality', 'motherNationality', 'mother_nationality',
+  'spouseNationality', 'spouse_nationality',
+  'fatherPrevNationality', 'father_prev_nationality',
+  'motherPrevNationality', 'mother_prev_nationality',
+  'spousePrevNationality', 'spouse_prev_nationality',
+  '*.religion', '*.education', '*.maritalStatus', '*.marital_status',
+  '*.pakistanAncestry', '*.pakistan_ancestry', '*.militaryPolice', '*.military_police',
+  '*.fatherPlaceOfBirth', '*.father_place_of_birth',
+  '*.motherPlaceOfBirth', '*.mother_place_of_birth',
+  '*.spousePlaceOfBirth', '*.spouse_place_of_birth',
+  '*.fatherNationality', '*.father_nationality',
+  '*.motherNationality', '*.mother_nationality',
+  '*.spouseNationality', '*.spouse_nationality',
+  '*.fatherPrevNationality', '*.father_prev_nationality',
+  '*.motherPrevNationality', '*.mother_prev_nationality',
+  '*.spousePrevNationality', '*.spouse_prev_nationality',
+  // Phase 5 — automation
+  // `expected` / `actual` carry the field values compared during verification
+  // (names, dates, passport numbers) per the Phase 5 spec Global Constraints;
+  // `otp` / `captcha` are the challenge secrets. All are censored as whole units.
+  'expected', 'actual', 'otp', 'otpCode', 'otp_code', 'captcha', 'captchaText',
+  '*.expected', '*.actual', '*.otp', '*.otpCode', '*.captcha',
 ];
 
 /**

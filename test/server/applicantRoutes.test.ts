@@ -117,6 +117,49 @@ it('PUT of one section key leaves sibling values and their verified meta intact'
   expect(metaByPath['identity.dateOfBirth']).toBe(true);
 });
 
+it('PUT patches family; GET reflects fatherName and maritalStatus', async () => {
+  const { applicant } = (await create()).json();
+  const put = await app.inject({
+    method: 'PUT',
+    url: `/api/applicants/${applicant.id}`,
+    payload: { family: { fatherName: 'X', maritalStatus: 'married' } },
+  });
+  expect(put.statusCode).toBe(200);
+
+  const get = await app.inject({ method: 'GET', url: `/api/applicants/${applicant.id}` });
+  expect(get.json().applicant.family.fatherName).toBe('X');
+  expect(get.json().applicant.family.maritalStatus).toBe('married');
+});
+
+it('PUT family with a bad maritalStatus enum is 400 VALIDATION_ERROR', async () => {
+  const { applicant } = (await create()).json();
+  const put = await app.inject({
+    method: 'PUT',
+    url: `/api/applicants/${applicant.id}`,
+    payload: { family: { maritalStatus: 'nope' } },
+  });
+  expect(put.statusCode).toBe(400);
+  expect(put.json().error.code).toBe('VALIDATION_ERROR');
+});
+
+it('PUT a partial occupation patch leaves sibling occupation fields null', async () => {
+  const { applicant } = (await create()).json();
+  const put = await app.inject({
+    method: 'PUT',
+    url: `/api/applicants/${applicant.id}`,
+    payload: { occupation: { occupation: 'Engineer' } },
+  });
+  expect(put.statusCode).toBe(200);
+
+  const get = await app.inject({ method: 'GET', url: `/api/applicants/${applicant.id}` });
+  const { occupation } = get.json().applicant;
+  expect(occupation.occupation).toBe('Engineer');
+  expect(occupation.employerName).toBeNull();
+  expect(occupation.employerAddress).toBeNull();
+  expect(occupation.designation).toBeNull();
+  expect(occupation.militaryPolice).toBeNull();
+});
+
 it('GET / PUT / DELETE unknown id is 404 NOT_FOUND', async () => {
   expect((await app.inject({ method: 'GET', url: '/api/applicants/nope' })).statusCode).toBe(404);
   expect((await app.inject({ method: 'PUT', url: '/api/applicants/nope', payload: {} })).statusCode).toBe(404);

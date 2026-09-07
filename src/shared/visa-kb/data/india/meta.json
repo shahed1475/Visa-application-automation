@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 1,
-  "kbVersion": "2026-09-03",
+  "schemaVersion": 2,
+  "kbVersion": "2026-09-06",
   "destination": "IND",
-  "revisionDate": "2026-09-03",
-  "notes": "Initial India visa knowledge base for Bangladesh nationals."
+  "revisionDate": "2026-09-06",
+  "notes": "India visa knowledge base for Bangladesh nationals. 2026-09-06 revision: every form-model.json source.confidence corrected from official_derived to secondary_guidance (the file was authored from the well-known form structure, not a retrieved form document — see SOURCES.md), and the synthetic references.india_references_min field removed from form-model.json so the engine's FieldRule-driven path is its sole producer. e-Visa category/eligibility confidences are unchanged."
 }

@@ -42,6 +42,43 @@ const PHASE_3_MUST_INCLUDE = [
   '*.fields',
 ];
 
+const PHASE_4_MUST_INCLUDE = [
+  'fatherName', 'father_name', 'motherName', 'mother_name', 'spouseName', 'spouse_name',
+  'employerName', 'employer_name', 'employerAddress', 'employer_address',
+  'nationalId', 'national_id', 'visibleMarks', 'visible_marks',
+  'nationalityAtBirth', 'nationality_at_birth',
+  '*.fatherName', '*.father_name', '*.motherName', '*.mother_name',
+  '*.spouseName', '*.spouse_name', '*.employerName', '*.employer_name',
+  '*.employerAddress', '*.employer_address', '*.nationalId', '*.national_id',
+  '*.visibleMarks', '*.visible_marks', '*.nationalityAtBirth', '*.nationality_at_birth',
+  // review follow-up: the remaining sensitive columns migration 4 added
+  'religion', 'education', 'maritalStatus', 'marital_status',
+  'pakistanAncestry', 'pakistan_ancestry', 'militaryPolice', 'military_police',
+  'fatherPlaceOfBirth', 'father_place_of_birth', 'motherPlaceOfBirth', 'mother_place_of_birth',
+  'spousePlaceOfBirth', 'spouse_place_of_birth',
+  'fatherNationality', 'father_nationality', 'motherNationality', 'mother_nationality',
+  'spouseNationality', 'spouse_nationality',
+  'fatherPrevNationality', 'father_prev_nationality',
+  'motherPrevNationality', 'mother_prev_nationality',
+  'spousePrevNationality', 'spouse_prev_nationality',
+  '*.religion', '*.education', '*.maritalStatus', '*.marital_status',
+  '*.pakistanAncestry', '*.pakistan_ancestry', '*.militaryPolice', '*.military_police',
+  '*.fatherPlaceOfBirth', '*.father_place_of_birth',
+  '*.motherPlaceOfBirth', '*.mother_place_of_birth',
+  '*.spousePlaceOfBirth', '*.spouse_place_of_birth',
+  '*.fatherNationality', '*.father_nationality',
+  '*.motherNationality', '*.mother_nationality',
+  '*.spouseNationality', '*.spouse_nationality',
+  '*.fatherPrevNationality', '*.father_prev_nationality',
+  '*.motherPrevNationality', '*.mother_prev_nationality',
+  '*.spousePrevNationality', '*.spouse_prev_nationality',
+];
+
+const PHASE_5_MUST_INCLUDE = [
+  'expected', 'actual', 'otp', 'otpCode', 'captcha',
+  '*.expected', '*.actual', '*.otp', '*.captcha',
+];
+
 it('redacts every applicant PII key we care about', () => {
   for (const key of MUST_INCLUDE) {
     expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
@@ -50,6 +87,18 @@ it('redacts every applicant PII key we care about', () => {
 
 it('redacts every document-extraction PII key we care about', () => {
   for (const key of PHASE_3_MUST_INCLUDE) {
+    expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
+  }
+});
+
+it('redacts every family/occupation PII key we care about', () => {
+  for (const key of PHASE_4_MUST_INCLUDE) {
+    expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
+  }
+});
+
+it('redacts every automation PII key we care about', () => {
+  for (const key of PHASE_5_MUST_INCLUDE) {
     expect(REDACT_PATHS, `REDACT_PATHS should contain ${key}`).toContain(key);
   }
 });

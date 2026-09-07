@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Previous Visits to India</title></head><body>
+<h1>Previous Visits to India</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<fieldset>
+<legend>Have you visited India before?</legend>
+<input type="radio" name="visited-before" value="yes" id="visited-india-before-yes">
+<label for="visited-india-before-yes">Yes</label>
+<input type="radio" name="visited-before" value="no" id="visited-india-before-no">
+<label for="visited-india-before-no">No</label>
+</fieldset>
+<label for="last-visit-address">Address during last visit</label><input id="last-visit-address" type="text">
+<a class="next" href="/review">Save &amp; Continue</a>
+</body></html>

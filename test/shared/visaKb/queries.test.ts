@@ -5,28 +5,46 @@ import {
   getCategoriesForMode,
   getCategory,
   getDocumentRequirements,
+  getFormModel,
+  getFormSection,
   getVersion,
   listCategories,
   listEligibleCategories,
   validateCombination,
 } from '../../../src/shared/visa-kb/queries.js';
 
-const src = { officialUrl: 'https://indianvisaonline.gov.in/evisa/', retrievedAt: '2026-09-02' };
+const src = {
+  officialUrl: 'https://indianvisaonline.gov.in/evisa/', retrievedAt: '2026-09-02', confidence: 'secondary_guidance',
+};
 const base = {
   subCategory: null, officialCode: null, purpose: ['recreation'],
   validity: { amount: 1, unit: 'years', from: 'eta_grant' }, entries: 'multiple',
   stayLimitations: {}, extendable: false, convertible: false, applicationTiming: {},
   travelRequirements: {}, requiredDocuments: [], optionalDocuments: [],
+  conditionalDocuments: [], formRules: { applicableSections: [], fieldRules: [] },
   specialConditions: [], restrictions: [], source: src, lastVerified: '2026-09-02',
 };
+const formModel = {
+  sections: [
+    {
+      id: 'personal_particulars', label: 'Personal particulars',
+      fields: [{
+        id: 'standard_personal_block', label: 'Standard personal particulars',
+        appliesTo: null, dataType: 'text', standardBlock: true, source: src,
+      }],
+      source: src,
+    },
+  ],
+};
 const KB = parseKnowledgeBase({
-  meta: { schemaVersion: 1, kbVersion: '2026-09-02', destination: 'IND', revisionDate: '2026-09-02' },
+  meta: { schemaVersion: 2, kbVersion: '2026-09-02', destination: 'IND', revisionDate: '2026-09-02' },
   categories: [
     { ...base, id: 'evisa.tourist.30d', applicationMode: 'evisa', category: 'tourist', displayName: 'e-Tourist 30d' },
     { ...base, id: 'evisa.business', applicationMode: 'evisa', category: 'business', displayName: 'e-Business' },
     { ...base, id: 'regular.tourist', applicationMode: 'regular', category: 'tourist', displayName: 'Tourist (paper)' },
   ],
   eligibility: [],
+  formModel,
 });
 
 afterEach(() => reload());
@@ -34,7 +52,7 @@ afterEach(() => reload());
 describe('getVersion', () => {
   it('returns the meta version fields', () => {
     expect(getVersion(KB)).toEqual({
-      schemaVersion: 1, kbVersion: '2026-09-02', revisionDate: '2026-09-02', destination: 'IND',
+      schemaVersion: 2, kbVersion: '2026-09-02', revisionDate: '2026-09-02', destination: 'IND',
     });
   });
 });
@@ -70,7 +88,8 @@ describe('application-mode filtering', () => {
 });
 
 const KB2 = parseKnowledgeBase({
-  meta: { schemaVersion: 1, kbVersion: '2026-09-02', destination: 'IND', revisionDate: '2026-09-02' },
+  meta: { schemaVersion: 2, kbVersion: '2026-09-02', destination: 'IND', revisionDate: '2026-09-02' },
+  formModel,
   categories: [
     { ...base, id: 'evisa.tourist.30d', applicationMode: 'evisa', category: 'tourist', displayName: 'e-Tourist 30d',
       requiredDocuments: [{ id: 'passport_bio_page', label: 'Passport bio page' }, { id: 'photo', label: 'Photo' }],
@@ -98,9 +117,10 @@ describe('nationality eligibility', () => {
     const r = checkEligibility('BGD', 'regular', 'regular.employment', KB2); // exists
     expect(r.status).toBe('conditional');
     const missing = checkEligibility('BGD', 'evisa', 'evisa.tourist.30d', parseKnowledgeBase({
-      meta: { schemaVersion: 1, kbVersion: 'x', destination: 'IND', revisionDate: '2026-09-02' },
+      meta: { schemaVersion: 2, kbVersion: 'x', destination: 'IND', revisionDate: '2026-09-02' },
       categories: [{ ...base, id: 'evisa.tourist.30d', applicationMode: 'evisa', category: 'tourist', displayName: 'x' }],
       eligibility: [],
+      formModel,
     }));
     expect(missing.status).toBe('unknown');
     if (missing.status === 'unknown') expect(missing.reason).toMatch(/no eligibility rule/i);
@@ -144,9 +164,10 @@ describe('invalid category combinations', () => {
   });
   it('NO_ELIGIBILITY_RULE when a nationality is given but no record exists', () => {
     const kbNoElig = parseKnowledgeBase({
-      meta: { schemaVersion: 1, kbVersion: 'x', destination: 'IND', revisionDate: '2026-09-02' },
+      meta: { schemaVersion: 2, kbVersion: 'x', destination: 'IND', revisionDate: '2026-09-02' },
       categories: [{ ...base, id: 'evisa.tourist.30d', applicationMode: 'evisa', category: 'tourist', displayName: 'x' }],
       eligibility: [],
+      formModel,
     });
     expect(validateCombination({ nationality: 'BGD', applicationMode: 'evisa', categoryId: 'evisa.tourist.30d' }, kbNoElig))
       .toMatchObject({ valid: false, code: 'NO_ELIGIBILITY_RULE' });
@@ -171,6 +192,17 @@ describe('invalid category combinations', () => {
     expect(withNat.valid).toBe(false);
     expect(withoutNat.valid).toBe(true);
     expect(withoutNat.valid === true && withoutNat.eligibilityChecked).toBe(false);
+  });
+});
+
+describe('form model queries', () => {
+  it('getFormModel returns the section catalog', () => {
+    const m = getFormModel(KB);
+    expect(m.sections.map((s) => s.id)).toEqual(['personal_particulars']);
+  });
+  it('getFormSection finds a section by id or returns null', () => {
+    expect(getFormSection('personal_particulars', KB)?.label).toBe('Personal particulars');
+    expect(getFormSection('nope', KB)).toBeNull();
   });
 });
 

@@ -14,11 +14,16 @@ import { runMigrations } from './db/migrations.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerPortalRoutes } from './routes/portals.js';
 import { registerApplicantRoutes } from './routes/applicants.js';
+import { registerApplicationRoutes } from './routes/applications.js';
+import { registerAutomationRoutes } from './routes/automation.js';
+import { registerDiscoveryRoutes } from './routes/discovery.js';
 import { registerDocumentRoutes } from './routes/documents.js';
 import { errorBody, notFoundError } from './routes/errors.js';
 import { createTesseractEngine } from './documents/tesseractEngine.js';
 import { MAX_DOCUMENT_BYTES } from './documents/fileType.js';
 import type { OcrEngine } from './documents/ocrEngine.js';
+import { AutomationService } from './automation/automationService.js';
+import { DiscoveryController } from './automation/discovery/discoveryController.js';
 
 export interface BuildServerOptions {
   dbPath: string;
@@ -27,6 +32,10 @@ export interface BuildServerOptions {
   loggerInstance?: FastifyBaseLogger;
   /** Test seam: swap the OCR engine. Production uses a real tesseract.js engine. */
   ocr?: OcrEngine;
+  /** Test seam: swap the automation service. Production uses a real one. */
+  automation?: AutomationService;
+  /** Test seam: swap the discovery controller. Production uses a real one. */
+  discovery?: DiscoveryController;
 }
 
 export async function buildServer(
@@ -78,6 +87,22 @@ export async function buildServer(
   await registerHealthRoutes(app);
   await registerPortalRoutes(app);
   await registerApplicantRoutes(app);
+  await registerApplicationRoutes(app);
+
+  const automation = opts.automation ?? new AutomationService();
+  app.decorate('automation', automation);
+  app.addHook('onClose', async () => {
+    await automation.dispose().catch(() => undefined);
+  });
+  await registerAutomationRoutes(app);
+
+  const discovery = opts.discovery ?? new DiscoveryController();
+  app.decorate('discovery', discovery);
+  app.addHook('onClose', async () => {
+    await discovery.dispose().catch(() => undefined);
+  });
+  await registerDiscoveryRoutes(app);
+
   await app.register(multipart, {
     // Signal an oversize file via `file.truncated` (→ route returns a sanitized
     // 400) rather than letting the plugin throw its own 413.

@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Documents</title></head><body>
+<h1>Documents</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<input type="checkbox" id="doc-invitation"><label for="doc-invitation">I have attached the invitation letter</label>
+<label for="doc-file">Upload document</label><input type="file" id="doc-file">
+<a class="next" href="/challenge">Save &amp; Continue</a>
+</body></html>

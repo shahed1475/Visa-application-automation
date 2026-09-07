@@ -160,6 +160,80 @@ delete; the React `/documents` pages are the per-field review-and-verify UI. OCR
 is text-from-pixels only — `td3.ts` is the sole authority for a valid MRZ — and no
 extraction path writes `verified = 1`. See `docs/PHASE-3-REPORT.md`.
 
+**Phase 4 (India visa application builder):** `src/shared/application/` is the pure
+plan engine — a condition evaluator, an eligibility evaluator, form-rule and
+document-rule resolvers, and `buildApplicationPlan(input) → ApplicationPlan`
+(sections / fields / documents / eligibility / `missing` / verification rollup / a
+five-condition `readyForAutomation` gate). It imports no `node:*`, no `fastify`, no
+`react`/router, no `better-sqlite3`, never reaches into `../server`, and never reads
+`process.env` — `test/shared/application/enginePurity.test.ts` greps the source and
+fails the build otherwise. India-specific form rules live only in
+`src/shared/visa-kb/` KB v2 (`schemaVersion: 2` — a form model plus per-category
+`formRules` / `conditionalDocuments`); the engine, `applicationService`,
+`routes/applications.ts` and the dashboard carry no KB category-id literal, asserted
+by `test/shared/application/architectureGuard.test.ts`. Every rule the plan surfaces
+carries a `source` (official URL + `retrievedAt` + `confidence`);
+`test/shared/application/provenanceGuard.test.ts` builds a plan for every category
+and fails on any empty source. Migration 4 adds `applicant_family`,
+`applicant_occupation`, `visa_applications`, `application_field_values` and five
+`applicant_identity` columns; `src/server/services/applicationService.ts` holds
+persistence and plan assembly (pinning `kb_version` per application, recomputing
+`draft ↔ ready` from the plan), and `src/server/routes/applications.ts` is the thin
+HTTP layer. The React `/applications/:id` dashboard is a verification/preparation
+view only — its "Start automation (Phase 5)" control is rendered disabled and inert
+with no handler; there is no portal automation, form fill or submission anywhere in
+this phase. See `docs/PHASE-4-REPORT.md`.
+
+**Phase 5 (India visa browser automation):** `src/shared/automation/` is the pure
+core — a run state machine (`RunStatus`, `LEGAL_TRANSITIONS`, terminal set
+`review_ready` / `failed` / `aborted`), a closed 36-literal event vocabulary with
+fixed non-interpolated messages, and a pure `mapFields` `FieldPlan → portal-control`
+mapper; `test/automation/architectureGuard.test.ts` greps the source and fails on a
+`node:` / `playwright` / `fastify` / `react` / `../server/` import. `src/server/automation/`
+holds the Playwright half — condition-based control primitives (no `waitForTimeout`),
+fill + read-back verification, page detection with a 0.6 confidence floor,
+detect-only OTP/CAPTCHA/MFA/anti-bot checkpoint detection, the run loop, the
+`AutomationService` + background runner, and the seven `/api/automation-runs`
+endpoints. The engine never imports a concrete adapter — it reaches a portal only
+through a `PortalAdapter` (resolved from the active portal URL via a registry); India
+selectors live only under `adapters/india/` and ship as the literal string
+`'TODO:discover'` (real discovery is user-driven, see `docs/portals/india.md`), both
+asserted by guard tests. Migration 5 adds `automation_runs` + `automation_events`.
+The loop stops at `review_ready` and has **no submit path** — enforced four ways
+(`PortalAdapter.submitSelector` typed `readonly null`; a structural `return` before
+any submit action; a source-grep guard test; `submitCount === 0` across every
+fixture E2E). OTP / CAPTCHA / MFA / anti-bot are **human checkpoints** — the run
+pauses, foregrounds the browser, and waits for `POST /resume`; nothing is solved or
+bypassed. No field value is ever stored or logged. The engine is proven end-to-end
+against a local fixture portal; no run has touched a real India portal. See
+`docs/PHASE-5-REPORT.md`.
+
+**Phase 6 (real India portal adapter + live discovery + controlled autofill):**
+`src/server/automation/discovery/` adds a **read-only** live-discovery layer — a
+headed persistent Chromium context the operator drives, `captureDiscoveryV2` (the
+Phase 5 DOM observer extended with headings, radio/checkbox groups, enumerated
+buttons, nav-candidates, required indicators and `<select>` option labels), a
+hardened PII sanitizer that never reads an input `.value`, and a `DiscoveryController`
+whose only `page.goto` is the configured portal URL; migration 6 persists **page
+structure only** (`portal_discovery_sessions` / `portal_discovery_pages`, zero
+applicant values, `url_pattern` masks id/token segments) and drops the
+`automation_runs.waiting_reason` CHECK. `adapters/india/indiaPortalMap.ts` gains a
+per-mapping lifecycle — `placeholder → discovered → validated` — where a
+non-placeholder selector without a recorded `discoverySessionRef` is a build
+failure (the provenance guard), `discovered` needs that ref and `validated` also
+needs a `validatedAt` from `validateIndiaAdapter`; `promoteCandidate` renders a
+paste-ready map edit but the app never auto-writes adapter source. `indiaAdapter`
+identity is now URL + heading + anchor scored against the 0.6 floor. A **runtime**
+ToS gate (`discovery/policyGate.ts`) refuses discovery and `startRun` for a real
+India host until an operator acknowledgement row exists. The one generic engine
+addition is **value-conflict**: a pre-fill classifier pauses `value_conflict` when
+the portal already holds a different non-empty value, and `POST /resume {decision}`
+carries the operator's Use-application / Keep-portal choice (the `{expected, actual}`
+pair stays in-memory `/live` only; a crash-recovery resume defaults to `keep_portal`,
+never blind-overwrite). Real-portal work (Tests A–G) is an operator runbook in
+`docs/portals/india.md` behind `INDIA_LIVE=1`, never in CI; the engine remains
+fixture-proven and still has **no submit path**. See `docs/PHASE-6-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live
@@ -237,6 +311,23 @@ and `src/shared/applicant/` hold that domain, and per-field provenance
 (`source` / `confidence` / `raw_value` / `verified`) lives in `applicant_field_meta`,
 keyed by `(applicant_id, field_path)` and kept separate from the canonical data in
 the section tables. See `docs/PHASE-2-REPORT.md`.
+
+**Phase 4:** migration 4 (`LATEST_SCHEMA_VERSION → 4`) adds `applicant_family` and
+`applicant_occupation` (1:1 profile sections) plus five `applicant_identity`
+columns, and the per-application pair `visa_applications` (one applicant → many;
+pins `kb_version`) + `application_field_values` (`application.*` values +
+verification, `UNIQUE(application_id, field_path)`, both `ON DELETE CASCADE`). No
+profile data is copied into either application table. See `docs/PHASE-4-REPORT.md`.
+
+**Phase 5:** migration 5 (`LATEST_SCHEMA_VERSION → 5`) adds `automation_runs`
+(one `visa_applications` row → many; `status` CHECK excludes any `completed` /
+`submitted` value; `waiting_reason` CHECK; required-only progress counters;
+sanitized `error_code` / `error_message`) + `automation_events` (`run_id`
+`ON DELETE CASCADE`, `UNIQUE(run_id, seq)`, `type` from the closed vocabulary,
+`field_path` is the canonical `appliesTo` identifier and `message` from the fixed
+`EVENT_MESSAGES` set — **neither table has a column for a field value**). An
+optional relative `evidence_path` (screenshots, off by default, under a gitignored
+`data/automation/`) is the only file reference. See `docs/PHASE-5-REPORT.md`.
 
 ---
 

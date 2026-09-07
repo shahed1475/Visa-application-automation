@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Real, JSON-backed visa-kb (nothing to mock) — mirrors ApplicationsSubsection.test.tsx.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ApplicationDashboardPage } from '../../src/web/src/pages/Applications/ApplicationDashboardPage';
 import type { ApplicationPlan, VisaApplication } from '../../src/shared/application/types';
@@ -247,8 +247,14 @@ it('an application-scoped field input calls setApplicationFieldValue', async () 
   const api = await client();
   renderAt();
   await waitFor(() => expect(screen.getByLabelText('India company name')).toBeTruthy());
-  fireEvent.change(screen.getByLabelText('India company name'), { target: { value: 'Acme India Pvt Ltd' } });
-  fireEvent.click(screen.getByRole('button', { name: /save field/i }));
+  const input = screen.getByLabelText('India company name') as HTMLInputElement;
+  await act(async () => {
+    fireEvent.change(input, { target: { value: 'Acme India Pvt Ltd' } });
+  });
+  await waitFor(() => expect(input.value).toBe('Acme India Pvt Ltd'));
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /save field/i }));
+  });
   await waitFor(() =>
     expect(api.setApplicationFieldValue).toHaveBeenCalledWith('app1', {
       fieldPath: 'application.indiaCompanyName',

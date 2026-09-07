@@ -219,7 +219,7 @@ export function AutomationRunPage() {
       </p>
 
       <AdapterProvenance diagnostics={diagnostics} />
-      <StaleMappingWarning diagnostics={diagnostics} />
+      {nonTerminal && <StaleMappingWarning diagnostics={diagnostics} />}
 
       {loadError && (
         <p className="error" role="alert">

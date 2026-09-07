@@ -15,7 +15,7 @@ import type { PageInspection } from './pageInspector.js';
 import { detectCheckpoint, type CheckpointKind } from './checkpointDetector.js';
 import { OptionNotFoundError, SelectorNotFoundError } from './pageActions.js';
 import { mapFields } from '../../../shared/automation/fieldMapping.js';
-import { UNKNOWN_STATE } from '../../../shared/automation/types.js';
+import { SESSION_EXPIRED_STATE, UNKNOWN_STATE } from '../../../shared/automation/types.js';
 import type {
   AutomationRunRow,
   ConflictDecision,
@@ -77,6 +77,8 @@ export interface EngineContext {
     outcome: VerificationOutcome;
     alreadySet: boolean;
     usedFallback: boolean;
+    /** The selector `applyField` acted on — used for the post-fill read-back. */
+    selector: string;
   }>;
   readControl: (page: Page, selector: string, control: ControlKind) => Promise<string | null>;
   /**
@@ -177,6 +179,13 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
       return { kind: 'waiting', reason: 'unknown_page' };
     }
 
+    // A session-expired / login-redirect page → its own safe stop, so the
+    // operator is told to sign in again rather than just "unrecognised page".
+    if (state === SESSION_EXPIRED_STATE) {
+      await ctx.emit({ type: 'SESSION_EXPIRED', portalState: state });
+      return { kind: 'waiting', reason: 'session_expired' };
+    }
+
     // §5.1 — unknown / low-confidence page → pause.
     if (state === UNKNOWN_STATE) {
       await ctx.emit({ type: 'UNKNOWN_PORTAL_STATE', portalState: state });
@@ -236,7 +245,15 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
       if (pre === 'conflict') {
         const decision = ctx.conflictDecisions.get(m.fieldPath) ?? ctx.defaultConflictDecision;
         if (decision === undefined) {
-          const actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
+          // Best-effort read for the in-memory /live pair; a detached primary
+          // (fallback was used at classify time) must not turn the pause into a
+          // hard error.
+          let actual: string | null = null;
+          try {
+            actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
+          } catch {
+            actual = '(unreadable)';
+          }
           ctx.recordMismatch({
             fieldPath: m.fieldPath,
             expected: m.expected ?? '',
@@ -260,6 +277,7 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
         outcome: VerificationOutcome;
         alreadySet: boolean;
         usedFallback: boolean;
+        selector: string;
       };
       try {
         r = await ctx.applyField(ctx.page, m);
@@ -304,7 +322,15 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
         continue;
       }
       if (r.outcome === 'mismatch') {
-        const actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
+        // Read back through the selector `applyField` actually used — a stale
+        // primary + a configured fallback would otherwise miss here and turn a
+        // review-pause into a terminal engine error.
+        let actual: string | null = null;
+        try {
+          actual = await ctx.readControl(ctx.page, r.selector, m.spec.control);
+        } catch {
+          actual = '(unreadable)';
+        }
         ctx.recordMismatch({
           fieldPath: m.fieldPath,
           expected: m.expected ?? '',

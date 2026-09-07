@@ -8,6 +8,7 @@ import {
   type MappingStatus,
 } from '../../../src/server/automation/adapters/india/indiaPortalMap.js';
 import {
+  SESSION_EXPIRED_STATE,
   UNKNOWN_STATE,
   type ControlKind,
   type PageIdentity,
@@ -220,9 +221,9 @@ export function makeFixtureIndiaAdapter(
           : '';
       if (/session expired/i.test(heading ?? '')) {
         return {
-          state: UNKNOWN_STATE,
-          confidence: 0,
-          signals: [{ kind: 'heading', matched: false, detail: 'session expired' }],
+          state: SESSION_EXPIRED_STATE,
+          confidence: 1,
+          signals: [{ kind: 'heading', matched: true, detail: 'session expired' }],
         };
       }
       const pathname = new URL(page.url()).pathname;

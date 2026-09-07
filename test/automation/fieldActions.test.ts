@@ -82,6 +82,7 @@ describe('fieldActions', () => {
       outcome: 'verified',
       alreadySet: false,
       usedFallback: false,
+      selector: '#t',
     });
   });
 
@@ -92,6 +93,7 @@ describe('fieldActions', () => {
       alreadySet: true,
       outcome: 'verified',
       usedFallback: false,
+      selector: '#t',
     });
   });
 
@@ -105,6 +107,7 @@ describe('fieldActions', () => {
     };
     const r = await applyField(page, m);
     expect(r.usedFallback).toBe(true);
+    expect(r.selector).toBe('#t'); // the RESOLVED selector, for the engine's read-back
     expect(r.outcome).toBe('verified');
     expect(await page.locator('#t').inputValue()).toBe('RANA');
   });

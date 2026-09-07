@@ -9,6 +9,7 @@ import {
   fillText,
   readControl,
   resolveSelector,
+  SelectorNotFoundError,
   selectCustom,
   selectNative,
   setCheckbox,
@@ -116,8 +117,13 @@ export async function classifyPreFill(
     const { selector } = await resolveSelector(page, spec);
     rspec = { ...spec, selector };
     actual = await readControl(page, selector, spec.control);
-  } catch {
-    return 'empty';
+  } catch (e) {
+    // ONLY "the control isn't on the page" is defer-to-applyField territory.
+    // Any other fault (a navigation error mid-read, an unexpected Playwright
+    // failure) must surface — the engine treats a classifyPreFill throw as a
+    // hard error, which for an unexpected fault is the safer outcome.
+    if (e instanceof SelectorNotFoundError) return 'empty';
+    throw e;
   }
   if (actual === null || norm(actual) === '') return 'empty';
 
@@ -185,13 +191,16 @@ async function writeControl(page: Page, spec: PortalFieldSpec, expected: string)
  *
  * 1. Resolve the selector (primary, else the configured `fallbackSelector`); a
  *    `SelectorNotFoundError` propagates to the engine. `usedFallback` is
- *    returned so the engine can emit `SELECTOR_STALE`.
+ *    returned so the engine can emit `SELECTOR_STALE`, and the RESOLVED
+ *    `selector` is returned so the engine's post-fill read-back uses the same
+ *    control (not a detached primary).
  * 2. Read the current value. If it already equals `expected` ->
- *    `{ filled: false, outcome: 'verified', alreadySet: true, usedFallback }`.
+ *    `{ filled: false, outcome: 'verified', alreadySet: true, … }`.
  * 3. Otherwise write via the control's writer, then `verifyControl`.
  * 4. On `'mismatch'`, re-run the writer exactly once and verify again.
  *
- * Returns only an outcome enum + booleans — never the value read or written.
+ * Returns only an outcome enum + booleans + the resolved selector — never the
+ * value read or written.
  */
 export async function applyField(
   page: Page,
@@ -201,6 +210,8 @@ export async function applyField(
   outcome: VerificationOutcome;
   alreadySet: boolean;
   usedFallback: boolean;
+  /** The selector `applyField` actually acted on (primary or configured fallback). */
+  selector: string;
 }> {
   if (m.spec === null || !m.present || m.expected === null) {
     throw new Error(
@@ -213,7 +224,7 @@ export async function applyField(
 
   const current = await readControl(page, spec.selector, spec.control);
   if (current !== null && norm(current) === norm(expected)) {
-    return { filled: false, outcome: 'verified', alreadySet: true, usedFallback };
+    return { filled: false, outcome: 'verified', alreadySet: true, usedFallback, selector };
   }
 
   await writeControl(page, spec, expected);
@@ -222,5 +233,5 @@ export async function applyField(
     await writeControl(page, spec, expected);
     outcome = await verifyControl(page, spec, expected);
   }
-  return { filled: true, outcome, alreadySet: false, usedFallback };
+  return { filled: true, outcome, alreadySet: false, usedFallback, selector };
 }

@@ -174,6 +174,7 @@ interface CtxOpts {
     outcome: VerificationOutcome;
     alreadySet: boolean;
     usedFallback?: boolean;
+    selector?: string;
   };
   readControlValue?: string | null;
   initialVerifiedCount?: number;
@@ -211,13 +212,15 @@ function makeCtx(o: CtxOpts) {
     detectPage: detectPageReal,
     applyField: async (_page, m) => {
       applyFieldCalls.push(m.fieldPath);
+      const resolvedSelector = m.spec?.selector ?? '';
       return o.applyFieldFn
-        ? { usedFallback: false, ...o.applyFieldFn(m) }
+        ? { usedFallback: false, selector: resolvedSelector, ...o.applyFieldFn(m) }
         : {
             filled: true,
             outcome: 'verified' as VerificationOutcome,
             alreadySet: false,
             usedFallback: false,
+            selector: resolvedSelector,
           };
     },
     readControl: async () => (o.readControlValue === undefined ? null : o.readControlValue),

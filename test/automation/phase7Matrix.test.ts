@@ -332,7 +332,7 @@ describe('phase 7 matrix (real engine + headless chromium + fixture v3)', () => 
     assertNoSubmit(evs);
   }, 40000);
 
-  it('9. a session-expired page → unknown_page safe stop, no fields touched', async () => {
+  it('9. a session-expired page → session_expired safe stop, no fields touched', async () => {
     await build({
       plan: makePlan([section('personal_particulars', [f('personal_particulars', 'identity.surname', 'RANA')])], 1),
       adapter: { entryPath: '/personal?session=expired' },
@@ -342,12 +342,49 @@ describe('phase 7 matrix (real engine + headless chromium + fixture v3)', () => 
 
     const run = await getRun(id);
     expect(run.status).toBe('waiting_for_user');
-    expect(run.waiting_reason).toBe('unknown_page');
+    expect(run.waiting_reason).toBe('session_expired');
     const evs = await getEvents(id);
-    expect(types(evs)).toContain('UNKNOWN_PORTAL_STATE');
+    expect(types(evs)).toContain('SESSION_EXPIRED');
     expect(types(evs)).not.toContain('FIELD_FILL_STARTED');
     assertNoSubmit(evs);
   });
+
+  it('11. a fallback selector resolves but verification fails → value_mismatch pause (NOT a terminal engine error)', async () => {
+    // identity.surname primary is renamed away by ?selector=fallback; the
+    // configured fallback here is the self-mutating #surname-bad, so the fill
+    // never reads back as expected. The run must PAUSE for review, not die.
+    const mismatchMap: LifecycleMap = {
+      mappingRevision: FIXTURE_INDIA_PORTAL_MAP_V3.mappingRevision,
+      fields: {
+        'identity.surname': {
+          selector: '#surname',
+          fallbackSelector: '#surname-bad',
+          control: 'text',
+          selectorConfidence: 'stable',
+          status: 'validated',
+          discoverySessionRef: 'fixture',
+          validatedAt: '2026-09-06T00:00:00.000Z',
+          validatedAgainstRevision: FIXTURE_INDIA_PORTAL_MAP_V3.mappingRevision,
+        },
+      },
+    };
+    await build({
+      plan: makePlan([section('personal_particulars', [f('personal_particulars', 'identity.surname', 'RANA')])], 1),
+      adapter: { entryPath: '/personal?selector=fallback' },
+      lifecycleMap: mismatchMap,
+    });
+    const id = await startRun();
+    await settles(id);
+
+    const run = await getRun(id);
+    expect(run.status).toBe('waiting_for_user');
+    expect(run.waiting_reason).toBe('value_mismatch');
+    const evs = await getEvents(id);
+    expect(types(evs)).toContain('SELECTOR_STALE');
+    expect(types(evs)).toContain('FIELD_MISMATCH');
+    expect(types(evs)).not.toContain('RUN_FAILED');
+    assertNoSubmit(evs);
+  }, 40000);
 
   it('10. a CAPTCHA checkpoint pauses with reason captcha', async () => {
     await build({ plan: makePlan(productionSections(), 12), adapter: { entryPath: '/challenge?challenge=captcha' } });

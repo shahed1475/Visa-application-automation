@@ -15,14 +15,16 @@ export class SelectorNotFoundError extends Error {
 
 /**
  * Thrown when a dropdown / autocomplete has no option whose visible text
- * matches the requested value.
+ * matches the requested value. The requested value is kept as a field for
+ * callers but deliberately NOT put in `.message` — it is plan-derived and the
+ * message can end up in generic error logging (defence in depth).
  */
 export class OptionNotFoundError extends Error {
   constructor(
     readonly selector: string,
     readonly optionText: string,
   ) {
-    super(`option "${optionText}" not found for ${selector}`);
+    super(`the "${selector}" control has no option matching the requested value`);
     this.name = 'OptionNotFoundError';
   }
 }

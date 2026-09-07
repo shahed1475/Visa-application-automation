@@ -11,7 +11,10 @@ import {
   indiaPortalMap,
   type IndiaPortalMap,
 } from '../../src/server/automation/adapters/india/indiaPortalMap.js';
-import { FIXTURE_INDIA_PORTAL_MAP_V2 } from './support/fixtureIndiaAdapter.js';
+import {
+  FIXTURE_INDIA_PORTAL_MAP_V2,
+  FIXTURE_INDIA_PORTAL_MAP_V3,
+} from './support/fixtureIndiaAdapter.js';
 
 // A value-shaped option label. The sanitizer (§5.3) must reduce it to '' so it
 // never lands in the report.
@@ -235,6 +238,23 @@ describe('validateAdapterAgainstPage', () => {
       expect(f, f.fieldPath).toMatchObject({ resolvable: true, controlMatches: true });
     }
     expect(report.states.length).toBeGreaterThan(0);
+    for (const s of report.states) {
+      expect(s.nextResolvable, s.state).toBe(true);
+    }
+    expect(report.ok).toBe(true);
+  });
+
+  it('runs green against the populated fixture map v3 (structure unchanged from v2; transforms/stamps ignored by the validator)', async () => {
+    const page = await browser.newPage();
+    await page.goto(`${fixture.url}/all`, { waitUntil: 'domcontentloaded' });
+
+    const report = await validateAdapterAgainstPage(page, FIXTURE_INDIA_PORTAL_MAP_V3);
+    await page.close();
+
+    expect(report.fields.length).toBeGreaterThanOrEqual(13);
+    for (const f of report.fields) {
+      expect(f, f.fieldPath).toMatchObject({ resolvable: true, controlMatches: true });
+    }
     for (const s of report.states) {
       expect(s.nextResolvable, s.state).toBe(true);
     }

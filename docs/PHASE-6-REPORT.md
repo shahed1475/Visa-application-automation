@@ -1,22 +1,25 @@
 # Phase 6 — Real India Visa Portal Adapter + Live Discovery + Controlled Autofill — end-of-phase report
 
 **Status:** Complete on **Track A** (fixture-proven infrastructure + operator
-runbook). Gate green. **Track B** (the live discovery session against the real
-portal — spec §10, Tests A–G) is **NOT ATTEMPTED — deferred**: it requires the
-operator present plus an authenticated ToS review clearing the portal, and the
-ToS verdict is `UNCLEAR` (`ivacbd.com` treated as `PROHIBITED` pending that
-review). The whole-branch opus review (spec §13.28, second half) is **PENDING**.
+runbook). Gate green. The **whole-branch opus review** (spec §13.28, second half)
+is **DONE** — verdict *READY TO MERGE WITH FIXES*; the must-fix wave (1 Critical
++ 6 Important) landed at `b55202a`/`7799a65`. **Track B** (the live discovery
+session against the real portal — spec §10, Tests A–G) is **NOT ATTEMPTED —
+deferred**: it requires the operator present plus an authenticated ToS review
+clearing the portal, and the ToS verdict is `UNCLEAR` (`ivacbd.com` treated as
+`PROHIBITED` pending that review).
 **Branch:** `phase-6-india-portal-adapter` (cut from `phase-5-browser-automation`
 at `d61468b`; Phases 0–5 already on `origin`).
 **Range:** spec `e5e89cf`, plan `359d6e5`, **21 code commits** `7c30210 … caebe91`
-(15 task commits + 6 fix-round commits), plus this docs commit. Six of the 15 code tasks
-took one fix round each (Tasks 4, 5, 9, 13, 14, 15 — no Critical in any review).
+(15 task commits + 6 fix-round commits), the Task 16 docs commit `e67529f`, then the
+**whole-branch must-fix wave** — `b55202a` (Critical 1 + Important 2/3/7) and
+`7799a65` (Important 4/5/6). Six of the 15 code tasks took one fix round each
+(Tasks 4, 5, 9, 13, 14, 15 — no Critical in any per-task review).
 **Last verified:** 2026-09-07 — `npm run typecheck` (4 tsc projects, exit 0),
-`npm run lint` (`eslint .`, 0 warnings), `npm test` (**1111 passed / 108 files**),
-`npm run build` (web bundle **458.51 kB JS / 117.13 kB gzip**, css 14.77 kB /
+`npm run lint` (`eslint .`, 0 warnings), `npm test` (**1120 passed / 108 files**),
+`npm run build` (web bundle **458.52 kB JS / 117.14 kB gzip**, css 14.77 kB /
 3.25 kB gzip, html 0.40 kB) — all green. Baseline entering the phase: **971 tests
-/ 91 files** at `d61468b` (+140 tests, +17 files).
-`npx vitest run test/automation test/web` = **410 passed / 56 files**.
+/ 91 files** at `d61468b` (+149 tests, +17 files).
 **Spec:** `docs/superpowers/specs/2026-09-06-phase-6-india-portal-adapter-design.md`
 **Plan:** `docs/superpowers/plans/2026-09-06-phase-6-india-portal-adapter.md`
 **SDD ledger:** `.superpowers/sdd/2026-09-06-phase-6-india-portal-adapter/progress.md`
@@ -124,7 +127,23 @@ also descending `discovery/**`).
 | 13 | `phase6Integration.test.ts` — 8 scenarios (real engine + chromium + fixture v2), every scenario `submitCount === 0` | `9e05a9a..2062063` | Approved after **1 fix round** (1 Important: scenario-8 "no seeded PII" assertion was vacuous → pointed the capture at `/personal?prefill=conflict`). |
 | 14 | Security suite (sanitizer E2E, no-value logs, `last_validation_json` value-free, screenshots off) + no-submit guard over `discovery/**` + `getIndiaDiagnostics` + route | `2062063..d6fa689` | Approved after **1 fix round** (1 Important: `url_pattern` masking assertion was vacuous → capture URL now carries a real hex token). |
 | 15 | Web: `IndiaPortalCard`, `DiscoverySessionPage`, `DiagnosticsPanel`, `ValueConflictPanel` + client methods + `discovery/:sessionId` route | `d6fa689..caebe91` | Approved after **1 fix round** (1 Important: the "renders only labels/selectors/control kinds" test was vacuous → `LEAKCANARY` value on the candidate DTO). |
-| 16 | this report + `docs/ARCHITECTURE.md` §3 + the Track B runbook in `docs/portals/india.md` | this commit | Steps 1–4, 6. **Step 5 (the live portal discovery session) DEFERRED — NOT ATTEMPTED.** |
+| 16 | this report + `docs/ARCHITECTURE.md` §3 + the Track B runbook in `docs/portals/india.md` | `caebe91..e67529f` | Steps 1–4, 6. **Step 5 (the live portal discovery session) DEFERRED — NOT ATTEMPTED.** |
+
+### Whole-branch opus review + must-fix wave
+
+Verdict **READY TO MERGE WITH FIXES** — 1 Critical, 6 Important, ~9 Minor; 6/7
+rails held, the PII rail well-defended. The must-fix wave (`e67529f..7799a65`):
+
+| Sev | Finding | Fix |
+|---|---|---|
+| **Critical 1** | `AutomationService.startRun` never called the ToS gate — a real India host would connect with no acknowledgement (`assertPolicyAck`'s only caller was `discoveryController`). Blast radius limited today (selectors all `TODO:discover` → run fails fast) but live the moment Track B promotes a selector. | `assertPolicyAck(db, portal.id, adapter.id, portalUrlSnapshot)` in `startRun` after `resolveAdapter`, before `createRun` / any browser launch; `ToSNotAcknowledgedError → 409 TOS_NOT_ACKNOWLEDGED` in `mapAutomationError`; service + route negative-path tests (409, no `automation_runs` row, no launch). `b55202a` |
+| Important 2/3 | `classifyPreFill` read a control's **default** state as a pre-existing conflict — a `<select>` on a `<option value="">` placeholder + an unchecked checkbox → spurious `value_conflict` pause on the first real Track B page. Fails safe (pause, not overwrite) so not a rail break. The one engine deviation (`optionMatch:'value'` compares option value) had no direct unit test. | `classifyPreFill` treats an empty-`inputValue()` select and an unchecked checkbox (when the plan wants it checked) as `'empty'`; added the `optionMatch:'value'` match/conflict unit cases. `b55202a` |
+| Important 4 | The `value_conflict` panel passed `mismatches[0]`; an earlier non-required `value_mismatch` can occupy `[0]` while the ruling applies to the tail conflict field. | `mismatches.at(-1)` — the engine records the conflict pair immediately before the pause. `7799a65` |
+| Important 5 | `discoveryReadOnly.test.ts` hard-coded 3 paths — a new `discovery/` module during Track B would escape the fill/click/goto guard. | Recursive walk of `src/server/automation/discovery/` (+ the india `validateAdapter`), empty-walk guard. `7799a65` |
+| Important 6 | The `last_validation_json` PII scan was vacuous — the real map is all-placeholder so `validateIndiaAdapter` returns empty arrays. | The security suite validates the populated `FIXTURE_INDIA_PORTAL_MAP_V2` against the live page (13 mappings + real `<option>` labels) and asserts real substance before scanning. `7799a65` |
+| Important 7 | `nextSelector` provenance was weaker than field provenance — no `discoverySessionRef` for a promoted `nextSelector`. | `IndiaPortalStateConfig` gained `nextSelectorDiscoverySessionRef?` / `nextSelectorValidatedAt?`; the provenance guard now asserts them, matching the field rule. `b55202a` |
+
+The ~9 Minors remain as follow-ups (§12/§13) — opus confirmed each is fine deferred.
 
 ---
 
@@ -210,6 +229,12 @@ carry the `LATEST_SCHEMA_VERSION === 6` canary.
 | POST | `/api/portals/:id/policy-ack` | records the operator's ToS acknowledgement (`app_settings` key `portal_policy_ack:<portalId>`) |
 
 ### Changed — `routes/automation.ts`
+
+`POST /api/applications/:id/automation-runs` now also returns
+`409 TOS_NOT_ACKNOWLEDGED` when the active portal resolves to the `india`
+adapter against a real India host and no `portal_policy_ack:<portalId>` row
+exists — the same runtime gate discovery enforces (whole-branch Critical 1). No
+`automation_runs` row is created and no browser launches.
 
 `POST /api/automation-runs/:id/resume` now accepts an optional body
 `{ decision?: 'use_application' | 'keep_portal' }` (Zod, tolerant of an empty body
@@ -309,10 +334,11 @@ PortalFieldSpec` with `status: 'placeholder' | 'discovered' | 'validated'`,
 **and** a non-empty `discoverySessionRef` — a build failure otherwise. "Never
 guess" is mechanically enforced. Every shipped selector today is `'TODO:discover'`
 (22 occurrences); the guard is non-vacuous (the test's own fixtures prove it
-fails on an un-sourced field selector). *Deferred sub-gap:* the `nextSelector`
-guard only checks `nextSelectorStatus !== 'placeholder'` — there is no
-`nextSelectorDiscoverySessionRef` field, so a `discovered` `nextSelector` could
-in principle ship without a provenance trail (follow-up in §11).
+fails on an un-sourced field selector). The `nextSelector` guard is now at
+parity (whole-branch Important 7): `IndiaPortalStateConfig` carries
+`nextSelectorDiscoverySessionRef?` / `nextSelectorValidatedAt?` and the test
+asserts a non-placeholder `nextSelector` has a `discoverySessionRef` (and, when
+`validated`, a `validatedAt`).
 
 `getFieldMap()` still projects to a clean `PortalFieldMap` via `toPortalFieldMap()`
 — the lifecycle keys never reach the engine. `promoteCandidate` renders the exact
@@ -481,11 +507,13 @@ launch** (brief-mandated). They pass on a Windows / Linux desktop; a
   safer; the only divergence is a value-matched `<select>` (compares option value,
   not label), which is the correct semantics.
 
-### Deferred minor items (≈ 30 across the 15 task reviews — summary, not the full list)
+### Deferred minor items (≈ 30 across the 15 task reviews + ~9 from the whole-branch review — summary, not the full list)
 
-- **`nextSelector` provenance** is weaker than field provenance — no
-  `discoverySessionRef` field for `nextSelector`, so the guard only asserts
-  `status !== 'placeholder'` (Task 7).
+- **`classifyPreFill` custom-widget default state** — the whole-branch fix covers
+  a native `<select>` placeholder + unchecked checkbox; a `custom_select` widget
+  showing its own "— Select —" text (no `inputValue()`) could still read as a
+  conflict. No fixture exposes it; the real India map uses `native_select`
+  throughout.
 - **`fingerprint_json._v2` stash** — the V2 report extras have no dedicated
   migration-6 column; readers must know they live under `fingerprint_json._v2`
   (Task 5).
@@ -525,13 +553,6 @@ ledger `progress.md`.
   `UNCLEAR`). The runbook is written (`docs/portals/india.md` → "Track B runbook");
   the "Live discovery session log" records every test as NOT ATTEMPTED. Phase 6 is
   complete on Track A regardless.
-- **Whole-branch opus review** over `d61468b..HEAD` against the Global Constraints
-  + the 8 Phase 5 rails + the Phase 6 additions (ToS gate runtime; discovery
-  read-only + non-vacuous; provenance guard bites; no PII in discovery rows;
-  value-conflict never persists values; no submit path; `submitCount === 0`), plus
-  a fix wave if needed — **PENDING** (spec §13.28, second half).
-- **`nextSelector` provenance guard** — add `nextSelectorDiscoverySessionRef?` and
-  assert it (Task 7 follow-up).
 - **`Migration.suspendForeignKeys` field** instead of the first-line PRAGMA regex
   (Task 2 follow-up).
 - **Auto-render the `docs/portals/india.md` appendix tables** from a discovery
@@ -553,16 +574,16 @@ ledger `progress.md`.
 
 | # | Item | Verdict | Evidence |
 |---|---|---|---|
-| 1 | `typecheck` ×4 / `lint` / `test` / `build` green; Phase 0–5 regression green | **PASS** | §"Last verified" — 4 tsc exit 0, `eslint .` 0 warnings, **1111 / 108**, build OK; baseline 971 / 91 → +140 |
+| 1 | `typecheck` ×4 / `lint` / `test` / `build` green; Phase 0–5 regression green | **PASS** | §"Last verified" — 4 tsc exit 0, `eslint .` 0 warnings, **1120 / 108**, build OK; baseline 971 / 91 → +149 (incl. the must-fix wave) |
 | 2 | Migration 6 creates both discovery tables + drops the `waiting_reason` CHECK; `LATEST_SCHEMA_VERSION === 6`; real v5→v6 preserves rows + cascade fires | **PASS** | §3 — `discoveryMigrations.test.ts` (5) + `automationMigrations.test.ts` (genuine v5→v6, cascade, flipped `value_conflict` canary); `applicant/applicationMigrations.test.ts` version canary |
 | 3 | Phase 0–5 architecture intact: engine imports no concrete adapter; India logic only under `adapters/india/`; `shared/automation/` pure; no `https?://` literal outside `adapters/india/`; guard tests green | **PASS** | `architectureGuard` / `noHardcodedUrl` (carve-out widened to `discovery/policyGate.ts`, narrow + commented) / `noAutoSubmit` all green |
 | 4 | Phase 4 `ApplicationPlan` remains the sole source of visa requirements — no duplicate model | **PASS** | engine reads `plan.sections` / `plan.documents` only; reviewer-verified across Tasks 10/13; no requirement model added |
-| 5 | India portal URL from Settings; `entryUrl` is the identity of the configured URL; no India host literal outside `indiaPortalMap.ts` | **PASS (sanctioned carve-out)** | `policyGate.ts` duplicates the host regex (byte-identical, anchored) but does not import the adapter and is carved out of `noHardcodedUrl`; `entryUrl` unchanged from Phase 5 |
+| 5 | India portal URL from Settings; `entryUrl` is the identity of the configured URL; no India host literal outside `indiaPortalMap.ts`; the ToS runtime gate covers **both** discovery **and** `startRun` | **PASS (sanctioned carve-out)** | `policyGate.ts` duplicates the host regex (byte-identical, anchored) but does not import the adapter and is carved out of `noHardcodedUrl`; `entryUrl` unchanged from Phase 5; `assertPolicyAck` now called by `discoveryController.start` **and** `automationService.startRun` (whole-branch Critical 1) — `automationService.test.ts` case 15 + `automationRoutes.test.ts` case 12 |
 | 6 | Discovery launches the configured portal **headed**; a second active session for the same adapter is refused | **PASS** | Task 3 — `headless: false` locked + idempotency test; Task 5 — `start()` rejects a second active session; migration 6 partial unique index; `discoveryController.test.ts` |
 | 7 | Discovery is read-only: the source guard (fill/click/type/press/selectOption/check/setInputFiles/hover/form.submit/second-goto) is green over `discovery/**` **and** non-vacuous | **PASS** | `discoveryReadOnly.test.ts` scans `discoveryController.ts` / `observe.ts` / `validateAdapter.ts` → zero; the single `goto` targets only the portal-URL arg |
 | 8 | Discovery persists structure and **no applicant values**; the sanitizer test passes; `url_pattern` masks tokens | **PASS** | `discoverySanitizer.test.ts` (seeded PII → clean report); `phase6Integration` sc8 + `security.test.ts` (sentinels present-in-DOM-then-absent; `?ref=deadbeefcafe…` masked) — both non-vacuous after fix rounds |
 | 9 | `captureDiscoveryV2` records headings, radio/checkbox groups, buttons (never clicked), nav candidates, required indicators, `<select>` option labels | **PASS** | Task 4 — `observe.ts` + `discoveryObserve.test.ts` structure assertions |
-| 10 | `indiaPortalMap.ts` ships every selector `'TODO:discover'` / `status: 'placeholder'`; the provenance guard proves a non-placeholder selector is impossible without a `discoverySessionRef` | **PASS** | 22× `'TODO:discover'`; `indiaMappingProvenance.test.ts` fails the build on an un-sourced **field** selector (non-vacuous). Sub-gap: `nextSelector` guard checks only `status !== 'placeholder'` (deferred, §13) |
+| 10 | `indiaPortalMap.ts` ships every selector `'TODO:discover'` / `status: 'placeholder'`; the provenance guard proves a non-placeholder selector is impossible without a `discoverySessionRef` | **PASS** | 22× `'TODO:discover'`; `indiaMappingProvenance.test.ts` fails the build on an un-sourced **field** selector (non-vacuous); the `nextSelector` guard is now at parity — asserts `nextSelectorDiscoverySessionRef` (whole-branch Important 7) |
 | 11 | `getPageIdentity` scores URL + heading + anchor; a known fixture page → correct state ≥ 0.6; an unknown page → `UNKNOWN` → pause, no field interaction | **PASS** | `indiaAdapter.test.ts` scoring (0.5 / 0.3 / 0.2, max wins, 0 → UNKNOWN); `phase6Integration` sc6 (`nowhere.html` → `UNKNOWN_PORTAL_STATE`, `FIELD_FILL_STARTED` absent) |
 | 12 | `promoteCandidate` renders a paste-ready `indiaPortalMap.ts` edit; the app never auto-writes adapter source | **PASS** | Task 8 — no `fs` import, no `.run(`, `indiaPortalMap.ts` untouched; strict key-set equality unit test |
 | 13 | `validateIndiaAdapter` resolves every non-placeholder selector, checks control kind, dumps option labels; green against fixture v2; report value-free | **PASS** | Task 9 + fix round — group-selector special-case (`nodeCount >= 1`, per-node type); `FIXTURE_INDIA_PORTAL_MAP_V2` smoke `ok === true`; option labels through the sanitizer (non-vacuous scrub test). Brief deviation logged (§12) |
@@ -580,10 +601,10 @@ ledger `progress.md`.
 | 25 | UI: Settings India card (status + 4 actions), `/discovery/:sessionId` (capture + promote, value-free), the run-page conflict panel (3 actions, `/live`-only values, no submit control) | **PASS** | Task 15 (4 surfaces, green after 1 fix round) — allowlist rendering; `ValueConflictPanel` `role="alert"`, no `<form>` / `type="submit"`. Minor: the card shows for any active portal (dead self-hide branch, §12) |
 | 26 | Track B: `docs/portals/india.md` "ToS / robots.txt position" has a verdict; the progressive-test runbook is written; Tests A–G progress recorded (or each blocked with a reason) | **PARTIAL** | Verdict present (`UNCLEAR`); the Track B runbook (Tests A–G as a numbered operator procedure) is written; the **live session is DEFERRED — every test recorded as NOT ATTEMPTED** in the "Live discovery session log" |
 | 27 | `docs/PHASE-6-REPORT.md` complete (architecture, tasks + SHAs, migration 6, API delta, UI, discovery model, mapping model, autofill, checkpoints, no-submit, PII audit, known limitations, deferred work, acceptance table + the two verbatim lines) | **PASS** | this file |
-| 28 | `docs/ARCHITECTURE.md` §3 gains a Phase 6 paragraph; whole-branch opus review (APPROVE / APPROVE-WITH-FIXES with the wave landed) complete | **PENDING** | §3 paragraph landed (this commit, ending "See `docs/PHASE-6-REPORT.md`."); the **whole-branch opus review has not yet been run** (§13) |
+| 28 | `docs/ARCHITECTURE.md` §3 gains a Phase 6 paragraph; whole-branch opus review (APPROVE / APPROVE-WITH-FIXES with the wave landed) complete | **PASS** | §3 paragraph landed at `e67529f`; whole-branch opus review done — *READY TO MERGE WITH FIXES*, must-fix wave (1 Critical + 6 Important) landed `b55202a`/`7799a65`, gate green **1120 / 108** (§2 "Whole-branch opus review + must-fix wave") |
 
-**Summary: 26 PASS · 1 PARTIAL (item 26 — Track B runbook written, live session
-deferred) · 1 PENDING (item 28 — the whole-branch opus review).**
+**Summary: 27 PASS · 1 PARTIAL (item 26 — Track B runbook written, live session
+deferred).**
 
 ---
 

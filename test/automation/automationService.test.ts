@@ -22,6 +22,10 @@ import {
   NotWaitingError,
   RunInProgressError,
 } from '../../src/server/automation/automationService.js';
+import {
+  ToSNotAcknowledgedError,
+  recordPolicyAck,
+} from '../../src/server/automation/discovery/policyGate.js';
 
 const T = 't0';
 
@@ -396,6 +400,43 @@ describe('AutomationService', () => {
     expect(debugSpy).toHaveBeenCalled();
     await waitFor(() => svc.getRun(db, run.id)?.run.status === 'review_ready');
     debugSpy.mockRestore();
+  });
+
+  it('case 15: startRun refuses a real India portal until the operator acknowledges its ToS', async () => {
+    // Repoint the active portal at a real India host and resolve the india adapter.
+    const realPortal = createPortal(db, {
+      name: 'India eVisa',
+      url: 'https://indianvisaonline.gov.in/evisa/',
+      portalType: 'evisa',
+      country: 'IN',
+      applicationType: null,
+      notes: null,
+      enabled: true,
+    });
+    setActivePortal(db, realPortal.id);
+
+    let launched = false;
+    const bm = { ...fakeBrowserManager, launch: async () => { launched = true; } };
+    const svc = new AutomationService({
+      browserManager: bm as never,
+      resolveAdapter: () => ({ ...fakeAdapter, id: 'india' }),
+      runLoop: (async () => ({ kind: 'review_ready' })) as never,
+      inspect: (async () => cleanInspection()) as never,
+      getApplication: () => ({
+        application: { id: 'app1', applicantId: 'a1' },
+        plan: fakePlan(true, 0),
+      }),
+    });
+
+    await expect(svc.startRun(db, 'app1')).rejects.toBeInstanceOf(ToSNotAcknowledgedError);
+    const { c } = db.prepare('SELECT count(*) AS c FROM automation_runs').get() as { c: number };
+    expect(c).toBe(0);
+    expect(launched).toBe(false);
+
+    // Once acknowledged, the gate is a no-op and the run starts.
+    recordPolicyAck(db, realPortal.id);
+    await expect(svc.startRun(db, 'app1')).resolves.toBeDefined();
+    await svc.dispose();
   });
 
   it('case 7: dispose while a runner is parked at a wait resolves and closes the browser', async () => {

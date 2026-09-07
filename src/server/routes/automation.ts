@@ -16,6 +16,7 @@ import {
   NotWaitingError,
   RunInProgressError,
   RunNotFoundError,
+  ToSNotAcknowledgedError,
 } from '../automation/automationService.js';
 import { errorBody, notFoundError, validationError } from './errors.js';
 
@@ -55,6 +56,16 @@ function mapAutomationError(e: unknown, reply: FastifyReply): FastifyReply | und
     return reply
       .code(409)
       .send(errorBody('NO_ACTIVE_PORTAL', 'configure a portal in Settings before starting automation'));
+  }
+  if (e instanceof ToSNotAcknowledgedError) {
+    return reply
+      .code(409)
+      .send(
+        errorBody(
+          'TOS_NOT_ACKNOWLEDGED',
+          'acknowledge the portal Terms of Service before starting automation',
+        ),
+      );
   }
   if (e instanceof RunNotFoundError) {
     return reply.code(404).send(notFoundError('automation run'));

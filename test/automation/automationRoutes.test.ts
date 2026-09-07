@@ -347,6 +347,38 @@ describe('automation routes', () => {
     await app.automation.dispose();
   });
 
+  it('case 12: real India portal with no ToS ack → 409 TOS_NOT_ACKNOWLEDGED, no run row', async () => {
+    const svc = new AutomationService({
+      browserManager: fakeBrowserManager as never,
+      resolveAdapter: () => ({ ...fakeAdapter, id: 'india' }),
+      runLoop: (async () => ({ kind: 'review_ready' })) as never,
+      inspect: (async () => cleanInspection()) as never,
+      getApplication: readyApp,
+    });
+    app = await buildServer({ dbPath, automation: svc });
+    const db = (app as unknown as { db: DatabaseSync }).db;
+    seedApplicationRows(db);
+    const portal = createPortal(db, {
+      name: 'India eVisa',
+      url: 'https://indianvisaonline.gov.in/evisa/',
+      portalType: 'evisa',
+      country: 'IN',
+      applicationType: null,
+      notes: null,
+      enabled: true,
+    });
+    setActivePortal(db, portal.id);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/applications/app1/automation-runs',
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('TOS_NOT_ACKNOWLEDGED');
+    const { c } = db.prepare('SELECT count(*) AS c FROM automation_runs').get() as { c: number };
+    expect(c).toBe(0);
+  });
+
   it('case 8: cross-application isolation', async () => {
     await build(
       makeSvc((_db, id) =>

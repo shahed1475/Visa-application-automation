@@ -20,6 +20,13 @@ describe('india mapping provenance', () => {
     for (const [s, cfg] of Object.entries(indiaPortalMap.states)) {
       if (cfg.nextSelector && cfg.nextSelector !== 'TODO:discover') {
         expect(cfg.nextSelectorStatus, s).not.toBe('placeholder');
+        expect(
+          cfg.nextSelectorDiscoverySessionRef,
+          `${s} has a real nextSelector but no nextSelectorDiscoverySessionRef`,
+        ).toBeTruthy();
+        if (cfg.nextSelectorStatus === 'validated') {
+          expect(cfg.nextSelectorValidatedAt, s).toBeTruthy();
+        }
       }
     }
   });

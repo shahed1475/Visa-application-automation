@@ -13,8 +13,10 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Fi
   <input id="t" type="text">
   <input id="tblur" type="text" oninput="this.value = this.value + 'X'">
   <select id="ns"><option value="a">Alpha</option><option value="b">Bravo</option></select>
+  <select id="nsp"><option value="">-- Select --</option><option value="in">India</option><option value="fr">France</option></select>
   <input type="radio" name="r" id="r1" value="a">
   <input type="radio" name="r" id="r2" value="b">
+  <input id="cb" type="checkbox">
 </body></html>`;
 
 function mf(
@@ -128,6 +130,69 @@ describe('fieldActions', () => {
         page,
         { selector: '#t', control: 'text', selectorConfidence: 'stable' },
         'RANA',
+      ),
+    ).toBe('conflict');
+  });
+
+  it('classifyPreFill: a <select> resting on its empty placeholder option reads as empty, not conflict', async () => {
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#nsp', control: 'native_select', selectorConfidence: 'stable', optionMatch: 'label' },
+        'India',
+      ),
+    ).toBe('empty');
+  });
+
+  it('classifyPreFill: a <select> pre-set to a different option is still a conflict', async () => {
+    await page.locator('#nsp').selectOption('fr');
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#nsp', control: 'native_select', selectorConfidence: 'stable', optionMatch: 'label' },
+        'India',
+      ),
+    ).toBe('conflict');
+  });
+
+  it('classifyPreFill: an unchecked checkbox reads as empty when the plan wants it checked', async () => {
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#cb', control: 'checkbox', selectorConfidence: 'stable' },
+        'true',
+      ),
+    ).toBe('empty');
+  });
+
+  it('classifyPreFill: a checked checkbox the plan wants unchecked is a conflict', async () => {
+    await page.locator('#cb').check();
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#cb', control: 'checkbox', selectorConfidence: 'stable' },
+        'false',
+      ),
+    ).toBe('conflict');
+  });
+
+  it('classifyPreFill: optionMatch:"value" compares the option value, not its label (match)', async () => {
+    // #ns rests on <option value="a">Alpha</option>; label "Alpha" !== value "a".
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#ns', control: 'native_select', selectorConfidence: 'stable', optionMatch: 'value' },
+        'a',
+      ),
+    ).toBe('match');
+  });
+
+  it('classifyPreFill: optionMatch:"value" — a different value is a conflict', async () => {
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#ns', control: 'native_select', selectorConfidence: 'stable', optionMatch: 'value' },
+        'b',
       ),
     ).toBe('conflict');
   });

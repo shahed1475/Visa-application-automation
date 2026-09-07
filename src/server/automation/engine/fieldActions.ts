@@ -62,6 +62,11 @@ export async function verifyControl(
  * - `readControl` returned `null` (unreadable / nothing selected) -> `'empty'`
  *   (defer to `applyField`, which handles the write and read-back).
  * - The control is blank after trimming -> `'empty'`.
+ * - The control is sitting in its DEFAULT state -> `'empty'`: a `<select>` whose
+ *   current option has an empty `value` (a `"— Select —"` placeholder still
+ *   reads back a non-empty label), or an unchecked checkbox when the plan wants
+ *   it checked. Neither is a value the operator entered, so pausing on it would
+ *   be a spurious `value_conflict`.
  * - It already equals `expected` (same trim-equality / select-by-value rule
  *   `verifyControl` uses, so a value-matched `<select>` is never a false
  *   conflict) -> `'match'`.
@@ -76,6 +81,24 @@ export async function classifyPreFill(
 ): Promise<'empty' | 'match' | 'conflict'> {
   const actual = await readControl(page, spec.selector, spec.control);
   if (actual === null || norm(actual) === '') return 'empty';
+
+  // A `<select>` resting on a placeholder option (`<option value="">`) reads back
+  // a non-empty label but carries no chosen value.
+  if (SELECT_CONTROLS.has(spec.control)) {
+    let value: string | null = null;
+    try {
+      value = await page.locator(spec.selector).inputValue();
+    } catch {
+      value = null; // custom widget with no inputValue() — fall through
+    }
+    if (value !== null && norm(value) === '') return 'empty';
+  }
+  // An unchecked checkbox is the default state, not a pre-existing choice —
+  // unless the plan also wants it unchecked (then it is a genuine match below).
+  if (spec.control === 'checkbox' && norm(actual) === 'false' && norm(expected) !== 'false') {
+    return 'empty';
+  }
+
   return (await verifyControl(page, spec, expected)) === 'verified' ? 'match' : 'conflict';
 }
 

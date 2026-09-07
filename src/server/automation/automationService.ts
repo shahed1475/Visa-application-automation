@@ -49,6 +49,9 @@ import { readControl, waitForPageSettled } from './engine/pageActions.js';
 import { inspectPage, type PageInspection } from './engine/pageInspector.js';
 import { getApplication as realGetApplication } from '../services/applicationService.js';
 import { getActivePortal } from '../services/portalService.js';
+import { assertPolicyAck, ToSNotAcknowledgedError } from './discovery/policyGate.js';
+
+export { ToSNotAcknowledgedError };
 
 const now = (): string => new Date().toISOString();
 
@@ -195,6 +198,12 @@ export class AutomationService {
     if (!portal) throw new NoActivePortalError();
     const portalUrlSnapshot = portal.url;
     const adapter = this.resolveAdapter(portalUrlSnapshot);
+
+    // Runtime ToS gate (spec §4 / whole-branch Critical 1): a real India portal
+    // connection is refused until the operator has acknowledged that portal's
+    // Terms. No-op for the generic adapter and the fixture host. Runs BEFORE
+    // `createRun` and any browser launch — a refused run leaves no record.
+    assertPolicyAck(db, portal.id, adapter.id, portalUrlSnapshot);
 
     const run = createRun(db, {
       id: randomUUID(),

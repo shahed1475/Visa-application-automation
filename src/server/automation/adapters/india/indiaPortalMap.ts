@@ -56,6 +56,14 @@ export interface IndiaPortalStateConfig {
   sectionIds: string[];
   nextSelector: string | null;
   nextSelectorStatus: MappingStatus;
+  /**
+   * Discovery provenance for a promoted `nextSelector`, mirroring the field
+   * mapping rules: a non-`'TODO:discover'` `nextSelector` MUST carry a
+   * `nextSelectorDiscoverySessionRef`, and a `'validated'` one MUST also carry a
+   * `nextSelectorValidatedAt`. Enforced by `indiaMappingProvenance.test.ts`.
+   */
+  nextSelectorDiscoverySessionRef?: string;
+  nextSelectorValidatedAt?: string;
   isFinalReview: boolean;
 }
 

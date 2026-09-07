@@ -234,6 +234,30 @@ never blind-overwrite). Real-portal work (Tests A–G) is an operator runbook in
 `docs/portals/india.md` behind `INDIA_LIVE=1`, never in CI; the engine remains
 fixture-proven and still has **no submit path**. See `docs/PHASE-6-REPORT.md`.
 
+**Phase 7 (production-controlled India adapter):** the India adapter now hands
+the engine **only production-usable mappings** — `status: 'validated'` **and**
+`validatedAgainstRevision === indiaPortalMap.mappingRevision`. `mappingLifecycle.ts`
+classifies each mapping `placeholder → discovered → validated → stale` (a validated
+mapping stamped against an old revision, or with no stamp, is `stale` and never
+silently trusted); `indiaAdapter.getFieldMap()` filters to `validated` + current,
+`mappingReadiness(fieldPath)` explains any gap, and `clickNext` refuses a
+non-production `nextSelector`. Two new generic engine safe-stops: a required field
+with only a stale/unvalidated mapping pauses `stale_mapping` (`MAPPING_NOT_PRODUCTION_READY`);
+a dropdown missing the expected option pauses `option_unavailable`
+(`DROPDOWN_OPTION_MISSING`) — a pre-fill check catches it before any DOM write, and
+`selectNative` never picks a "closest" option. The previously-declared `SELECTOR_STALE`
+event is wired: `resolveSelector` tries the primary then an **explicitly configured**
+`fallbackSelector`, emitting `SELECTOR_STALE` (informational, run continues) on a
+fallback. `adapters/india/transforms.ts` is a deterministic date library
+(`isoToDMY`/`isoToMDY`/`isoToYMD`/`isoToDdMonYyyy` + strict inverse parsers, no fuzzy
+parsing); `verifyControl` normalises a `date` control's read-back through the
+mapping's `readBackParse` before comparing, so the portal format is irrelevant —
+real `indiaPortalMap.ts` date fields carry **no** transform until discovery assigns
+one. **No migration** (the stale stamp lives in adapter source). `RunStatus` and
+the "no submit / no payment / no appointment / terminal state = `review_ready`"
+rails are unchanged. Track B still not executed; **no real portal field is
+validated.** See `docs/superpowers/reports/PHASE-7-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live

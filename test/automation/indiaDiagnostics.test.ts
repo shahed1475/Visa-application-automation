@@ -117,6 +117,9 @@ describe('getIndiaDiagnostics', () => {
     expect(d.mappings.placeholder).toBe(d.mappings.total);
     expect(d.mappings.discovered).toBe(0);
     expect(d.mappings.validated).toBe(0);
+    expect(d.staleMappings).toBe(0);
+    expect(d.productionUsableMappings).toBe(0);
+    expect(d.selectorStaleEvents).toBe(0);
 
     expect(d.lastValidation).toEqual({ ranAt: T, ok: true });
 
@@ -148,6 +151,12 @@ describe('getIndiaDiagnostics', () => {
     expect(d.pagesDiscovered).toBe(0);
     expect(d.lastValidation).toBeNull();
     expect(d.unknownPagesEncountered).toBe(0);
+  });
+
+  it('selectorStaleEvents counts SELECTOR_STALE events across all runs', () => {
+    seedRun('r1', ['SELECTOR_STALE', 'PAGE_DETECTED', 'SELECTOR_STALE']);
+    seedRun('r2', ['SELECTOR_STALE']);
+    expect(getIndiaDiagnostics(db, 'p1').selectorStaleEvents).toBe(3);
   });
 
   it('a corrupt last_validation_json yields lastValidation: null, not a throw', () => {

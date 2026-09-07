@@ -34,9 +34,16 @@ export interface IndiaDiagnostics {
   /** `indiaPortalMap.fields` entries whose `status !== 'placeholder'` (0 today). */
   fieldsDiscovered: number;
   mappings: MappingStatusCounts;
+  /** `mappings.stale` hoisted for the UI (validated but not against the current revision). */
+  staleMappings: number;
+  /** `mappings.productionUsable` hoisted — mappings that may drive a real run. */
+  productionUsableMappings: number;
   /** `count(*)` of `automation_events` rows with `type = 'UNKNOWN_PORTAL_STATE'`,
    *  across ALL runs — not scoped to a portal or adapter (brief §13.21). */
   unknownPagesEncountered: number;
+  /** `count(*)` of `automation_events` rows with `type = 'SELECTOR_STALE'` — a
+   *  primary selector missed and its configured fallback carried the run. */
+  selectorStaleEvents: number;
   /** `{ ranAt, ok }` from the most recent session that carries a validation
    *  report; `null` when no india session has one. Never the full report. */
   lastValidation: { ranAt: string; ok: boolean } | null;
@@ -68,6 +75,10 @@ export function getIndiaDiagnostics(
     )
     .get() as { n: number };
 
+  const { n: selectorStaleEvents } = db
+    .prepare(`SELECT count(*) AS n FROM automation_events WHERE type = 'SELECTOR_STALE'`)
+    .get() as { n: number };
+
   // `listDiscoverySessions` orders by `started_at DESC, id DESC`, so the first
   // session with a parseable `last_validation_json` is the most recent one that
   // has been validated. A corrupt report is skipped, never thrown.
@@ -88,6 +99,8 @@ export function getIndiaDiagnostics(
     }
   }
 
+  const mappings = getIndiaMappingStatus();
+
   return {
     adapterId: ADAPTER_ID,
     adapterVersion: indiaPortalMap.adapterVersion,
@@ -95,8 +108,11 @@ export function getIndiaDiagnostics(
     lastDiscoveryAt: indiaPortalMap.lastDiscoveryAt,
     pagesDiscovered,
     fieldsDiscovered,
-    mappings: getIndiaMappingStatus(),
+    mappings,
+    staleMappings: mappings.stale,
+    productionUsableMappings: mappings.productionUsable,
     unknownPagesEncountered,
+    selectorStaleEvents,
     lastValidation,
   };
 }

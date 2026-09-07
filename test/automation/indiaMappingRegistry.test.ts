@@ -71,12 +71,14 @@ describe('getIndiaMappings', () => {
 });
 
 describe('getIndiaMappingStatus', () => {
-  it('counts every field as placeholder today', () => {
+  it('counts every field as placeholder today, with zero stale / production-usable', () => {
     const status = getIndiaMappingStatus();
     expect(status).toStrictEqual({
       placeholder: FIELD_COUNT,
       discovered: 0,
       validated: 0,
+      stale: 0,
+      productionUsable: 0,
       total: FIELD_COUNT,
       requiredRemaining: FIELD_COUNT,
     });

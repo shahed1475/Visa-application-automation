@@ -20,6 +20,7 @@ import {
   listDiscoveryPages,
 } from '../../discovery/discoverySessionStore.js';
 import { indiaPortalMap, type MappingStatus } from './indiaPortalMap.js';
+import { classifyMapping } from './mappingLifecycle.js';
 
 /** One value-free row per canonical field mapping, for the adapter-mappings UI. */
 export interface MappingView {
@@ -55,29 +56,43 @@ export function getIndiaMappings(): MappingView[] {
 }
 
 export interface MappingStatusCounts {
+  /** Raw `status` field counts (a `validated` mapping stamped against an old
+   *  revision is still counted here as `validated`). */
   placeholder: number;
   discovered: number;
   validated: number;
+  /** `validated` mappings whose `validatedAgainstRevision` !== the current
+   *  `mappingRevision` (or is absent) — need re-validation before use. */
+  stale: number;
+  /** `validated` AND current-revision — the only mappings that reach the engine. */
+  productionUsable: number;
   total: number;
   requiredRemaining: number;
 }
 
 export function getIndiaMappingStatus(): MappingStatusCounts {
   const specs = Object.values(indiaPortalMap.fields);
+  const revision = indiaPortalMap.mappingRevision;
   const counts: MappingStatusCounts = {
     placeholder: 0,
     discovered: 0,
     validated: 0,
+    stale: 0,
+    productionUsable: 0,
     total: specs.length,
-    // requiredRemaining = mappings whose status !== 'validated'. Only a validated
-    // selector can drive a real autofill run, so "remaining work" is everything
-    // not yet validated. (indiaPortalMap carries no static "required" flag —
-    // required-ness is per-application, owned by the Phase 4 ApplicationPlan.)
+    // requiredRemaining = mappings not production-usable (placeholder, discovered,
+    // OR a validated mapping gone stale). Only a validated + current mapping can
+    // drive a real autofill run, so "remaining work" is everything else.
+    // (indiaPortalMap carries no static "required" flag — required-ness is
+    // per-application, owned by the Phase 4 ApplicationPlan.)
     requiredRemaining: 0,
   };
   for (const spec of specs) {
     counts[spec.status] += 1;
-    if (spec.status !== 'validated') counts.requiredRemaining += 1;
+    const life = classifyMapping(spec, revision);
+    if (life === 'stale') counts.stale += 1;
+    if (life === 'validated') counts.productionUsable += 1;
+    else counts.requiredRemaining += 1;
   }
   return counts;
 }

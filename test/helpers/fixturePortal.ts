@@ -36,6 +36,7 @@ const PAGE_NAMES = [
   'additional-information',
   'webforms-personal',
   'nowhere',
+  'dates',
 ] as const;
 
 /** Pages whose known text controls accept prefill injection. */
@@ -55,8 +56,9 @@ const PREFILL_VALUES: Record<'match' | 'conflict', Record<string, string>> = {
 function injectPrefill(html: string, variant: 'match' | 'conflict'): string {
   let out = html;
   for (const [id, value] of Object.entries(PREFILL_VALUES[variant])) {
-    const emptyControl = new RegExp(`<input id="${id}" type="text">`);
-    out = out.replace(emptyControl, `<input id="${id}" type="text" value="${value}">`);
+    // tolerate an optional `name="…"` between the id and the type attribute
+    const emptyControl = new RegExp(`(<input id="${id}"[^>]*?) type="text">`);
+    out = out.replace(emptyControl, `$1 type="text" value="${value}">`);
   }
   return out;
 }
@@ -73,6 +75,76 @@ const CHALLENGE_MARKUP: Record<ChallengeVariant, string> = {
 
 function isChallengeVariant(v: string | null): v is ChallengeVariant {
   return v === 'otp' || v === 'captcha' || v === 'ok';
+}
+
+// ---- Phase 7 Task 7: deterministic failure scenarios via query flags -------
+//
+//   ?selector=changed   a known control's id is renamed (primary selector misses)
+//   ?selector=fallback  the id is dropped but a stable name="…" fallback resolves
+//   ?field=missing      a mapped control is removed from the DOM
+//   ?option=placeholder the purpose <select> leads with <option value="">
+//   ?option=disabled    the target option is present but disabled
+//   ?option=removed     the target option is absent
+//   ?option=duplicate   a second option shares the visible label, distinct value
+//   ?session=expired    401 + a sign-in marker instead of the page (any page)
+//   ?nav=changed        the .next control is renamed (a.next / button.next misses)
+//
+// Each transform is a no-op when its target is not on the page, so a flag can be
+// passed to any route. `?challenge=` / `?prefill=` are unaffected.
+
+const SESSION_EXPIRED_BODY =
+  '<!doctype html><html><head><meta charset="utf-8"><title>Session expired</title></head><body>' +
+  '<h1>Session expired</h1><p>Your portal session has ended. <a href="/login">Sign in</a> to continue.</p>' +
+  '</body></html>';
+
+function applyScenario(html: string, params: URLSearchParams): { html: string; status: number } {
+  if (params.get('session') === 'expired') {
+    return { html: SESSION_EXPIRED_BODY, status: 401 };
+  }
+  let out = html;
+
+  if (params.get('selector') === 'changed') {
+    out = out.replace('id="surname" name="surname"', 'id="surname-renamed" name="surname-renamed"');
+  } else if (params.get('selector') === 'fallback') {
+    out = out.replace('<input id="surname" name="surname"', '<input name="surname"');
+  }
+
+  if (params.get('field') === 'missing') {
+    out = out.replace(
+      '<label for="given-names">Given names</label><input id="given-names" type="text">',
+      '',
+    );
+  }
+
+  switch (params.get('option')) {
+    case 'placeholder':
+      out = out.replace(
+        '<select id="purpose">',
+        '<select id="purpose"><option value="">— Select —</option>',
+      );
+      break;
+    case 'disabled':
+      out = out.replace(
+        '<option value="business">Business</option>',
+        '<option value="business" disabled>Business</option>',
+      );
+      break;
+    case 'removed':
+      out = out.replace('<option value="business">Business</option>', '');
+      break;
+    case 'duplicate':
+      out = out.replace(
+        '<option value="business">Business</option>',
+        '<option value="business">Business</option><option value="business-2">Business</option>',
+      );
+      break;
+  }
+
+  if (params.get('nav') === 'changed') {
+    out = out.replace(/class="next"/g, 'class="proceed"');
+  }
+
+  return { html: out, status: 200 };
 }
 
 export async function startFixturePortal(): Promise<FixturePortal> {
@@ -127,8 +199,9 @@ export async function startFixturePortal(): Promise<FixturePortal> {
       if (variant !== 'none') body = injectPrefill(body, variant);
     }
 
-    res.writeHead(200, { 'content-type': 'text/html' });
-    res.end(body);
+    const scenario = applyScenario(body, parsed.searchParams);
+    res.writeHead(scenario.status, { 'content-type': 'text/html' });
+    res.end(scenario.html);
   });
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

@@ -44,6 +44,36 @@ async function requireSelector(page: Page, selector: string): Promise<void> {
   }
 }
 
+/** Short probe used only to decide primary-vs-fallback; the engine has already settled the page. */
+const RESOLVE_PROBE_MS = 2_000;
+
+/**
+ * Decide which selector to act on for a field spec: the primary if it is
+ * attached, otherwise an EXPLICITLY configured `fallbackSelector` if that is.
+ * `usedFallback` lets the engine emit `SELECTOR_STALE` (informational — the run
+ * continues). Throws {@link SelectorNotFoundError} if neither resolves.
+ *
+ * This NEVER guesses: the fallback is only ever the one the adapter configured.
+ */
+export async function resolveSelector(
+  page: Page,
+  spec: { selector: string; fallbackSelector?: string },
+): Promise<{ selector: string; usedFallback: boolean }> {
+  const attached = async (s: string): Promise<boolean> => {
+    try {
+      await page.locator(s).first().waitFor({ state: 'attached', timeout: RESOLVE_PROBE_MS });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (await attached(spec.selector)) return { selector: spec.selector, usedFallback: false };
+  if (spec.fallbackSelector && (await attached(spec.fallbackSelector))) {
+    return { selector: spec.fallbackSelector, usedFallback: true };
+  }
+  throw new SelectorNotFoundError(spec.selector);
+}
+
 /**
  * Wait for the page to reach a stable state: DOM parsed, and — when an anchor
  * selector is supplied — that anchor visible. Purely condition-based.

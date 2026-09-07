@@ -8,6 +8,7 @@ import {
   assertNativeOptionAvailable,
   fillText,
   readControl,
+  resolveSelector,
   selectCustom,
   selectNative,
   setCheckbox,
@@ -145,10 +146,11 @@ async function writeControl(page: Page, spec: PortalFieldSpec, expected: string)
  * Precondition (caller guarantees; asserted defensively): `m.spec !== null`,
  * `m.present`, `m.expected !== null`.
  *
- * 1. Read the current value; a `SelectorNotFoundError` from `readControl`
- *    propagates to the engine.
- * 2. If it already equals `expected` -> `{ filled: false, outcome: 'verified',
- *    alreadySet: true }` (no write).
+ * 1. Resolve the selector (primary, else the configured `fallbackSelector`); a
+ *    `SelectorNotFoundError` propagates to the engine. `usedFallback` is
+ *    returned so the engine can emit `SELECTOR_STALE`.
+ * 2. Read the current value. If it already equals `expected` ->
+ *    `{ filled: false, outcome: 'verified', alreadySet: true, usedFallback }`.
  * 3. Otherwise write via the control's writer, then `verifyControl`.
  * 4. On `'mismatch'`, re-run the writer exactly once and verify again.
  *
@@ -157,18 +159,24 @@ async function writeControl(page: Page, spec: PortalFieldSpec, expected: string)
 export async function applyField(
   page: Page,
   m: MappedField,
-): Promise<{ filled: boolean; outcome: VerificationOutcome; alreadySet: boolean }> {
+): Promise<{
+  filled: boolean;
+  outcome: VerificationOutcome;
+  alreadySet: boolean;
+  usedFallback: boolean;
+}> {
   if (m.spec === null || !m.present || m.expected === null) {
     throw new Error(
       'applyField precondition violated: requires m.spec !== null, m.present, m.expected !== null',
     );
   }
-  const spec = m.spec;
   const expected = m.expected;
+  const { selector, usedFallback } = await resolveSelector(page, m.spec);
+  const spec: PortalFieldSpec = { ...m.spec, selector };
 
   const current = await readControl(page, spec.selector, spec.control);
   if (current !== null && norm(current) === norm(expected)) {
-    return { filled: false, outcome: 'verified', alreadySet: true };
+    return { filled: false, outcome: 'verified', alreadySet: true, usedFallback };
   }
 
   await writeControl(page, spec, expected);
@@ -177,5 +185,5 @@ export async function applyField(
     await writeControl(page, spec, expected);
     outcome = await verifyControl(page, spec, expected);
   }
-  return { filled: true, outcome, alreadySet: false };
+  return { filled: true, outcome, alreadySet: false, usedFallback };
 }

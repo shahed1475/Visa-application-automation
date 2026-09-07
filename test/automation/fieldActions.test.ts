@@ -75,6 +75,7 @@ describe('fieldActions', () => {
       filled: true,
       outcome: 'verified',
       alreadySet: false,
+      usedFallback: false,
     });
   });
 
@@ -84,7 +85,22 @@ describe('fieldActions', () => {
       filled: false,
       alreadySet: true,
       outcome: 'verified',
+      usedFallback: false,
     });
+  });
+
+  it('reports usedFallback when the primary selector is gone but the configured fallback resolves', async () => {
+    const m = mf('#gone', 'text', 'RANA');
+    m.spec = {
+      selector: '#gone',
+      fallbackSelector: '#t',
+      control: 'text',
+      selectorConfidence: 'stable',
+    };
+    const r = await applyField(page, m);
+    expect(r.usedFallback).toBe(true);
+    expect(r.outcome).toBe('verified');
+    expect(await page.locator('#t').inputValue()).toBe('RANA');
   });
 
   it('retries once then reports mismatch when read-back never matches', async () => {

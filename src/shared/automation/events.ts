@@ -67,7 +67,8 @@ export const EVENT_MESSAGES: Record<EventType, string> = {
   FIELD_MISMATCH: 'A filled field did not read back as expected. The run paused for your review.',
   FIELD_UNVERIFIABLE: 'The field could not be read back to confirm its contents.',
   FIELD_NOT_FOUND: 'The mapped portal control could not be found on the page.',
-  SELECTOR_STALE: 'A portal selector no longer matches the page. The fallback selector was tried.',
+  SELECTOR_STALE:
+    'A portal selector no longer matched the page; the configured fallback selector was used. The run continued.',
   DROPDOWN_OPTION_MISSING: 'The expected option was not present in the dropdown. The run paused.',
   VALUE_CONFLICT: 'The portal already holds a different value for this field. The run paused for your decision.',
   FIELD_CONFLICT_KEPT: 'You chose to keep the value already in the portal for this field.',

@@ -72,7 +72,12 @@ export interface EngineContext {
   applyField: (
     page: Page,
     m: MappedField,
-  ) => Promise<{ filled: boolean; outcome: VerificationOutcome; alreadySet: boolean }>;
+  ) => Promise<{
+    filled: boolean;
+    outcome: VerificationOutcome;
+    alreadySet: boolean;
+    usedFallback: boolean;
+  }>;
   readControl: (page: Page, selector: string, control: ControlKind) => Promise<string | null>;
   /**
    * Read-only pre-fill triage of the portal's current value for a field.
@@ -250,7 +255,12 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
 
       await ctx.emit({ type: 'FIELD_FILL_STARTED', fieldPath: m.fieldPath });
 
-      let r: { filled: boolean; outcome: VerificationOutcome; alreadySet: boolean };
+      let r: {
+        filled: boolean;
+        outcome: VerificationOutcome;
+        alreadySet: boolean;
+        usedFallback: boolean;
+      };
       try {
         r = await ctx.applyField(ctx.page, m);
       } catch (e) {
@@ -270,6 +280,12 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
           return { kind: 'waiting', reason: 'option_unavailable' };
         }
         throw e;
+      }
+
+      if (r.usedFallback) {
+        // The primary selector no longer matched; the configured fallback did.
+        // Informational — the run continues; diagnostics count these.
+        await ctx.emit({ type: 'SELECTOR_STALE', fieldPath: m.fieldPath });
       }
 
       if (r.alreadySet) {

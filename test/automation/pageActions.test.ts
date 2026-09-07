@@ -5,6 +5,7 @@ import {
   fillText,
   OptionNotFoundError,
   readControl,
+  resolveSelector,
   selectCustom,
   selectNative,
   setCheckbox,
@@ -185,6 +186,34 @@ describe('pageActions', () => {
 
   it('waitForPageSettled resolves once the anchor is visible', async () => {
     await expect(waitForPageSettled(page, '#t')).resolves.toBeUndefined();
+  });
+
+  describe('resolveSelector (Phase 7 fallback resolution)', () => {
+    it('returns the primary selector when it is attached', async () => {
+      expect(await resolveSelector(page, { selector: '#t' })).toEqual({
+        selector: '#t',
+        usedFallback: false,
+      });
+    });
+
+    it('falls back to an explicitly configured fallbackSelector and flags it', async () => {
+      expect(await resolveSelector(page, { selector: '#missing', fallbackSelector: '#t' })).toEqual({
+        selector: '#t',
+        usedFallback: true,
+      });
+    });
+
+    it('throws SelectorNotFoundError when neither the primary nor the fallback matches', async () => {
+      await expect(
+        resolveSelector(page, { selector: '#nope-a', fallbackSelector: '#nope-b' }),
+      ).rejects.toBeInstanceOf(SelectorNotFoundError);
+    });
+
+    it('never invents a fallback — a missing primary with no fallbackSelector throws', async () => {
+      await expect(resolveSelector(page, { selector: '#nope-c' })).rejects.toBeInstanceOf(
+        SelectorNotFoundError,
+      );
+    });
   });
 
   describe('assertNativeOptionAvailable (Phase 7 pre-fill check)', () => {

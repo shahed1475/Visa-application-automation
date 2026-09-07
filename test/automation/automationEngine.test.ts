@@ -169,9 +169,12 @@ interface CtxOpts {
   plan: ApplicationPlan;
   page?: Page;
   flags?: Record<string, boolean>;
-  applyFieldFn?: (
-    m: MappedField,
-  ) => { filled: boolean; outcome: VerificationOutcome; alreadySet: boolean };
+  applyFieldFn?: (m: MappedField) => {
+    filled: boolean;
+    outcome: VerificationOutcome;
+    alreadySet: boolean;
+    usedFallback?: boolean;
+  };
   readControlValue?: string | null;
   initialVerifiedCount?: number;
   classifyPreFill?: EngineContext['classifyPreFill'];
@@ -209,8 +212,13 @@ function makeCtx(o: CtxOpts) {
     applyField: async (_page, m) => {
       applyFieldCalls.push(m.fieldPath);
       return o.applyFieldFn
-        ? o.applyFieldFn(m)
-        : { filled: true, outcome: 'verified' as VerificationOutcome, alreadySet: false };
+        ? { usedFallback: false, ...o.applyFieldFn(m) }
+        : {
+            filled: true,
+            outcome: 'verified' as VerificationOutcome,
+            alreadySet: false,
+            usedFallback: false,
+          };
     },
     readControl: async () => (o.readControlValue === undefined ? null : o.readControlValue),
     settle: async () => {},
@@ -745,6 +753,55 @@ describe('runLoop', () => {
     expect(evt).toMatchObject({ fieldPath: 'application.purpose', status: 'blocked' });
     // it reached the fill stage, then paused cleanly rather than throwing.
     expect(types(events)).toContain('FIELD_FILL_STARTED');
+  });
+
+  it('21. applyField used the configured fallback → emits SELECTOR_STALE, run continues (no pause)', async () => {
+    const fieldMap: PortalFieldMap = {
+      'identity.surname': {
+        selector: '#surname',
+        fallbackSelector: '[name="surname"]',
+        control: 'text',
+        selectorConfidence: 'stable',
+      },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({
+            appliesTo: 'identity.surname',
+            sectionId: 'personal_particulars',
+            value: 'RANA',
+            verified: true,
+          }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      fieldMap,
+    );
+    const { ctx, events } = makeCtx({
+      adapter,
+      plan,
+      applyFieldFn: () => ({
+        filled: true,
+        outcome: 'verified',
+        alreadySet: false,
+        usedFallback: true,
+      }),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    const stale = events.find((e) => e.type === 'SELECTOR_STALE');
+    expect(stale).toMatchObject({ fieldPath: 'identity.surname' });
+    expect(stale?.status ?? null).not.toBe('blocked'); // informational, not a block
+    expect(types(events)).toContain('FIELD_VERIFIED');
   });
 
   it('16. a required field kept as a portal-value conflict is not counted toward fields_verified', async () => {

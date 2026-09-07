@@ -176,7 +176,7 @@ function CandidateRow({
 
 export function ValidationReport({ report }: { report: AdapterValidationReport }) {
   return (
-    <section className="validation-report" role="status" data-testid="validation-report">
+    <section className="validation-report" data-testid="validation-report">
       <h3>
         Adapter validation — {report.ok ? 'PASS' : 'issues found'} ({report.ranAt})
       </h3>

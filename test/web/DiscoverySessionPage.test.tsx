@@ -42,13 +42,18 @@ async function client() {
   >;
 }
 
-const CAND: DiscoveryFieldCandidateDTO = {
+// Carries value-like fields the component must NEVER surface — if a future
+// regression widened rendering from named field access to a spread/dump, these
+// canaries would appear in the DOM and the "no value leak" test would bite.
+const CAND = {
   label: 'Surname',
   primarySelector: '#surname',
   fallbackSelector: 'input[name="surname"]',
   selectorConfidence: 'stable',
   control: 'text',
-};
+  value: 'LEAKCANARY',
+  prefilledValue: 'LEAKCANARY2',
+} as unknown as DiscoveryFieldCandidateDTO;
 
 function session(o: Partial<DiscoverySessionDTO> = {}): DiscoverySessionDTO {
   return {
@@ -235,8 +240,19 @@ it('renders only labels / selectors / control kinds — never a portal field val
   const { container } = renderPage();
   await screen.findByText('PERSONAL_DETAILS');
   fireEvent.click(screen.getByRole('button', { name: /candidates|expand|show/i }));
-  await screen.findByRole('table');
-  // no free text inputs carrying a value, no textual portal value cells
+  const table = await screen.findByRole('table');
+
+  // the candidate row DID render — label, selector and control kind are shown...
+  expect(within(table).getByText('Surname')).toBeTruthy();
+  expect(within(table).getByText('#surname')).toBeTruthy();
+  expect(within(table).getByText('text')).toBeTruthy();
+
+  // ...but the value-like fields on the fixture are nowhere in the DOM.
+  expect(screen.queryByText('LEAKCANARY')).toBeNull();
+  expect(screen.queryByText('LEAKCANARY2')).toBeNull();
+  expect(screen.queryByText(/LEAKCANARY/)).toBeNull();
+
+  // and no free-text input carries a value
   container.querySelectorAll('input').forEach((el) => {
     expect((el as HTMLInputElement).value).toBe('');
   });

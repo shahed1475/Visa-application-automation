@@ -99,6 +99,23 @@ it('value_conflict: the alert panel shows the single /live pair', async () => {
   expect(within(panel).getByText(/identity\.surname/)).toBeTruthy();
 });
 
+it('value_conflict: the panel shows the LAST mismatch (the conflict field), not an earlier unrelated one', async () => {
+  const api = await client();
+  api.getAutomationLive.mockResolvedValue({
+    mismatches: [
+      // an earlier, non-required value_mismatch still sitting at [0]
+      { fieldPath: 'family.spouseName', expected: 'MITHU', actual: 'OTHER' },
+      // the field the run actually paused on — appended last, just before the pause
+      { fieldPath: 'identity.givenNames', expected: 'RANA', actual: 'DIFFERENT' },
+    ],
+  });
+  renderPage();
+  const panel = await screen.findByRole('alert');
+  await waitFor(() => expect(within(panel).getByText(/identity\.givenNames/)).toBeTruthy());
+  expect(within(panel).getByText('DIFFERENT')).toBeTruthy();
+  expect(within(panel).queryByText(/family\.spouseName/)).toBeNull();
+});
+
 it('Use application value resumes with use_application', async () => {
   const api = await client();
   renderPage();

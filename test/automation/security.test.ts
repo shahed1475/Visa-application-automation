@@ -15,7 +15,9 @@ import { BrowserManager } from '../../src/server/automation/engine/browserManage
 import { EVENT_MESSAGES } from '../../src/shared/automation/events.js';
 import { startFixturePortal, type FixturePortal } from '../helpers/fixturePortal.js';
 import { DiscoveryController } from '../../src/server/automation/discovery/discoveryController.js';
-import { makeFixtureIndiaAdapter } from './support/fixtureIndiaAdapter.js';
+import { updateDiscoverySession } from '../../src/server/automation/discovery/discoverySessionStore.js';
+import { validateAdapterAgainstPage } from '../../src/server/automation/adapters/india/validateAdapter.js';
+import { makeFixtureIndiaAdapter, FIXTURE_INDIA_PORTAL_MAP_V2 } from './support/fixtureIndiaAdapter.js';
 import type {
   ApplicationPlan,
   FieldPlan,
@@ -492,12 +494,23 @@ describe('phase 6 security suite (behavioural)', () => {
     expect(await controller.activePage!.locator('#surname').inputValue()).toBe('SOMEONE-ELSE');
     expect(await controller.activePage!.locator('#given-names').inputValue()).toBe('DIFFERENT');
 
-    // Also exercise the adapter self-diagnostic so `last_validation_json` is populated.
-    const validated = await app.inject({
-      method: 'POST',
-      url: `/api/discovery-sessions/${sessionId}/validate-adapter`,
-    });
-    expect(validated.statusCode).toBe(200);
+    // Populate `last_validation_json` from a NON-vacuous report. The real india
+    // map is all-placeholder, so `validateIndiaAdapter` would yield empty
+    // `fields`/`states` arrays and the PII scan below would prove nothing. Run
+    // the validator against the populated fixture v2 map instead (13 validated
+    // mappings, real <option> labels) and persist that.
+    const valReport = await validateAdapterAgainstPage(
+      controller.activePage!,
+      FIXTURE_INDIA_PORTAL_MAP_V2,
+    );
+    expect(valReport.fields.length).toBeGreaterThan(5);
+    expect(valReport.fields.some((f) => (f.optionLabels?.length ?? 0) > 0)).toBe(true);
+    updateDiscoverySession(
+      app.db,
+      sessionId,
+      { last_validation_json: JSON.stringify(valReport) },
+      new Date().toISOString(),
+    );
 
     const captureRes = await app.inject({
       method: 'POST',

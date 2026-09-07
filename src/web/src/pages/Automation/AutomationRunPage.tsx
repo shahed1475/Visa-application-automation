@@ -219,7 +219,10 @@ export function AutomationRunPage() {
 
       {run.status === 'waiting_for_user' && run.waiting_reason === 'value_conflict' && (
         <ValueConflictPanel
-          mismatch={mismatches?.[0] ?? null}
+          // The engine records the conflict pair immediately before it pauses,
+          // so on a value_conflict wait the LAST mismatch is this field's — an
+          // earlier non-required value_mismatch may still sit at [0].
+          mismatch={mismatches?.at(-1) ?? null}
           resumeError={resumeError}
           busy={busy}
           onUseApplication={() => void handleResume('use_application')}

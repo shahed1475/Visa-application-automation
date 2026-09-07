@@ -12,6 +12,7 @@ export const EVENT_TYPES = [
   'RUN_RESUMED',
   'FIELD_MAP_RESOLVED',
   'FIELD_UNMAPPED',
+  'MAPPING_NOT_PRODUCTION_READY',
   'FIELD_ALREADY_SET',
   'FIELD_FILL_STARTED',
   'FIELD_FILLED',
@@ -56,6 +57,8 @@ export const EVENT_MESSAGES: Record<EventType, string> = {
   RUN_RESUMED: 'The automation run resumed.',
   FIELD_MAP_RESOLVED: 'A portal control was located for this field.',
   FIELD_UNMAPPED: 'This field has no portal mapping and was left for you to enter.',
+  MAPPING_NOT_PRODUCTION_READY:
+    'A required portal mapping is not validated against the current mapping revision. The run paused — re-validate the mapping before continuing.',
   FIELD_ALREADY_SET: 'The portal control already held the expected entry, so it was left unchanged.',
   FIELD_FILL_STARTED: 'The run began filling this field.',
   FIELD_FILLED: 'The field was filled and read back as expected.',

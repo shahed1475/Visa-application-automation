@@ -644,6 +644,73 @@ describe('runLoop', () => {
     expect(types(events)).not.toContain('FIELD_CONFLICT_OVERWRITTEN');
   });
 
+  // ---- stale_mapping branch (Phase 7 Task 3) --------------------------------------------
+
+  const stalePlan = () =>
+    makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({ appliesTo: 'identity.surname', sectionId: 'personal_particulars', present: true }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+
+  it('17. required field with a STALE mapping → pauses stale_mapping, never fills', async () => {
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'PERSONAL', sectionIds: ['personal_particulars'] }],
+      {}, // filtered out of the production map
+    );
+    const { ctx, events, applyFieldCalls } = makeCtx({
+      adapter: {
+        ...adapter,
+        mappingReadiness: (p: string) => (p === 'identity.surname' ? 'stale' : 'unmapped'),
+      },
+      plan: stalePlan(),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    const evt = events.find((e) => e.type === 'MAPPING_NOT_PRODUCTION_READY');
+    expect(evt).toMatchObject({ fieldPath: 'identity.surname', status: 'blocked' });
+    expect(types(events)).not.toContain('FIELD_FILL_STARTED');
+    expect(applyFieldCalls).toEqual([]);
+  });
+
+  it('18. required field with an UNVALIDATED mapping → also pauses stale_mapping', async () => {
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'PERSONAL', sectionIds: ['personal_particulars'] }],
+      {},
+    );
+    const { ctx, events } = makeCtx({
+      adapter: {
+        ...adapter,
+        mappingReadiness: () => 'unvalidated',
+      },
+      plan: stalePlan(),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    expect(types(events)).toContain('MAPPING_NOT_PRODUCTION_READY');
+  });
+
+  it('19. required field truly unmapped (no mappingReadiness) still pauses missing_field_mapping', async () => {
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'PERSONAL', sectionIds: ['personal_particulars'] }],
+      {},
+    );
+    const { ctx, events } = makeCtx({ adapter, plan: stalePlan() });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'missing_field_mapping' });
+    expect(types(events)).toContain('FIELD_UNMAPPED');
+    expect(types(events)).not.toContain('MAPPING_NOT_PRODUCTION_READY');
+  });
+
   it('16. a required field kept as a portal-value conflict is not counted toward fields_verified', async () => {
     const { adapter } = makeFakeAdapter(
       [

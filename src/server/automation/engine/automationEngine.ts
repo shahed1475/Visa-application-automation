@@ -204,6 +204,19 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     for (const m of mapped) {
       if (m.spec === null) {
         if (m.required && m.present) {
+          // A required field is absent from the production field map. The adapter
+          // (optionally) explains why: a mapping that exists but is stale /
+          // unvalidated must NOT be treated as "just unmapped" — it pauses with
+          // its own reason so the operator knows to re-validate, not to hand-fill.
+          const readiness = ctx.adapter.mappingReadiness?.(m.fieldPath) ?? 'unmapped';
+          if (readiness === 'stale' || readiness === 'unvalidated') {
+            await ctx.emit({
+              type: 'MAPPING_NOT_PRODUCTION_READY',
+              fieldPath: m.fieldPath,
+              status: 'blocked',
+            });
+            return { kind: 'waiting', reason: 'stale_mapping' };
+          }
           await ctx.emit({ type: 'FIELD_UNMAPPED', fieldPath: m.fieldPath, status: 'blocked' });
           return { kind: 'waiting', reason: 'missing_field_mapping' };
         }

@@ -5,6 +5,7 @@ import type {
   VerificationOutcome,
 } from '../../../shared/automation/types.js';
 import {
+  assertNativeOptionAvailable,
   fillText,
   readControl,
   selectCustom,
@@ -117,6 +118,10 @@ async function writeControl(page: Page, spec: PortalFieldSpec, expected: string)
       await typeAutocomplete(page, sel, expected);
       return;
     case 'native_select':
+      // Pre-fill guard: confirm the exact option exists and is enabled BEFORE
+      // any write, so a missing / disabled / removed option pauses the run on
+      // `option_unavailable` with the control untouched (spec §7).
+      await assertNativeOptionAvailable(page, sel, expected, spec.optionMatch ?? 'label');
       await selectNative(page, sel, expected, spec.optionMatch ?? 'label');
       return;
     case 'custom_select':

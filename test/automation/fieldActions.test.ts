@@ -5,7 +5,10 @@ import {
   classifyPreFill,
   verifyControl,
 } from '../../src/server/automation/engine/fieldActions.js';
-import { SelectorNotFoundError } from '../../src/server/automation/engine/pageActions.js';
+import {
+  OptionNotFoundError,
+  SelectorNotFoundError,
+} from '../../src/server/automation/engine/pageActions.js';
 import type { ControlKind, MappedField } from '../../src/shared/automation/types.js';
 import { startFixtureServer, type FixtureServer } from '../helpers/fixtureServer.js';
 
@@ -14,6 +17,7 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Fi
   <input id="tblur" type="text" oninput="this.value = this.value + 'X'">
   <select id="ns"><option value="a">Alpha</option><option value="b">Bravo</option></select>
   <select id="nsp"><option value="">-- Select --</option><option value="in">India</option><option value="fr">France</option></select>
+  <select id="nsd"><option value="x">Ex</option><option value="y" disabled>Why</option></select>
   <input type="radio" name="r" id="r1" value="a">
   <input type="radio" name="r" id="r2" value="b">
   <input id="cb" type="checkbox">
@@ -100,6 +104,22 @@ describe('fieldActions', () => {
     await expect(applyField(page, mf('#nope', 'text', 'x'))).rejects.toBeInstanceOf(
       SelectorNotFoundError,
     );
+  });
+
+  it('applyField throws OptionNotFoundError for an absent select option without touching the control', async () => {
+    const before = await page.locator('#ns').inputValue();
+    await expect(
+      applyField(page, mf('#ns', 'native_select', 'zzz', 'value')),
+    ).rejects.toBeInstanceOf(OptionNotFoundError);
+    expect(await page.locator('#ns').inputValue()).toBe(before);
+  });
+
+  it('applyField throws OptionNotFoundError for a DISABLED select option without touching the control', async () => {
+    const before = await page.locator('#nsd').inputValue();
+    await expect(
+      applyField(page, mf('#nsd', 'native_select', 'y', 'value')),
+    ).rejects.toBeInstanceOf(OptionNotFoundError);
+    expect(await page.locator('#nsd').inputValue()).toBe(before);
   });
 
   it('classifyPreFill: a blank control reads as empty', async () => {

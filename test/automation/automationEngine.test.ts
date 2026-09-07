@@ -9,6 +9,7 @@ import {
   type EngineEvent,
   type EngineProgress,
 } from '../../src/server/automation/engine/automationEngine.js';
+import { OptionNotFoundError } from '../../src/server/automation/engine/pageActions.js';
 import type {
   ConflictDecision,
   MappedField,
@@ -709,6 +710,41 @@ describe('runLoop', () => {
     expect(stop).toEqual({ kind: 'waiting', reason: 'missing_field_mapping' });
     expect(types(events)).toContain('FIELD_UNMAPPED');
     expect(types(events)).not.toContain('MAPPING_NOT_PRODUCTION_READY');
+  });
+
+  // ---- option_unavailable branch (Phase 7 Task 4) --------------------------------------
+
+  it('20. a mapped select missing the expected option → pauses option_unavailable, does not fail', async () => {
+    const fieldMap: PortalFieldMap = {
+      'application.purpose': { selector: '#purpose', control: 'native_select', selectorConfidence: 'stable' },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('visa_details', [
+          fld({ appliesTo: 'application.purpose', sectionId: 'visa_details', value: 'BUSINESS' }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'VISA', sectionIds: ['visa_details'] }],
+      fieldMap,
+    );
+    const { ctx, events } = makeCtx({
+      adapter,
+      plan,
+      applyFieldFn: () => {
+        throw new OptionNotFoundError('#purpose', 'BUSINESS');
+      },
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'option_unavailable' });
+    const evt = events.find((e) => e.type === 'DROPDOWN_OPTION_MISSING');
+    expect(evt).toMatchObject({ fieldPath: 'application.purpose', status: 'blocked' });
+    // it reached the fill stage, then paused cleanly rather than throwing.
+    expect(types(events)).toContain('FIELD_FILL_STARTED');
   });
 
   it('16. a required field kept as a portal-value conflict is not counted toward fields_verified', async () => {

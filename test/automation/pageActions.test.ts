@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import {
+  assertNativeOptionAvailable,
   fillText,
   OptionNotFoundError,
   readControl,
@@ -21,6 +22,10 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Co
   <input id="t" type="text">
   <textarea id="ta"></textarea>
   <select id="ns"><option value="a">Alpha</option><option value="b">Bravo</option></select>
+  <select id="nsd">
+    <option value="x">Ex</option>
+    <option value="y" disabled>Why</option>
+  </select>
 
   <div id="cd" role="combobox" tabindex="0"><span id="cd-label">Choose</span></div>
   <ul id="cd-list" role="listbox" hidden>
@@ -180,5 +185,29 @@ describe('pageActions', () => {
 
   it('waitForPageSettled resolves once the anchor is visible', async () => {
     await expect(waitForPageSettled(page, '#t')).resolves.toBeUndefined();
+  });
+
+  describe('assertNativeOptionAvailable (Phase 7 pre-fill check)', () => {
+    it('is silent for a present option, by value or by label', async () => {
+      await expect(assertNativeOptionAvailable(page, '#ns', 'a', 'value')).resolves.toBeUndefined();
+      await expect(assertNativeOptionAvailable(page, '#ns', 'Alpha', 'label')).resolves.toBeUndefined();
+      await expect(assertNativeOptionAvailable(page, '#ns', 'Alpha', 'exact')).resolves.toBeUndefined();
+    });
+
+    it('throws OptionNotFoundError for an absent option (no fuzzy match)', async () => {
+      await expect(assertNativeOptionAvailable(page, '#ns', 'zzz', 'value')).rejects.toBeInstanceOf(
+        OptionNotFoundError,
+      );
+      await expect(assertNativeOptionAvailable(page, '#ns', 'Alp', 'label')).rejects.toBeInstanceOf(
+        OptionNotFoundError,
+      );
+    });
+
+    it('treats a disabled option as unavailable', async () => {
+      await expect(assertNativeOptionAvailable(page, '#nsd', 'x', 'value')).resolves.toBeUndefined();
+      await expect(assertNativeOptionAvailable(page, '#nsd', 'y', 'value')).rejects.toBeInstanceOf(
+        OptionNotFoundError,
+      );
+    });
   });
 });

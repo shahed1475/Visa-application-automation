@@ -151,6 +151,37 @@ async function nativeOptionExists(
 }
 
 /**
+ * Read-only PRE-FILL check for a `<select>`: does it currently have an ENABLED
+ * option matching `value` under `match` (`'label'`, `'value'`, or `'exact'` =
+ * either)? Throws {@link OptionNotFoundError} if not — BEFORE any write, so the
+ * engine can pause on `option_unavailable` without ever mutating the control.
+ *
+ * EXACT string equality only. A disabled option, a placeholder option, or a
+ * "close" option is NOT a match — the automation never guesses a dropdown value.
+ */
+export async function assertNativeOptionAvailable(
+  page: Page,
+  selector: string,
+  value: string,
+  match: 'exact' | 'label' | 'value',
+): Promise<void> {
+  await requireSelector(page, selector);
+  const options = await page.locator(`${selector} option`).evaluateAll((els) =>
+    els.map((el) => {
+      const o = el as unknown as { textContent: string | null; value: string; disabled: boolean };
+      return { label: (o.textContent ?? '').trim(), value: o.value, disabled: o.disabled };
+    }),
+  );
+  const hit = options.some((o) => {
+    if (o.disabled) return false;
+    if (match === 'label') return o.label === value;
+    if (match === 'value') return o.value === value;
+    return o.label === value || o.value === value;
+  });
+  if (!hit) throw new OptionNotFoundError(selector, value);
+}
+
+/**
  * Open a custom (non-native) dropdown by clicking `triggerSelector`, wait for
  * its listbox, and click the option whose visible text matches `optionText`.
  */

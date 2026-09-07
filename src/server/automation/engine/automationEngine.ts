@@ -13,7 +13,7 @@ import type { Page } from 'playwright';
 import type { PortalAdapter } from '../adapters/baseAdapter.js';
 import type { PageInspection } from './pageInspector.js';
 import { detectCheckpoint, type CheckpointKind } from './checkpointDetector.js';
-import { SelectorNotFoundError } from './pageActions.js';
+import { OptionNotFoundError, SelectorNotFoundError } from './pageActions.js';
 import { mapFields } from '../../../shared/automation/fieldMapping.js';
 import { UNKNOWN_STATE } from '../../../shared/automation/types.js';
 import type {
@@ -258,6 +258,16 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
           await ctx.emit({ type: 'FIELD_NOT_FOUND', fieldPath: m.fieldPath, status: 'blocked' });
           if (m.required) return { kind: 'waiting', reason: 'missing_field_mapping' };
           continue;
+        }
+        if (e instanceof OptionNotFoundError) {
+          // The dropdown does not offer the expected option (missing, disabled,
+          // or removed). Never pick a "closest" one — pause for a human.
+          await ctx.emit({
+            type: 'DROPDOWN_OPTION_MISSING',
+            fieldPath: m.fieldPath,
+            status: 'blocked',
+          });
+          return { kind: 'waiting', reason: 'option_unavailable' };
         }
         throw e;
       }

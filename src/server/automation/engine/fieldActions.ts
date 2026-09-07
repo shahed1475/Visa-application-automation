@@ -26,6 +26,12 @@ const SELECT_CONTROLS = new Set(['native_select', 'custom_select', 'searchable_s
  * Read the control named by `spec` and compare it to `expected`.
  *
  * - `readControl` returned `null` (unreadable) -> `'unreadable'`.
+ * - For a `date` control with a configured `readBackParse`, BOTH the read-back
+ *   value and `expected` are normalised to ISO before comparison, so the portal
+ *   date format is irrelevant. `mapFields` has already applied `spec.transform`,
+ *   so `expected` is the portal-format string; `readBackParse` maps it (and the
+ *   live value) back to ISO. A read-back that `readBackParse` cannot parse ->
+ *   `'unreadable'` (the run pauses rather than accepting an ambiguous date).
  * - For a select whose `optionMatch` is `'value'`, `readControl` yields the
  *   option *label*, not its value, so the underlying `inputValue()` is read and
  *   compared instead; for a custom widget with no `inputValue()` this falls back
@@ -41,6 +47,25 @@ export async function verifyControl(
 ): Promise<VerificationOutcome> {
   const actual = await readControl(page, spec.selector, spec.control);
   if (actual === null) return 'unreadable';
+
+  if (spec.control === 'date' && spec.readBackParse) {
+    let isoActual: string;
+    try {
+      isoActual = spec.readBackParse(actual);
+    } catch {
+      return 'unreadable';
+    }
+    let isoExpected: string;
+    try {
+      isoExpected = spec.readBackParse(expected);
+    } catch {
+      // `expected` is what the plan asked for, post-transform — if it does not
+      // parse, the mapping's transform/parse pair is inconsistent: treat as a
+      // mismatch, never a silent pass.
+      return 'mismatch';
+    }
+    return isoActual === isoExpected ? 'verified' : 'mismatch';
+  }
 
   if (SELECT_CONTROLS.has(spec.control) && spec.optionMatch === 'value') {
     let value: string | null = null;

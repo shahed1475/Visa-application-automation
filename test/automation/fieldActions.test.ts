@@ -9,6 +9,10 @@ import {
   OptionNotFoundError,
   SelectorNotFoundError,
 } from '../../src/server/automation/engine/pageActions.js';
+import {
+  parseDMY,
+  parseIso,
+} from '../../src/server/automation/adapters/india/transforms.js';
 import type { ControlKind, MappedField } from '../../src/shared/automation/types.js';
 import { startFixtureServer, type FixtureServer } from '../helpers/fixtureServer.js';
 
@@ -21,6 +25,8 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Fi
   <input type="radio" name="r" id="r1" value="a">
   <input type="radio" name="r" id="r2" value="b">
   <input id="cb" type="checkbox">
+  <input id="d" type="date">
+  <input id="dtext" type="text">
 </body></html>`;
 
 function mf(
@@ -260,5 +266,52 @@ describe('fieldActions', () => {
         'RANA',
       ),
     ).toBe('mismatch');
+  });
+
+  it('verifyControl: a date control with readBackParse compares in ISO (format-independent)', async () => {
+    await page.locator('#dtext').fill('15/10/2026'); // portal shows DD/MM/YYYY
+    const spec = {
+      selector: '#dtext',
+      control: 'date' as const,
+      selectorConfidence: 'stable' as const,
+      readBackParse: parseDMY,
+    };
+    // `expected` is already the portal-format string (mapFields applied transform)
+    expect(await verifyControl(page, spec, '15/10/2026')).toBe('verified');
+    expect(await verifyControl(page, spec, '01/01/2020')).toBe('mismatch');
+  });
+
+  it('verifyControl: a native date input with parseIso readBackParse verifies an ISO match', async () => {
+    await page.locator('#d').fill('2026-10-15');
+    const spec = {
+      selector: '#d',
+      control: 'date' as const,
+      selectorConfidence: 'stable' as const,
+      readBackParse: parseIso,
+    };
+    expect(await verifyControl(page, spec, '2026-10-15')).toBe('verified');
+    expect(await verifyControl(page, spec, '2020-01-01')).toBe('mismatch');
+  });
+
+  it('verifyControl: date read-back that readBackParse cannot parse → unreadable (never a silent pass)', async () => {
+    await page.locator('#d').fill('2026-10-15'); // native input reads back ISO
+    const spec = {
+      selector: '#d',
+      control: 'date' as const,
+      selectorConfidence: 'stable' as const,
+      readBackParse: parseDMY, // wrong parser for this control's format
+    };
+    expect(await verifyControl(page, spec, '15/10/2026')).toBe('unreadable');
+  });
+
+  it('verifyControl: a date control WITHOUT readBackParse falls back to raw trim-equality (unchanged)', async () => {
+    await page.locator('#d').fill('2026-10-15');
+    expect(
+      await verifyControl(
+        page,
+        { selector: '#d', control: 'date', selectorConfidence: 'stable' },
+        '2026-10-15',
+      ),
+    ).toBe('verified');
   });
 });

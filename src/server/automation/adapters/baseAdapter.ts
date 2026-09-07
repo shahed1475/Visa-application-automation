@@ -29,6 +29,15 @@ export interface PortalAdapter {
   /** Document ids (matching `ApplicationPlan.documents[].id`) the portal collects while in `state`. */
   documentIdsForState(state: PortalState): string[];
   getFieldMap(): PortalFieldMap;
+  /**
+   * OPTIONAL. Explains why a plan field is NOT in `getFieldMap()`:
+   * - `'production'`  — it IS in the map (the caller need not have asked)
+   * - `'stale'`       — a validated mapping exists but was stamped against an old revision
+   * - `'unvalidated'` — a mapping entry exists at `'placeholder'` / `'discovered'`
+   * - `'unmapped'`    — no mapping entry at all
+   * A generic adapter omits this; the engine then treats every gap as `'unmapped'`.
+   */
+  mappingReadiness?(fieldPath: string): 'production' | 'stale' | 'unvalidated' | 'unmapped';
   canContinue(page: Page): Promise<{ ok: boolean; reason?: string }>;
   clickNext(page: Page): Promise<void>;
   isFinalReview(state: PortalState): boolean;

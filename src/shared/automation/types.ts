@@ -12,6 +12,13 @@ export interface PortalFieldSpec {
   control: ControlKind;
   selectorConfidence: SelectorConfidence;
   transform?: (canonical: string) => string;
+  /**
+   * Portal-value → ISO (`YYYY-MM-DD`) normaliser used for read-back comparison of
+   * `date` controls. Set by the adapter alongside `transform` for a date field
+   * whose portal format is known; when absent, read-back compares the raw string
+   * (unchanged behaviour for every non-date field). See Phase 7 spec §8.
+   */
+  readBackParse?: (portalValue: string) => string;
   optionMatch?: 'exact' | 'label' | 'value';
 }
 export type PortalFieldMap = Record<string, PortalFieldSpec>; // key = FieldPlan.appliesTo

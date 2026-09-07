@@ -52,13 +52,15 @@ describe('fixture portal v3 — deterministic failure scenarios', () => {
     expect(body).toMatch(/<select id="purpose"><option value="">/);
   });
 
-  it('?option=disabled marks the target option disabled', async () => {
+  it('?option=disabled leads with a placeholder and marks the target option disabled', async () => {
     const { body } = await get('/visa-details?option=disabled');
+    expect(body).toMatch(/<select id="purpose"><option value="">/);
     expect(body).toContain('<option value="business" disabled>Business</option>');
   });
 
-  it('?option=removed strips the target option', async () => {
+  it('?option=removed leads with a placeholder and strips the target option', async () => {
     const { body } = await get('/visa-details?option=removed');
+    expect(body).toMatch(/<select id="purpose"><option value="">/);
     expect(body).not.toContain('value="business"');
     expect(body).toContain('value="recreation"');
   });

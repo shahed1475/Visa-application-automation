@@ -25,16 +25,15 @@ describe('FIXTURE_INDIA_PORTAL_MAP_V3', () => {
     expect(stale.map(([k]) => k)).toEqual(['family.spouseName']);
   });
 
-  it('date fields carry an explicit transform + readBackParse', () => {
-    const arrival = FIXTURE_INDIA_PORTAL_MAP_V3.fields['application.intendedArrivalDate']!;
-    expect(typeof arrival.transform).toBe('function');
-    expect(typeof arrival.readBackParse).toBe('function');
-    expect(arrival.transform!('2026-10-15')).toBe('2026-10-15'); // native <input type=date>: ISO in/out
-    expect(arrival.readBackParse!('2026-10-15')).toBe('2026-10-15');
-
-    const expiry = FIXTURE_INDIA_PORTAL_MAP_V3.fields['passport.expiryDate']!;
-    expect(expiry.transform!('2026-10-15')).toBe('15/10/2026'); // text DD/MM/YYYY
-    expect(expiry.readBackParse!('15/10/2026')).toBe('2026-10-15');
+  it('date fields carry an explicit transform + readBackParse (native <input type=date>: ISO in/out)', () => {
+    for (const path of ['application.intendedArrivalDate', 'passport.expiryDate'] as const) {
+      const m = FIXTURE_INDIA_PORTAL_MAP_V3.fields[path]!;
+      expect(typeof m.transform, path).toBe('function');
+      expect(typeof m.readBackParse, path).toBe('function');
+      expect(m.transform!('2026-10-15'), path).toBe('2026-10-15');
+      expect(m.readBackParse!('2026-10-15'), path).toBe('2026-10-15');
+      expect(() => m.readBackParse!('not-a-date'), path).toThrow();
+    }
   });
 
   it('identity.surname carries an explicit fallbackSelector', () => {

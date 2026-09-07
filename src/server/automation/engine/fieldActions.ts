@@ -106,15 +106,27 @@ export async function classifyPreFill(
   spec: PortalFieldSpec,
   expected: string,
 ): Promise<'empty' | 'match' | 'conflict'> {
-  const actual = await readControl(page, spec.selector, spec.control);
+  // Resolve the selector the same way `applyField` will (primary, else the
+  // configured fallback). If NEITHER resolves, this is not a pre-existing value
+  // — return `'empty'` so `applyField` runs and emits the proper
+  // `FIELD_NOT_FOUND`; this triage step never throws.
+  let rspec: PortalFieldSpec;
+  let actual: string | null;
+  try {
+    const { selector } = await resolveSelector(page, spec);
+    rspec = { ...spec, selector };
+    actual = await readControl(page, selector, spec.control);
+  } catch {
+    return 'empty';
+  }
   if (actual === null || norm(actual) === '') return 'empty';
 
   // A `<select>` resting on a placeholder option (`<option value="">`) reads back
   // a non-empty label but carries no chosen value.
-  if (SELECT_CONTROLS.has(spec.control)) {
+  if (SELECT_CONTROLS.has(rspec.control)) {
     let value: string | null = null;
     try {
-      value = await page.locator(spec.selector).inputValue();
+      value = await page.locator(rspec.selector).inputValue();
     } catch {
       value = null; // custom widget with no inputValue() — fall through
     }
@@ -122,11 +134,11 @@ export async function classifyPreFill(
   }
   // An unchecked checkbox is the default state, not a pre-existing choice —
   // unless the plan also wants it unchecked (then it is a genuine match below).
-  if (spec.control === 'checkbox' && norm(actual) === 'false' && norm(expected) !== 'false') {
+  if (rspec.control === 'checkbox' && norm(actual) === 'false' && norm(expected) !== 'false') {
     return 'empty';
   }
 
-  return (await verifyControl(page, spec, expected)) === 'verified' ? 'match' : 'conflict';
+  return (await verifyControl(page, rspec, expected)) === 'verified' ? 'match' : 'conflict';
 }
 
 /** Dispatch `m.expected` to the right pageActions writer for `m.spec.control`. */

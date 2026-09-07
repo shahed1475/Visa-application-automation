@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AutomationRunPage } from '../../src/web/src/pages/Automation/AutomationRunPage';
 import type { AutomationRunRow } from '../../src/shared/automation/types';

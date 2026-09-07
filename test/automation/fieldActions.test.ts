@@ -239,6 +239,27 @@ describe('fieldActions', () => {
     ).toBe('conflict');
   });
 
+  it('classifyPreFill: reads the configured fallback when the primary selector is gone', async () => {
+    await page.locator('#t').fill('RANA');
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#gone', fallbackSelector: '#t', control: 'text', selectorConfidence: 'stable' },
+        'RANA',
+      ),
+    ).toBe('match');
+  });
+
+  it('classifyPreFill: neither primary nor fallback resolves → empty (never throws)', async () => {
+    await expect(
+      classifyPreFill(
+        page,
+        { selector: '#gone-a', fallbackSelector: '#gone-b', control: 'text', selectorConfidence: 'stable' },
+        'RANA',
+      ),
+    ).resolves.toBe('empty');
+  });
+
   it('classifyPreFill: an unreadable control (readControl → null) defers to applyField as empty', async () => {
     expect(
       await classifyPreFill(

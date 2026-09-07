@@ -116,13 +116,17 @@ function applyScenario(html: string, params: URLSearchParams): { html: string; s
     );
   }
 
-  switch (params.get('option')) {
-    case 'placeholder':
-      out = out.replace(
-        '<select id="purpose">',
-        '<select id="purpose"><option value="">— Select —</option>',
-      );
-      break;
+  const option = params.get('option');
+  if (option === 'placeholder' || option === 'disabled' || option === 'removed') {
+    // Lead with an empty placeholder so the select rests unselected — otherwise
+    // removing/disabling the first option just shifts the default selection and
+    // the engine's pre-fill check reads it as a pre-existing value.
+    out = out.replace(
+      '<select id="purpose">',
+      '<select id="purpose"><option value="">— Select —</option>',
+    );
+  }
+  switch (option) {
     case 'disabled':
       out = out.replace(
         '<option value="business">Business</option>',

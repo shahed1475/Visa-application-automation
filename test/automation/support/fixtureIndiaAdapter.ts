@@ -19,11 +19,7 @@ import {
   classifyMapping,
   isProductionUsable,
 } from '../../../src/server/automation/adapters/india/mappingLifecycle.js';
-import {
-  isoToDMY,
-  parseDMY,
-  parseIso,
-} from '../../../src/server/automation/adapters/india/transforms.js';
+import { parseIso } from '../../../src/server/automation/adapters/india/transforms.js';
 
 /**
  * A full, real `PortalAdapter` implementation targeting the local fixture portal
@@ -49,8 +45,9 @@ const PATH_TO_STATE: Record<string, PortalState> = {
   '/additional-information': 'ADDITIONAL_INFORMATION',
   '/webforms-personal': 'WEBFORMS_PERSONAL',
   // Phase 7: the /dates page (native + text date inputs) is treated as the
-  // passport-details step so its section is active for the date-transform tests.
-  '/dates': 'PASSPORT_DETAILS',
+  // visa-details step so the `visa_details` section is active for the
+  // date-transform tests.
+  '/dates': 'VISA_DETAILS',
 };
 
 const SECTION_IDS: Record<string, string[]> = {
@@ -205,6 +202,29 @@ export function makeFixtureIndiaAdapter(
       `${portalUrl.replace(/\/$/, '')}/${entryPath.replace(/^\//, '')}`,
 
     getPageIdentity: async (page): Promise<PageIdentity> => {
+      // A session-expired / login-redirect page is never a form step, whatever
+      // its URL — the engine must safe-stop on it (Phase 7 §session-expired).
+      // Guard the read with a count check so a page WITHOUT an <h1> does not
+      // block on the locator's default wait.
+      const h1Count = await page
+        .locator('h1')
+        .count()
+        .catch(() => 0);
+      const heading =
+        h1Count > 0
+          ? await page
+              .locator('h1')
+              .first()
+              .textContent()
+              .catch(() => '')
+          : '';
+      if (/session expired/i.test(heading ?? '')) {
+        return {
+          state: UNKNOWN_STATE,
+          confidence: 0,
+          signals: [{ kind: 'heading', matched: false, detail: 'session expired' }],
+        };
+      }
       const pathname = new URL(page.url()).pathname;
       const state = PATH_TO_STATE[pathname];
       if (state === undefined) {
@@ -370,10 +390,12 @@ const FIXTURE_V3_FIELDS: Record<string, IndiaFieldMapping> = {
   'identity.givenNames': v3Field('#given-names', 'text'),
   'identity.sex': v3Field('#sex', 'native_select', { optionMatch: 'value' }),
   'passport.number': v3Field('#passport-number', 'text'),
-  // #passport-expiry on /dates is a DD/MM/YYYY text input -> explicit transforms.
+  // A native <input type="date"> on /passport and /all — ISO in / ISO out.
+  // (The DD/MM/YYYY round-trip is proven by a dedicated phase7Matrix scenario
+  // with an inline map pointing at the /dates text input.)
   'passport.expiryDate': v3Field('#passport-expiry', 'date', {
-    transform: isoToDMY,
-    readBackParse: parseDMY,
+    transform: parseIso,
+    readBackParse: parseIso,
   }),
   'address.line1': v3Field('#address-line1', 'text'),
   'address.city': v3Field('#address-city', 'text'),

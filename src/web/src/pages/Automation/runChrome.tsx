@@ -1,5 +1,6 @@
 import { EVENT_MESSAGES } from '../../../../shared/automation/events';
 import type { AutomationEventRow } from '../../../../shared/automation/types';
+import type { IndiaDiagnostics } from '../../../../shared/discovery/types';
 
 type Mismatch = { fieldPath: string; expected: string; actual: string };
 
@@ -20,6 +21,8 @@ const WAITING_REASON_TEXT: Record<string, string> = {
   anti_bot: 'Anti-bot challenge',
   unknown_page: 'Unrecognised page',
   missing_field_mapping: 'Missing field mapping',
+  stale_mapping: 'Mapping needs re-validation',
+  option_unavailable: 'Dropdown option unavailable',
   value_mismatch: 'Value needs review',
   value_conflict: 'Value conflict — decision needed',
   document_upload_required: 'Attach documents',
@@ -40,6 +43,10 @@ const REASON_INSTRUCTION: Record<string, string> = {
   document_upload_required: 'Attach the required documents in the browser, then resume.',
   missing_field_mapping:
     'A field has no portal mapping. Enter it in the browser, then resume or abort.',
+  stale_mapping:
+    'A required portal mapping is stale or not yet validated. Re-validate it (run discovery, then Validate Adapter) before resuming.',
+  option_unavailable:
+    'The portal dropdown does not offer the expected option. Fix the value in the portal or the application, then resume.',
   unknown_page:
     'The portal is not where the automation expected. Check the browser, then resume or abort.',
   session_expired:
@@ -213,9 +220,35 @@ export function SafeStopBanner() {
     <section className="safe-stop">
       <h2>Preparation complete</h2>
       <p>
-        Automation completed the preparation. Final submission requires your review and action in the
-        browser.
+        <strong>Prepared — NOT submitted.</strong> Submission is your responsibility in the portal:
+        review every field there, then submit the application yourself.
       </p>
     </section>
+  );
+}
+
+/** Value-free run provenance: adapter version, mapping revision, how many
+ *  mappings are production-ready. Never renders applicant data. */
+export function AdapterProvenance({ diagnostics }: { diagnostics: IndiaDiagnostics | null }) {
+  if (!diagnostics) return null;
+  const d = diagnostics;
+  return (
+    <p className="muted adapter-provenance" role="status">
+      India adapter v{d.adapterVersion} · mapping rev {d.mappingRevision} ·{' '}
+      {d.productionUsableMappings} / {d.mappings.total} production-ready
+    </p>
+  );
+}
+
+/** Shown when the India adapter has stale mappings, or no production-usable
+ *  mapping at all — a real run would pause on `stale_mapping`. */
+export function StaleMappingWarning({ diagnostics }: { diagnostics: IndiaDiagnostics | null }) {
+  if (!diagnostics) return null;
+  if (diagnostics.staleMappings === 0 && diagnostics.productionUsableMappings > 0) return null;
+  return (
+    <p className="warning" role="alert">
+      Some required portal mappings are stale or not yet validated. Automation cannot safely continue
+      until they are re-validated.
+    </p>
   );
 }

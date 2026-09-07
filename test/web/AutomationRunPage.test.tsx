@@ -154,14 +154,9 @@ it('(d) review_ready shows the SAFE STOP banner verbatim and no submit control',
     events: [],
   });
   const { container } = renderPage();
-  await waitFor(() =>
-    expect(
-      screen.getByText(
-        'Automation completed the preparation. Final submission requires your review and action in the browser.',
-      ),
-    ).toBeTruthy(),
-  );
+  await waitFor(() => expect(screen.getByText(/NOT submitted/)).toBeTruthy());
   expect(screen.getByText('Preparation complete')).toBeTruthy();
+  expect(screen.getByText(/Submission is your responsibility/i)).toBeTruthy();
   expect(screen.queryByRole('button', { name: /submit/i })).toBeNull();
   expect(container.querySelector('form')).toBeNull();
   expect(container.querySelector('button[type="submit"]')).toBeNull();

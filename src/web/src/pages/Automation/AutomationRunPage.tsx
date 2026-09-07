@@ -7,11 +7,14 @@ import type {
   AutomationRunRow,
   AutomationEventRow,
 } from '../../../../shared/automation/types';
+import type { IndiaDiagnostics } from '../../../../shared/discovery/types';
 import {
   ActionRequiredPanel,
+  AdapterProvenance,
   EventLog,
   ProgressBar,
   SafeStopBanner,
+  StaleMappingWarning,
   StatusBadge,
   ValueConflictPanel,
 } from './runChrome';
@@ -36,6 +39,7 @@ export function AutomationRunPage() {
   const [headerNames, setHeaderNames] = useState<{ applicant?: string; category?: string }>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mismatches, setMismatches] = useState<Mismatch[] | null>(null);
+  const [diagnostics, setDiagnostics] = useState<IndiaDiagnostics | null>(null);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -55,6 +59,19 @@ export function AutomationRunPage() {
         setEvents(sorted);
         lastSeq.current = maxSeq(sorted, 0);
         setLoadError(null);
+        // Value-free adapter provenance for an India run. Best-effort — the
+        // provenance line and stale-mapping warning just stay hidden on failure.
+        if (r.adapter_id === 'india' && r.portal_id) {
+          const portalId = r.portal_id;
+          void (async () => {
+            try {
+              const { diagnostics: d } = await api.getAdapterDiagnostics(portalId);
+              if (!cancelled) setDiagnostics(d);
+            } catch {
+              /* best-effort */
+            }
+          })();
+        }
         try {
           const { application, plan } = await api.getApplication(r.application_id);
           if (cancelled) return;
@@ -200,6 +217,9 @@ export function AutomationRunPage() {
         {headerNames.category ? ` · ${headerNames.category}` : ''} · {run.portal_url_snapshot} ·
         adapter: {run.adapter_id}
       </p>
+
+      <AdapterProvenance diagnostics={diagnostics} />
+      <StaleMappingWarning diagnostics={diagnostics} />
 
       {loadError && (
         <p className="error" role="alert">

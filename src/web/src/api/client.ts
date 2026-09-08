@@ -236,6 +236,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  promoteBundle: (
+    sessionId: string,
+    picks: { pageSeq: number; candidateIndex: number; canonicalFieldPath: string }[],
+  ) =>
+    request<{ bundle: { literal: string; warnings: string[] } }>(
+      `/discovery-sessions/${sessionId}/promote-bundle`,
+      { method: 'POST', body: JSON.stringify({ picks }) },
+    ),
   validateAdapter: (sessionId: string) =>
     request<{ report: AdapterValidationReport }>(
       `/discovery-sessions/${sessionId}/validate-adapter`,

@@ -178,10 +178,39 @@ export function promoteCandidate(
   body.push(`  status: 'discovered',`);
   body.push(`  discoveredAt: ${quote(discoveredAt)},`);
   body.push(`  discoverySessionRef: ${quote(sessionId)},`);
+  // The two validation stamps are HAND-APPLIED after read-back validation
+  // (§13.12) — the app never writes them. Emit them as line comments so the
+  // literal pastes into `indiaPortalMap.fields` without breaking `tsc`
+  // (`// ...` inside an object literal is valid TS; comments need no comma).
+  body.push(`  // TODO: after read-back validation set status: 'validated',`);
+  body.push(
+    `  // TODO: validatedAgainstRevision: '${indiaPortalMap.mappingRevision}' (current mappingRevision),`,
+  );
+  body.push(`  // TODO: validatedAt: '<ISO you filled at validation time>',`);
 
   const literal = [`${quote(input.canonicalFieldPath)}: {`, ...body, '},'].join('\n');
 
   return { canonicalFieldPath: input.canonicalFieldPath, literal, warnings };
+}
+
+/**
+ * Render one paste block covering several promoted candidates at once — each
+ * pick run through {@link promoteCandidate}, the literals joined under a single
+ * block, warnings de-duplicated. Writes nothing. An empty `picks` yields an
+ * empty bundle; a bad pick propagates its
+ * `DiscoveryCandidateNotFoundError` / `DiscoverySessionNotFoundError`.
+ */
+export function renderPromotedBundle(
+  db: DatabaseSync,
+  sessionId: string,
+  picks: PromoteInput[],
+): { literal: string; warnings: string[] } {
+  if (picks.length === 0) return { literal: '', warnings: [] };
+  const edits = picks.map((pick) => promoteCandidate(db, sessionId, pick));
+  return {
+    literal: edits.map((e) => e.literal).join('\n\n'),
+    warnings: [...new Set(edits.flatMap((e) => e.warnings))],
+  };
 }
 
 function quote(s: string): string {

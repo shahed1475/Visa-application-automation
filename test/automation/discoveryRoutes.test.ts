@@ -423,6 +423,118 @@ describe('discovery routes', () => {
     expect(res.json().error.code).toBe('VALIDATION_ERROR');
   });
 
+  it('POST /api/discovery-sessions/:id/promote-bundle → 200 { bundle } carrying every path', async () => {
+    const { portalId } = await build(new FakeDiscoveryController());
+    const db = (app as unknown as { db: DatabaseSync }).db;
+    const session = createDiscoverySession(db, {
+      id: randomUUID(),
+      portalId,
+      adapterId: ADAPTER_ID,
+      now: new Date().toISOString(),
+    });
+    appendDiscoveryPage(db, {
+      id: randomUUID(),
+      sessionId: session.id,
+      now: new Date().toISOString(),
+      stateGuess: 'PERSONAL_DETAILS',
+      urlPattern: '/personal',
+      pageTitle: 'Personal',
+      headingsJson: '[]',
+      fingerprintJson: '{}',
+      candidatesJson: JSON.stringify([
+        {
+          label: 'Surname',
+          primarySelector: '#f_surname',
+          fallbackSelector: null,
+          selectorConfidence: 'stable',
+          control: 'text',
+        },
+        {
+          label: 'Given names',
+          primarySelector: '#f_given',
+          fallbackSelector: null,
+          selectorConfidence: 'stable',
+          control: 'text',
+        },
+      ]),
+      signalsJson: '[]',
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${session.id}/promote-bundle`,
+      payload: {
+        picks: [
+          { pageSeq: 1, candidateIndex: 0, canonicalFieldPath: 'identity.surname' },
+          { pageSeq: 1, candidateIndex: 1, canonicalFieldPath: 'identity.givenNames' },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.bundle.literal).toContain("'identity.surname': {");
+    expect(body.bundle.literal).toContain("'identity.givenNames': {");
+    expect(Array.isArray(body.bundle.warnings)).toBe(true);
+    noPII(body);
+  });
+
+  it('POST /promote-bundle with an unknown candidate index → 404', async () => {
+    const { portalId } = await build(new FakeDiscoveryController());
+    const db = (app as unknown as { db: DatabaseSync }).db;
+    const session = createDiscoverySession(db, {
+      id: randomUUID(),
+      portalId,
+      adapterId: ADAPTER_ID,
+      now: new Date().toISOString(),
+    });
+    appendDiscoveryPage(db, {
+      id: randomUUID(),
+      sessionId: session.id,
+      now: new Date().toISOString(),
+      stateGuess: 'PERSONAL_DETAILS',
+      urlPattern: '/personal',
+      pageTitle: 'Personal',
+      headingsJson: '[]',
+      fingerprintJson: '{}',
+      candidatesJson: JSON.stringify([
+        {
+          label: 'Surname',
+          primarySelector: '#f_surname',
+          fallbackSelector: null,
+          selectorConfidence: 'stable',
+          control: 'text',
+        },
+      ]),
+      signalsJson: '[]',
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${session.id}/promote-bundle`,
+      payload: { picks: [{ pageSeq: 1, candidateIndex: 7, canonicalFieldPath: 'identity.surname' }] },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe('NOT_FOUND');
+  });
+
+  it('POST /promote-bundle with an empty picks array → 400', async () => {
+    const { portalId } = await build(new FakeDiscoveryController());
+    const db = (app as unknown as { db: DatabaseSync }).db;
+    const session = createDiscoverySession(db, {
+      id: randomUUID(),
+      portalId,
+      adapterId: ADAPTER_ID,
+      now: new Date().toISOString(),
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/discovery-sessions/${session.id}/promote-bundle`,
+      payload: { picks: [] },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_ERROR');
+  });
+
   describe('POST /api/discovery-sessions/:id/validate-adapter', () => {
     let browser: Browser;
 

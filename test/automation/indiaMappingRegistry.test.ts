@@ -14,6 +14,7 @@ import {
   getIndiaMappings,
   getIndiaMappingStatus,
   promoteCandidate,
+  renderPromotedBundle,
 } from '../../src/server/automation/adapters/india/indiaMappingRegistry.js';
 import { DiscoverySessionNotFoundError } from '../../src/server/automation/discovery/discoveryController.js';
 
@@ -193,6 +194,28 @@ describe('promoteCandidate', () => {
     );
   });
 
+  it('literal carries the validation TODO stamps and the checklist pointer', () => {
+    const sessionId = seedSession();
+    seedPage(sessionId, [
+      {
+        label: 'Surname',
+        primarySelector: '#f_surname',
+        fallbackSelector: null,
+        selectorConfidence: 'stable',
+        control: 'text',
+      },
+    ]);
+    const { literal } = promoteCandidate(db, sessionId, {
+      pageSeq: 1,
+      candidateIndex: 0,
+      canonicalFieldPath: 'identity.surname',
+    });
+    expect(literal).toContain("status: 'discovered'");
+    expect(literal).toMatch(/\/\/ TODO: after read-back validation set status: 'validated'/);
+    expect(literal).toMatch(/\/\/ TODO: validatedAgainstRevision: '[^']+' \(current mappingRevision\)/);
+    expect(literal).toMatch(/\/\/ TODO: validatedAt:/);
+  });
+
   it('throws DiscoverySessionNotFoundError for an unknown session', () => {
     expect(() =>
       promoteCandidate(db, 'does-not-exist', {
@@ -219,6 +242,62 @@ describe('promoteCandidate', () => {
     ).toThrow(DiscoveryCandidateNotFoundError);
     expect(() =>
       promoteCandidate(db, sessionId, { pageSeq: 1, candidateIndex: 5, canonicalFieldPath: 'identity.surname' }),
+    ).toThrow(DiscoveryCandidateNotFoundError);
+  });
+});
+
+describe('renderPromotedBundle', () => {
+  function seedTwo(): string {
+    const sessionId = seedSession();
+    seedPage(sessionId, [
+      {
+        label: 'Surname',
+        primarySelector: '#f_surname',
+        fallbackSelector: null,
+        selectorConfidence: 'stable',
+        control: 'text',
+      },
+      {
+        label: 'Given names',
+        primarySelector: '#f_given',
+        fallbackSelector: null,
+        selectorConfidence: 'stable',
+        control: 'text',
+      },
+    ]);
+    return sessionId;
+  }
+
+  it('concatenates every pick under one paste block', () => {
+    const sessionId = seedTwo();
+    const { literal } = renderPromotedBundle(db, sessionId, [
+      { pageSeq: 1, candidateIndex: 0, canonicalFieldPath: 'identity.surname' },
+      { pageSeq: 1, candidateIndex: 1, canonicalFieldPath: 'identity.givenNames' },
+    ]);
+    expect(literal).toContain("'identity.surname': {");
+    expect(literal).toContain("'identity.givenNames': {");
+  });
+
+  it('returns an empty bundle for no picks', () => {
+    const sessionId = seedSession();
+    expect(renderPromotedBundle(db, sessionId, [])).toStrictEqual({ literal: '', warnings: [] });
+  });
+
+  it('dedupes warnings across picks', () => {
+    const sessionId = seedTwo();
+    const { warnings } = renderPromotedBundle(db, sessionId, [
+      { pageSeq: 1, candidateIndex: 0, canonicalFieldPath: 'not.a.real.field' },
+      { pageSeq: 1, candidateIndex: 1, canonicalFieldPath: 'also.not.real' },
+    ]);
+    expect(warnings).toStrictEqual(['unknown canonical field']);
+  });
+
+  it('propagates DiscoveryCandidateNotFoundError from the first bad pick', () => {
+    const sessionId = seedTwo();
+    expect(() =>
+      renderPromotedBundle(db, sessionId, [
+        { pageSeq: 1, candidateIndex: 9, canonicalFieldPath: 'identity.surname' },
+      ]),
     ).toThrow(DiscoveryCandidateNotFoundError);
   });
 });

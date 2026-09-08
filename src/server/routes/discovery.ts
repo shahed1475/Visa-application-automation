@@ -19,6 +19,7 @@ import {
   getIndiaMappingStatus,
   getIndiaMappings,
   promoteCandidate,
+  renderPromotedBundle,
 } from '../automation/adapters/india/indiaMappingRegistry.js';
 import { getIndiaDiagnostics } from '../automation/adapters/india/diagnostics.js';
 import { PortalNotFoundError } from '../services/errors.js';
@@ -38,6 +39,10 @@ const promoteBodySchema = z.object({
   pageSeq: z.number().int().positive(),
   candidateIndex: z.number().int().nonnegative(),
   canonicalFieldPath: z.string().min(1),
+});
+
+const promoteBundleBodySchema = z.object({
+  picks: z.array(promoteBodySchema).min(1),
 });
 
 function mapDiscoveryError(e: unknown, reply: FastifyReply): FastifyReply | undefined {
@@ -186,6 +191,27 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
       try {
         const mappingEdit = promoteCandidate(app.db, parsedParams.data.id, parsedBody.data);
         return reply.send({ mappingEdit });
+      } catch (e) {
+        const mapped = mapDiscoveryError(e, reply);
+        if (mapped) return mapped;
+        throw e;
+      }
+    },
+  );
+
+  // Promote several discovered candidates in one shot — the operator's "copy all
+  // promoted" action. Same rules as `/promote`: returns a TS string to review and
+  // paste, writes no source. (§13.12)
+  app.post<{ Params: { id: string } }>(
+    '/api/discovery-sessions/:id/promote-bundle',
+    async (req, reply) => {
+      const parsedParams = idParamSchema.safeParse(req.params);
+      if (!parsedParams.success) return reply.code(400).send(validationError(parsedParams.error));
+      const parsedBody = promoteBundleBodySchema.safeParse(req.body);
+      if (!parsedBody.success) return reply.code(400).send(validationError(parsedBody.error));
+      try {
+        const bundle = renderPromotedBundle(app.db, parsedParams.data.id, parsedBody.data.picks);
+        return reply.send({ bundle });
       } catch (e) {
         const mapped = mapDiscoveryError(e, reply);
         if (mapped) return mapped;

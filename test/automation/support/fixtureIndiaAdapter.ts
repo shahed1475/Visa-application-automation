@@ -442,3 +442,28 @@ export const FIXTURE_INDIA_PORTAL_MAP_V3: Pick<
   fields: FIXTURE_V3_FIELDS,
   states: FIXTURE_V3_STATES,
 };
+
+// ---------------------------------------------------------------------------
+// FIXTURE_INDIA_PORTAL_MAP_ALL_VALIDATED (Phase 8 Task 6) — same shape as V3 but
+// EVERY field is production-usable: `status: 'validated'` against the CURRENT
+// mapping revision, with NO deliberately-stale entry (v3's `family.spouseName`
+// is re-stamped fresh). Used only by the deterministic performance benchmark so
+// it exercises the MAXIMUM number of fixture fields through the production
+// filter. Not wired into the live adapter registry.
+// ---------------------------------------------------------------------------
+
+const FIXTURE_ALL_VALIDATED_FIELDS: Record<string, IndiaFieldMapping> = {
+  ...FIXTURE_V3_FIELDS,
+  // Re-stamp the one intentionally-stale v3 entry as validated-against-current.
+  'family.spouseName': v3Field('#spouse-name', 'text'),
+};
+
+export const FIXTURE_INDIA_PORTAL_MAP_ALL_VALIDATED: Pick<
+  IndiaPortalMap,
+  'adapterVersion' | 'mappingRevision' | 'fields' | 'states'
+> = {
+  adapterVersion: indiaPortalMap.adapterVersion,
+  mappingRevision: indiaPortalMap.mappingRevision,
+  fields: FIXTURE_ALL_VALIDATED_FIELDS,
+  states: FIXTURE_V3_STATES,
+};

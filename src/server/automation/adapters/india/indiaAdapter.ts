@@ -10,6 +10,7 @@ import {
 import { INDIA_PORTAL_STATES, indiaPortalMap, type IndiaPortalState } from './indiaPortalMap.js';
 import {
   classifyMapping,
+  classifyNextSelector,
   isNextSelectorProductionUsable,
   isProductionUsable,
 } from './mappingLifecycle.js';
@@ -160,6 +161,15 @@ export const indiaAdapter: PortalAdapter = {
     if (life === 'stale') return 'stale';
     return 'unvalidated'; // 'placeholder' | 'discovered'
   },
+
+  // Why a state's next-page selector is not production-ready — lets the engine
+  // pause `stale_mapping` (recoverable) instead of terminating the run when
+  // `clickNext` would refuse.
+  nextSelectorReadiness: (state: string) =>
+    classifyNextSelector(
+      indiaPortalMap.states[state as IndiaPortalState],
+      indiaPortalMap.mappingRevision,
+    ),
 
   canContinue: async (page) => {
     const errs = await page

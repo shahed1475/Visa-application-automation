@@ -265,6 +265,11 @@ describe('phase 8 — performance', () => {
 
     // The real ≤2-minute guarantee — pure arithmetic on constants + counts.
     expect(modeledRealApplicationMs).toBeLessThan(120_000);
+    // M3 — the MEASURED shape must also gate: this fixture run, costed at
+    // `normal` timings, is well under the 2-minute budget, and it actually
+    // navigated (a walk that never advanced would model as trivially fast).
+    expect(navs).toBeGreaterThan(0);
+    expect(modeledObservedMs).toBeLessThan(120_000);
     // Loose CI ceiling on the fixture run itself — never the point of the test.
     expect(fixtureMs).toBeLessThan(90_000);
   }, 120_000);

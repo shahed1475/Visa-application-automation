@@ -110,6 +110,38 @@ describe('indiaAdapter — production field map + mappingReadiness (Phase 7)', (
     expect(indiaAdapter.mappingReadiness!('not.a.real.path')).toBe('unmapped');
   });
 
+  it('nextSelectorReadiness is unmapped while every state nextSelector is a TODO:discover / null placeholder', () => {
+    expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('unmapped');
+    expect(indiaAdapter.nextSelectorReadiness!('REGISTRATION')).toBe('unmapped'); // nextSelector: null
+    expect(indiaAdapter.nextSelectorReadiness!('not-a-real-state')).toBe('unmapped');
+  });
+
+  it('nextSelectorReadiness classifies a promoted nextSelector by revision parity', () => {
+    const original = indiaPortalMap.states.PERSONAL_DETAILS;
+    indiaPortalMap.states.PERSONAL_DETAILS = {
+      ...original,
+      nextSelector: 'a.next',
+      nextSelectorStatus: 'validated',
+      nextSelectorValidatedAgainstRevision: indiaPortalMap.mappingRevision,
+    };
+    try {
+      expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('production');
+      indiaPortalMap.states.PERSONAL_DETAILS = {
+        ...indiaPortalMap.states.PERSONAL_DETAILS,
+        nextSelectorValidatedAgainstRevision: 'an-old-revision',
+      };
+      expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('stale');
+      indiaPortalMap.states.PERSONAL_DETAILS = {
+        ...indiaPortalMap.states.PERSONAL_DETAILS,
+        nextSelectorStatus: 'discovered',
+        nextSelectorValidatedAgainstRevision: undefined,
+      };
+      expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('unvalidated');
+    } finally {
+      indiaPortalMap.states.PERSONAL_DETAILS = original;
+    }
+  });
+
   it('getFieldMap() exposes a mapping ONLY when it is validated against the current revision', () => {
     const path = 'identity.surname';
     const original = indiaPortalMap.fields[path];

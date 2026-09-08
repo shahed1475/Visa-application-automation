@@ -110,9 +110,17 @@ Re-verified: `phase7Matrix` sc10, `phase7Safety` c3.
 ## 11. Unknown page handling
 
 `pageDetector` 0.6 confidence floor → `UNKNOWN_STATE`; the engine emits
-`UNKNOWN_PORTAL_STATE` and pauses `unknown_page` with no field interaction. A
-session-expired / login-redirect page is mapped to `UNKNOWN` too. Re-verified:
-`phase7Matrix` sc9, `phase7Safety` (via harness).
+`UNKNOWN_PORTAL_STATE` and pauses `unknown_page` with no field interaction.
+Re-verified: `phase7Matrix` sc9, `phase7Safety` (via harness).
+
+The `SESSION_EXPIRED` reserved state + `session_expired` pause are implemented in
+the engine and fixture-tested (the fixture adapter returns `SESSION_EXPIRED_STATE`
+for a "session expired" heading). Detecting a real portal session-timeout /
+login-redirect page awaits Track B discovery evidence: `getIndiaPageIdentity`
+scores only the twelve `INDIA_PORTAL_STATES` and has no 401 / login-form
+fingerprint, so until such a signal is added a real timeout is handled as
+`unknown_page` (still a safe stop — no field interaction, resumable), not
+`session_expired`.
 
 ## 12. Conflict handling
 
@@ -191,11 +199,17 @@ gzip.
   format it accepts; a portal that reformats a date on blur → safe pause
   (`unreadable` / `value_mismatch`), and that field is "Not supported" pending a
   custom transform.
-- **`custom_select` / `searchable_select` pre-fill option check.** Only
-  `native_select` gets `assertNativeOptionAvailable` — a custom widget's option
-  set is not readable without opening it. A missing option still pauses
-  `option_unavailable` via `selectCustom`'s own `OptionNotFoundError`, just after
-  the widget is opened (a UI-state change, not a form write).
+- **`custom_select` / `searchable_select` / `autocomplete` pre-fill option
+  check.** Only `native_select` gets the `assertNativeOptionAvailable` pre-write
+  availability check that leaves the control untouched — a custom widget's option
+  set is not readable without opening it. The custom widgets DO match options by
+  **exact** string equality (`===`, trim-only — `selectCustom` no longer does a
+  Playwright substring `hasText` match), and a missing / near-miss option still
+  pauses `option_unavailable` via `OptionNotFoundError` — but that check happens
+  just after the widget is opened (a UI-state change, not a form write). So the
+  Phase 7 "pauses with the control untouched" guarantee is precise for
+  `native_select`; for the custom kinds the dropdown is open (nothing is
+  selected) when the run pauses.
 - **`classifyPreFill` double selector probe.** ~2–4 s per missing-primary field
   (`resolveSelector` runs in the triage step and again in `applyField`).
 - **Headed-browser test dependency.** `phase7Matrix` / `phase7Safety` launch a

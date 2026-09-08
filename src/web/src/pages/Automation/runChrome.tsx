@@ -48,7 +48,7 @@ const REASON_INSTRUCTION: Record<string, string> = {
   value_conflict:
     'The portal already holds a different value for this field. Choose which value to keep, or edit the application.',
   document_upload_required:
-    'One or more required documents for this page are not ready. Add any missing document to this applicant if needed, upload the required document(s) in the portal yourself, advance the portal to the next page, then resume.',
+    'One or more required documents for this page are not ready. Upload the required document(s) in the portal yourself, then advance the portal to the next page and resume. If a document is missing from this applicant, add it and start a fresh run — a resume keeps the documents this run started with.',
   missing_field_mapping:
     'A field has no portal mapping. Enter it in the browser, then resume or abort.',
   stale_mapping:

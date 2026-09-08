@@ -119,6 +119,7 @@ export async function classifyPreFill(
   page: Page,
   spec: PortalFieldSpec,
   expected: string,
+  probeMs: number = TIMING_PROFILES.normal.resolveProbeMs,
 ): Promise<'empty' | 'match' | 'conflict'> {
   // Resolve the selector the same way `applyField` will (primary, else the
   // configured fallback). If NEITHER resolves, this is not a pre-existing value
@@ -127,7 +128,7 @@ export async function classifyPreFill(
   let rspec: PortalFieldSpec;
   let actual: string | null;
   try {
-    const { selector } = await resolveSelector(page, spec, TIMING_PROFILES.normal.resolveProbeMs);
+    const { selector } = await resolveSelector(page, spec, probeMs);
     rspec = { ...spec, selector };
     actual = await readControl(page, selector, spec.control);
   } catch (e) {
@@ -160,38 +161,48 @@ export async function classifyPreFill(
   return (await verifyControl(page, rspec, expected)) === 'verified' ? 'match' : 'conflict';
 }
 
-/** Dispatch `m.expected` to the right pageActions writer for `m.spec.control`. */
-async function writeControl(page: Page, spec: PortalFieldSpec, expected: string): Promise<void> {
+/**
+ * Dispatch `m.expected` to the right pageActions writer for `m.spec.control`.
+ * `timeoutMs` (the active {@link TimingProfile}'s `pageStabilizeTimeoutMs`) is
+ * threaded into every writer's selector wait so the `careful` / `fast` profiles
+ * actually change how patient the automation is on a slow portal.
+ */
+async function writeControl(
+  page: Page,
+  spec: PortalFieldSpec,
+  expected: string,
+  timeoutMs: number,
+): Promise<void> {
   const sel = spec.selector;
   switch (spec.control) {
     case 'text':
     case 'textarea':
     case 'number':
-      await fillText(page, sel, expected);
+      await fillText(page, sel, expected, timeoutMs);
       return;
     case 'autocomplete':
     case 'searchable_select':
       // searchable_select behaves like an autocomplete: type then pick.
-      await typeAutocomplete(page, sel, expected);
+      await typeAutocomplete(page, sel, expected, timeoutMs);
       return;
     case 'native_select':
       // Pre-fill guard: confirm the exact option exists and is enabled BEFORE
       // any write, so a missing / disabled / removed option pauses the run on
       // `option_unavailable` with the control untouched (spec §7).
-      await assertNativeOptionAvailable(page, sel, expected, spec.optionMatch ?? 'label');
-      await selectNative(page, sel, expected, spec.optionMatch ?? 'label');
+      await assertNativeOptionAvailable(page, sel, expected, spec.optionMatch ?? 'label', timeoutMs);
+      await selectNative(page, sel, expected, spec.optionMatch ?? 'label', timeoutMs);
       return;
     case 'custom_select':
-      await selectCustom(page, sel, expected);
+      await selectCustom(page, sel, expected, timeoutMs);
       return;
     case 'radio':
-      await setRadio(page, sel, expected);
+      await setRadio(page, sel, expected, timeoutMs);
       return;
     case 'checkbox':
-      await setCheckbox(page, sel, expected === 'true');
+      await setCheckbox(page, sel, expected === 'true', timeoutMs);
       return;
     case 'date':
-      await setDate(page, sel, expected);
+      await setDate(page, sel, expected, timeoutMs);
       return;
   }
 }
@@ -255,12 +266,12 @@ export async function applyField(
   await scrollIntoViewAndSettle(page, spec.selector, timing, delay);
   await delay(timing.fieldInteractionDelayMs);
 
-  await writeControl(page, spec, expected);
+  await writeControl(page, spec, expected, timing.pageStabilizeTimeoutMs);
   await delay(timing.postFillVerifyDelayMs);
   let outcome = await verifyControl(page, spec, expected);
   if (outcome === 'mismatch') {
     await delay(timing.retryDelayMs);
-    await writeControl(page, spec, expected);
+    await writeControl(page, spec, expected, timing.pageStabilizeTimeoutMs);
     await delay(timing.postFillVerifyDelayMs);
     outcome = await verifyControl(page, spec, expected);
   }

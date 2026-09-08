@@ -244,8 +244,23 @@ silently trusted); `indiaAdapter.getFieldMap()` filters to `validated` + current
 non-production `nextSelector`. Two new generic engine safe-stops: a required field
 with only a stale/unvalidated mapping pauses `stale_mapping` (`MAPPING_NOT_PRODUCTION_READY`);
 a dropdown missing the expected option pauses `option_unavailable`
-(`DROPDOWN_OPTION_MISSING`) — a pre-fill check catches it before any DOM write, and
-`selectNative` never picks a "closest" option. The previously-declared `SELECTOR_STALE`
+(`DROPDOWN_OPTION_MISSING`). For a `native_select` the pre-write availability check
+(`assertNativeOptionAvailable`) runs before any DOM write, so the control is left
+untouched; `custom_select` / `searchable_select` / `autocomplete` also match options
+by **exact** string equality (`===`, trim-only — never a substring or fuzzy match) and
+still pause `option_unavailable`, but the check happens after the dropdown is opened
+(a UI-state change, not a form write). `selectNative` never picks a "closest" option.
+A non-production **`nextSelector`** for a page no longer crashes the run: the engine
+pauses `stale_mapping` (`MAPPING_NOT_PRODUCTION_READY`) — recoverable, mirroring the
+field-mapping path — instead of terminating `failed` / `engine_error`. The
+`careful` / `fast` timing profile's `pageStabilizeTimeoutMs` is threaded into every
+selector wait (`requireSelector`, `waitForPageSettled`, the custom-dropdown listbox
+waits) so a slower profile is actually more patient on a slow portal.
+The `SESSION_EXPIRED` reserved state + `session_expired` pause are implemented in the
+engine and fixture-tested; detecting a real portal session-timeout / login-redirect
+page awaits Track B discovery evidence — until a signal is added to
+`getIndiaPageIdentity`, a real timeout is handled as `unknown_page` (still a safe
+stop). The previously-declared `SELECTOR_STALE`
 event is wired: `resolveSelector` tries the primary then an **explicitly configured**
 `fallbackSelector`, emitting `SELECTOR_STALE` (informational, run continues) on a
 fallback. `adapters/india/transforms.ts` is a deterministic date library

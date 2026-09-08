@@ -38,6 +38,18 @@ export interface PortalAdapter {
    * A generic adapter omits this; the engine then treats every gap as `'unmapped'`.
    */
   mappingReadiness?(fieldPath: string): 'production' | 'stale' | 'unvalidated' | 'unmapped';
+  /**
+   * OPTIONAL. The lifecycle readiness of `state`'s next-page navigation selector,
+   * classified exactly like {@link mappingReadiness} classifies a field:
+   * - `'production'`  — the `nextSelector` is validated against the current revision
+   * - `'stale'`       — a validated `nextSelector` stamped against an old revision
+   * - `'unvalidated'` — a `nextSelector` at `'placeholder'` / `'discovered'`
+   * - `'unmapped'`    — no state config, or the `nextSelector` is still `'TODO:discover'`
+   * The engine treats anything other than `'production'` as a `stale_mapping`
+   * safe-stop (recoverable), NOT a terminal failure. A generic adapter omits this;
+   * the engine then assumes `'production'` and relies on `clickNext` itself.
+   */
+  nextSelectorReadiness?(state: string): 'production' | 'stale' | 'unvalidated' | 'unmapped';
   canContinue(page: Page): Promise<{ ok: boolean; reason?: string }>;
   clickNext(page: Page): Promise<void>;
   isFinalReview(state: PortalState): boolean;

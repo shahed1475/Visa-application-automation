@@ -44,3 +44,19 @@ export function isNextSelectorProductionUsable(
   const status: MappingStatus = cfg.nextSelectorStatus;
   return status === 'validated' && cfg.nextSelectorValidatedAgainstRevision === currentRevision;
 }
+
+/**
+ * Where a state's `nextSelector` sits in its lifecycle relative to
+ * `currentRevision` — the {@link classifyMapping} equivalent for page nav.
+ * A `null` / `'TODO:discover'` selector is `'unmapped'` (nothing to validate);
+ * a non-validated one is `'unvalidated'`; a validated one is `'validated'` only
+ * if its stamp matches, else `'stale'`.
+ */
+export function classifyNextSelector(
+  cfg: NextSelectorView | undefined,
+  currentRevision: string,
+): 'production' | 'stale' | 'unvalidated' | 'unmapped' {
+  if (!cfg || !cfg.nextSelector || cfg.nextSelector === 'TODO:discover') return 'unmapped';
+  if (cfg.nextSelectorStatus !== 'validated') return 'unvalidated';
+  return cfg.nextSelectorValidatedAgainstRevision === currentRevision ? 'production' : 'stale';
+}

@@ -44,6 +44,12 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Co
     <li role="option">Three</li>
   </ul>
 
+  <div id="bd" role="combobox" tabindex="0"><span id="bd-label">Choose</span></div>
+  <ul id="bd-list" role="listbox" hidden>
+    <li role="option">Business Visa</li>
+    <li role="option">Business</li>
+  </ul>
+
   <label><input type="radio" name="r" value="x">X</label>
   <label><input type="radio" name="r" value="y">Y</label>
 
@@ -56,7 +62,7 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Co
 
   <script>
     (function () {
-      ['cd', 'ss'].forEach(function (id) {
+      ['cd', 'ss', 'bd'].forEach(function (id) {
         var trigger = document.getElementById(id);
         var list = document.getElementById(id + '-list');
         var label = document.getElementById(id + '-label');
@@ -178,6 +184,29 @@ describe('pageActions', () => {
 
   it('rejects with SelectorNotFoundError for a missing selector', async () => {
     await expect(fillText(page, '#nope', 'x')).rejects.toBeInstanceOf(SelectorNotFoundError);
+  });
+
+  // I1 — custom dropdown option match is EXACT, never a substring.
+  it('selectCustom picks the option whose text EXACTLY equals the value (not a substring prefix)', async () => {
+    // #bd lists "Business Visa" BEFORE "Business" — a substring match on
+    // "Business" would grab "Business Visa" (the first hit).
+    await selectCustom(page, '#bd', 'Business');
+    expect(await readControl(page, '#bd', 'custom_select')).toBe('Business');
+  });
+
+  it('selectCustom throws OptionNotFoundError for a near-miss value (typo, no fuzzy match)', async () => {
+    await expect(selectCustom(page, '#bd', 'Busines')).rejects.toBeInstanceOf(OptionNotFoundError);
+    // nothing was chosen — the trigger still shows its placeholder label
+    expect(await readControl(page, '#bd', 'custom_select')).toBe('Choose');
+  });
+
+  // I2 — requireSelector's wait is caller-configurable (threaded from the timing profile).
+  it('a control writer honours the supplied timeoutMs when the selector is absent', async () => {
+    const t0 = Date.now();
+    await expect(fillText(page, '#nope', 'x', 300)).rejects.toBeInstanceOf(SelectorNotFoundError);
+    const elapsed = Date.now() - t0;
+    expect(elapsed).toBeGreaterThanOrEqual(250); // it actually waited the window
+    expect(elapsed).toBeLessThan(3_000); // …but far less than the 10s default
   });
 
   it('rejects with OptionNotFoundError for a missing dropdown option', async () => {

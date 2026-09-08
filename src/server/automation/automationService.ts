@@ -534,12 +534,13 @@ export class AutomationRunner {
       detectPage,
       applyField: (p, m, opts) => applyField(p, m, opts),
       readControl,
-      classifyPreFill: (p, spec, exp) => classifyPreFill(p, spec, exp),
+      classifyPreFill: (p, spec, exp, probeMs) => classifyPreFill(p, spec, exp, probeMs),
       // Task 11: the runner's live decision map — `resumeRun` mutates it, and
       // because `buildContext` re-runs each iteration the resumed loop sees it.
       conflictDecisions: this.conflictDecisions,
       defaultConflictDecision: this.defaultConflictDecision ?? undefined,
-      settle: waitForPageSettled,
+      settle: (p, t) =>
+        waitForPageSettled(p, undefined, t ?? this.svc.timing.pageStabilizeTimeoutMs),
       initialVerifiedCount: this.lastVerifiedCount,
     };
   }

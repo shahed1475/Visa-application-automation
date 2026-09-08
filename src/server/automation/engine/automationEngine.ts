@@ -101,6 +101,7 @@ export interface EngineContext {
     page: Page,
     spec: PortalFieldSpec,
     expected: string,
+    probeMs?: number,
   ) => Promise<'empty' | 'match' | 'conflict'>;
   /**
    * Per-field user rulings on value conflicts, keyed by `fieldPath`. Task 11
@@ -115,7 +116,7 @@ export interface EngineContext {
    * paused or what the portal now holds — so it must never blind-overwrite.
    */
   defaultConflictDecision?: ConflictDecision;
-  settle: (page: Page) => Promise<void>;
+  settle: (page: Page, timeoutMs?: number) => Promise<void>;
   /**
    * Required-field verified count carried in from an earlier `runLoop` call on
    * the same run (a resume re-enters the loop from scratch). Defaults to 0 for a
@@ -179,7 +180,7 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     }
 
     // ---- top of page: settle + inspect + detect -------------------------------
-    await ctx.settle(ctx.page);
+    await ctx.settle(ctx.page, ctx.timing.pageStabilizeTimeoutMs);
     const inspection = await ctx.inspect(ctx.page);
     const identity = await ctx.detectPage(ctx.page, ctx.adapter, inspection);
     const state = identity.state;
@@ -252,7 +253,12 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
 
       // §6 — the portal already holds a *different* value: never blind-overwrite.
       // Pause for a decision unless the user already ruled on this field.
-      const pre = await ctx.classifyPreFill(ctx.page, m.spec, m.expected ?? '');
+      const pre = await ctx.classifyPreFill(
+        ctx.page,
+        m.spec,
+        m.expected ?? '',
+        ctx.timing.resolveProbeMs,
+      );
       if (pre === 'conflict') {
         const decision = ctx.conflictDecisions.get(m.fieldPath) ?? ctx.defaultConflictDecision;
         if (decision === undefined) {
@@ -407,14 +413,43 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
       return { kind: 'review_ready' };
     }
 
-    // §5.7 — advance to the next page.
+    // §5.7 — advance to the next page. A state whose `nextSelector` is not
+    // production-ready is a RECOVERABLE configuration gap, not a terminal
+    // failure: pause `stale_mapping` (mirroring the field `mappingReadiness`
+    // path) so the operator can re-validate and resume — never crash the run.
+    const nextReadiness = ctx.adapter.nextSelectorReadiness?.(state) ?? 'production';
+    if (nextReadiness !== 'production') {
+      await ctx.emit({
+        type: 'MAPPING_NOT_PRODUCTION_READY',
+        portalState: state,
+        status: 'blocked',
+      });
+      return { kind: 'waiting', reason: 'stale_mapping' };
+    }
+
     await ctx.emit({ type: 'NAVIGATION_STARTED', portalState: state });
-    await ctx.adapter.clickNext(ctx.page);
+    try {
+      await ctx.adapter.clickNext(ctx.page);
+    } catch (e) {
+      // Belt-and-braces: an adapter that still throws its own "not
+      // production-ready" refusal (rather than reporting it via
+      // `nextSelectorReadiness`) must degrade to the same safe-stop, not a
+      // terminal `engine_error`. Any other fault rethrows as before.
+      if (e instanceof Error && /not production-ready/i.test(e.message)) {
+        await ctx.emit({
+          type: 'MAPPING_NOT_PRODUCTION_READY',
+          portalState: state,
+          status: 'blocked',
+        });
+        return { kind: 'waiting', reason: 'stale_mapping' };
+      }
+      throw e;
+    }
     // Phase 8 Task 4: the ONLY per-loop timing the engine adds — a deterministic
     // pause for the new page to begin loading before the settle checks. Per-field
     // pauses live in `fieldActions` (Task 3), never here.
     await ctx.delay(ctx.timing.navigationWaitMs);
-    await ctx.settle(ctx.page);
+    await ctx.settle(ctx.page, ctx.timing.pageStabilizeTimeoutMs);
     await ctx.emit({ type: 'NAVIGATION_COMPLETED', portalState: state });
     leftState = state;
   }

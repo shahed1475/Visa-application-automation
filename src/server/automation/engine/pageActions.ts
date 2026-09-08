@@ -2,7 +2,7 @@ import type { Page } from 'playwright';
 import type { ControlKind } from '../../../shared/automation/types.js';
 import type { TimingProfile } from './timing.js';
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+export const DEFAULT_TIMEOUT_MS = 10_000;
 
 /** A pause primitive — real (`page.waitForTimeout`) in production, a spy in tests. */
 export type Delay = (ms: number) => Promise<void>;
@@ -45,9 +45,13 @@ interface EvaluatedSelect {
   selectedOptions: { text: string }[];
 }
 
-async function requireSelector(page: Page, selector: string): Promise<void> {
+async function requireSelector(
+  page: Page,
+  selector: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<void> {
   try {
-    await page.locator(selector).first().waitFor({ state: 'attached', timeout: DEFAULT_TIMEOUT_MS });
+    await page.locator(selector).first().waitFor({ state: 'attached', timeout: timeoutMs });
   } catch {
     throw new SelectorNotFoundError(selector);
   }
@@ -102,7 +106,7 @@ export async function scrollIntoViewAndSettle(
   timing: TimingProfile,
   delay: Delay = noWait,
 ): Promise<void> {
-  await requireSelector(page, selector);
+  await requireSelector(page, selector, timing.pageStabilizeTimeoutMs);
   try {
     await page
       .locator(selector)
@@ -170,8 +174,13 @@ export async function readControl(
 /**
  * Clear the field and type `value` (Playwright `.fill` clears first).
  */
-export async function fillText(page: Page, selector: string, value: string): Promise<void> {
-  await requireSelector(page, selector);
+export async function fillText(
+  page: Page,
+  selector: string,
+  value: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<void> {
+  await requireSelector(page, selector, timeoutMs);
   await page.locator(selector).fill(value);
 }
 
@@ -184,8 +193,9 @@ export async function selectNative(
   selector: string,
   value: string,
   match: 'exact' | 'label' | 'value',
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
-  await requireSelector(page, selector);
+  await requireSelector(page, selector, timeoutMs);
   const locator = page.locator(selector);
   try {
     if (match === 'label') {
@@ -234,8 +244,9 @@ export async function assertNativeOptionAvailable(
   selector: string,
   value: string,
   match: 'exact' | 'label' | 'value',
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
-  await requireSelector(page, selector);
+  await requireSelector(page, selector, timeoutMs);
   const options = await page.locator(`${selector} option`).evaluateAll((els) =>
     els.map((el) => {
       const o = el as unknown as { textContent: string | null; value: string; disabled: boolean };
@@ -253,27 +264,33 @@ export async function assertNativeOptionAvailable(
 
 /**
  * Open a custom (non-native) dropdown by clicking `triggerSelector`, wait for
- * its listbox, and click the option whose visible text matches `optionText`.
+ * its listbox, and click the option whose visible text EXACTLY equals
+ * `optionText` (trim-only normalisation, `===` — never a substring / fuzzy
+ * match). If no option matches exactly, throws {@link OptionNotFoundError}
+ * without clicking anything, mirroring `assertNativeOptionAvailable`'s
+ * strictness (invariant 3: exact string equality only for dropdown selection).
  */
 export async function selectCustom(
   page: Page,
   triggerSelector: string,
   optionText: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
-  await requireSelector(page, triggerSelector);
+  await requireSelector(page, triggerSelector, timeoutMs);
   await page.locator(triggerSelector).click();
   await page
     .locator('[role="listbox"]:visible')
     .first()
-    .waitFor({ state: 'visible', timeout: DEFAULT_TIMEOUT_MS });
-  const option = page
-    .locator('[role="option"]:visible, [role="listbox"]:visible li')
-    .filter({ hasText: optionText })
-    .first();
-  if ((await option.count()) === 0) {
+    .waitFor({ state: 'visible', timeout: timeoutMs });
+  const options = page.locator('[role="option"]:visible, [role="listbox"]:visible li');
+  const texts = await options.evaluateAll((els) =>
+    els.map((el) => ((el as unknown as { textContent: string | null }).textContent ?? '').trim()),
+  );
+  const idx = texts.findIndex((t) => t === optionText);
+  if (idx === -1) {
     throw new OptionNotFoundError(triggerSelector, optionText);
   }
-  await option.click();
+  await options.nth(idx).click();
 }
 
 /**
@@ -284,9 +301,10 @@ export async function setRadio(
   page: Page,
   groupSelector: string,
   value: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
   const target = `${groupSelector}[value="${value}"]`;
-  await requireSelector(page, target);
+  await requireSelector(page, target, timeoutMs);
   await page.locator(target).check();
 }
 
@@ -297,8 +315,9 @@ export async function setCheckbox(
   page: Page,
   selector: string,
   checked: boolean,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
-  await requireSelector(page, selector);
+  await requireSelector(page, selector, timeoutMs);
   const locator = page.locator(selector);
   if (checked) await locator.check();
   else await locator.uncheck();
@@ -307,8 +326,13 @@ export async function setCheckbox(
 /**
  * Fill an `<input type="date">` with an ISO `YYYY-MM-DD` value.
  */
-export async function setDate(page: Page, selector: string, value: string): Promise<void> {
-  await requireSelector(page, selector);
+export async function setDate(
+  page: Page,
+  selector: string,
+  value: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<void> {
+  await requireSelector(page, selector, timeoutMs);
   await page.locator(selector).fill(value);
 }
 
@@ -320,15 +344,16 @@ export async function typeAutocomplete(
   page: Page,
   selector: string,
   value: string,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<void> {
-  await requireSelector(page, selector);
+  await requireSelector(page, selector, timeoutMs);
   const locator = page.locator(selector);
   await locator.fill('');
   await locator.pressSequentially(value, { delay: 15 });
   await page
     .locator('[role="listbox"]:visible')
     .first()
-    .waitFor({ state: 'visible', timeout: DEFAULT_TIMEOUT_MS });
+    .waitFor({ state: 'visible', timeout: timeoutMs });
   const option = page.getByRole('option', { name: value, exact: true }).first();
   if ((await option.count()) === 0) {
     throw new OptionNotFoundError(selector, value);

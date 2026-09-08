@@ -28,6 +28,29 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Fi
   <input id="cb" type="checkbox">
   <input id="d" type="date">
   <input id="dtext" type="text">
+
+  <div id="lazy" role="combobox" tabindex="0"><span id="lazy-label">Choose</span></div>
+  <ul id="lazy-list" role="listbox" hidden>
+    <li role="option">Yes</li>
+    <li role="option">No</li>
+  </ul>
+  <script>
+    (function () {
+      var trigger = document.getElementById('lazy');
+      var list = document.getElementById('lazy-list');
+      var label = document.getElementById('lazy-label');
+      trigger.addEventListener('click', function () {
+        // the listbox only renders 700ms after the trigger is clicked
+        setTimeout(function () { list.hidden = false; }, 700);
+      });
+      Array.prototype.forEach.call(list.querySelectorAll('li'), function (li) {
+        li.addEventListener('click', function () {
+          label.textContent = li.textContent;
+          list.hidden = true;
+        });
+      });
+    })();
+  </script>
 </body></html>`;
 
 function mf(
@@ -136,6 +159,22 @@ describe('fieldActions', () => {
     expect(spy).toContain(timing.postFillVerifyDelayMs);
     // the element was actually brought into the viewport before the fill
     expect(await page.locator('#t').isVisible()).toBe(true);
+  });
+
+  // I2 — the active timing profile actually changes how patient the writers are.
+  it('applyField: the timing profile widens the control writer wait a fast profile would miss', async () => {
+    // #lazy renders its listbox 700ms after the trigger click.
+    // A 150ms stabilize window gives up before it appears …
+    await expect(
+      applyField(page, mf('#lazy', 'custom_select', 'Yes'), {
+        timing: { ...TIMING_PROFILES.fast, pageStabilizeTimeoutMs: 150 },
+      }),
+    ).rejects.toThrow();
+    // … the careful profile's 15s window tolerates it and the field verifies.
+    const r = await applyField(page, mf('#lazy', 'custom_select', 'Yes'), {
+      timing: { ...TIMING_PROFILES.careful },
+    });
+    expect(r.outcome).toBe('verified');
   });
 
   it('selects a native option by label and verifies', async () => {
@@ -280,6 +319,23 @@ describe('fieldActions', () => {
         'RANA',
       ),
     ).resolves.toBe('empty');
+  });
+
+  // M1 — classifyPreFill honours the caller-supplied probe window (the active
+  // timing profile's resolveProbeMs), not a hardcoded TIMING_PROFILES.normal.
+  it('classifyPreFill: honours the supplied probeMs when resolving the selector', async () => {
+    const t0 = Date.now();
+    const r = await classifyPreFill(
+      page,
+      { selector: '#gone-a', fallbackSelector: '#gone-b', control: 'text', selectorConfidence: 'stable' },
+      'RANA',
+      200,
+    );
+    const elapsed = Date.now() - t0;
+    expect(r).toBe('empty');
+    // primary + fallback each probed for ~200ms — well under the ~4s that two
+    // probes at the default normal.resolveProbeMs (2000ms) would take.
+    expect(elapsed).toBeLessThan(1_500);
   });
 
   it('classifyPreFill: an unreadable control (readControl → null) defers to applyField as empty', async () => {

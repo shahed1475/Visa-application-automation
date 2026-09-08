@@ -733,6 +733,65 @@ describe('runLoop', () => {
     expect(types(events)).not.toContain('MAPPING_NOT_PRODUCTION_READY');
   });
 
+  // ---- non-production nextSelector safe-stop (Phase 8 review I3) ------------------------
+
+  it('I3. a non-production nextSelector → pauses stale_mapping (recoverable), never clicks Next', async () => {
+    const { adapter } = makeFakeAdapter([{ state: 'PERSONAL', sectionIds: [] }], {});
+    let clicked = 0;
+    const { ctx, events } = makeCtx({
+      adapter: {
+        ...adapter,
+        clickNext: async () => {
+          clicked += 1;
+        },
+        nextSelectorReadiness: () => 'stale',
+      },
+      plan: makePlan({}),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    const evt = events.find((e) => e.type === 'MAPPING_NOT_PRODUCTION_READY');
+    expect(evt).toMatchObject({ portalState: 'PERSONAL', status: 'blocked' });
+    expect(clicked).toBe(0);
+    expect(types(events)).not.toContain('NAVIGATION_STARTED');
+  });
+
+  it('I3. clickNext throwing its own "not production-ready" Error still degrades to stale_mapping, not engine_error', async () => {
+    const { adapter } = makeFakeAdapter([{ state: 'PERSONAL', sectionIds: [] }], {});
+    const { ctx, events } = makeCtx({
+      adapter: {
+        ...adapter,
+        // no nextSelectorReadiness → engine assumes 'production' and calls clickNext
+        clickNext: async () => {
+          throw new Error('india adapter: next-page selector not production-ready for PERSONAL');
+        },
+      },
+      plan: makePlan({}),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    expect(types(events)).toContain('MAPPING_NOT_PRODUCTION_READY');
+  });
+
+  it('I3. an unrelated clickNext error is NOT swallowed — it still propagates', async () => {
+    const { adapter } = makeFakeAdapter([{ state: 'PERSONAL', sectionIds: [] }], {});
+    const { ctx } = makeCtx({
+      adapter: {
+        ...adapter,
+        clickNext: async () => {
+          throw new Error('network blip');
+        },
+      },
+      plan: makePlan({}),
+    });
+
+    await expect(runLoop(ctx)).rejects.toThrow(/network blip/);
+  });
+
   // ---- option_unavailable branch (Phase 7 Task 4) --------------------------------------
 
   it('20. a mapped select missing the expected option → pauses option_unavailable, does not fail', async () => {

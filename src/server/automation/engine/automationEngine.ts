@@ -14,6 +14,8 @@ import type { PortalAdapter } from '../adapters/baseAdapter.js';
 import type { PageInspection } from './pageInspector.js';
 import { detectCheckpoint, type CheckpointKind } from './checkpointDetector.js';
 import { OptionNotFoundError, SelectorNotFoundError } from './pageActions.js';
+import type { FieldActionOptions } from './fieldActions.js';
+import type { TimingProfile } from './timing.js';
 import { mapFields } from '../../../shared/automation/fieldMapping.js';
 import { SESSION_EXPIRED_STATE, UNKNOWN_STATE } from '../../../shared/automation/types.js';
 import type {
@@ -61,6 +63,14 @@ export interface EngineContext {
   /** In-memory mismatch surface for `GET /live` — the ONLY place raw values go. */
   recordMismatch: (m: { fieldPath: string; expected: string; actual: string }) => void;
   now: () => string;
+  /**
+   * Deterministic timing profile (Phase 8 Task 2) resolved from
+   * `env.AUTOMATION_TIMING_PROFILE` by the service. The loop uses only
+   * `navigationWaitMs`; the rest is threaded into `applyField` via `opts`.
+   */
+  timing: TimingProfile;
+  /** Deterministic pause primitive — the service binds this to `page.waitForTimeout`. */
+  delay: (ms: number) => Promise<void>;
   // Injectable so the loop is unit-testable without a real browser. Task 12
   // defaults these to the real modules.
   inspect: (page: Page) => Promise<PageInspection>;
@@ -72,6 +82,7 @@ export interface EngineContext {
   applyField: (
     page: Page,
     m: MappedField,
+    opts?: FieldActionOptions,
   ) => Promise<{
     filled: boolean;
     outcome: VerificationOutcome;
@@ -280,7 +291,7 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
         selector: string;
       };
       try {
-        r = await ctx.applyField(ctx.page, m);
+        r = await ctx.applyField(ctx.page, m, { timing: ctx.timing, delay: ctx.delay });
       } catch (e) {
         if (e instanceof SelectorNotFoundError) {
           await ctx.emit({ type: 'FIELD_NOT_FOUND', fieldPath: m.fieldPath, status: 'blocked' });
@@ -394,6 +405,10 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     // §5.7 — advance to the next page.
     await ctx.emit({ type: 'NAVIGATION_STARTED', portalState: state });
     await ctx.adapter.clickNext(ctx.page);
+    // Phase 8 Task 4: the ONLY per-loop timing the engine adds — a deterministic
+    // pause for the new page to begin loading before the settle checks. Per-field
+    // pauses live in `fieldActions` (Task 3), never here.
+    await ctx.delay(ctx.timing.navigationWaitMs);
     await ctx.settle(ctx.page);
     await ctx.emit({ type: 'NAVIGATION_COMPLETED', portalState: state });
     leftState = state;

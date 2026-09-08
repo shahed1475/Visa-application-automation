@@ -10,6 +10,8 @@ import {
   type EngineProgress,
 } from '../../src/server/automation/engine/automationEngine.js';
 import { OptionNotFoundError } from '../../src/server/automation/engine/pageActions.js';
+import type { FieldActionOptions } from '../../src/server/automation/engine/fieldActions.js';
+import { TIMING_PROFILES } from '../../src/server/automation/engine/timing.js';
 import type {
   ConflictDecision,
   MappedField,
@@ -180,6 +182,10 @@ interface CtxOpts {
   initialVerifiedCount?: number;
   classifyPreFill?: EngineContext['classifyPreFill'];
   conflictDecisions?: ReadonlyMap<string, ConflictDecision>;
+  timing?: EngineContext['timing'];
+  delay?: EngineContext['delay'];
+  /** Full override of the context's `applyField` (bypasses `applyFieldFn`). */
+  applyField?: EngineContext['applyField'];
 }
 
 function makeCtx(o: CtxOpts) {
@@ -204,25 +210,29 @@ function makeCtx(o: CtxOpts) {
       mismatches.push(m);
     },
     now: () => '2026-01-01T00:00:00.000Z',
+    timing: o.timing ?? TIMING_PROFILES.normal,
+    delay: o.delay ?? (async () => {}),
     inspect: async () => ({
       pageTitle: null,
       elementCounts: {},
       securityChallengeFlags: o.flags ?? {},
     }),
     detectPage: detectPageReal,
-    applyField: async (_page, m) => {
-      applyFieldCalls.push(m.fieldPath);
-      const resolvedSelector = m.spec?.selector ?? '';
-      return o.applyFieldFn
-        ? { usedFallback: false, selector: resolvedSelector, ...o.applyFieldFn(m) }
-        : {
-            filled: true,
-            outcome: 'verified' as VerificationOutcome,
-            alreadySet: false,
-            usedFallback: false,
-            selector: resolvedSelector,
-          };
-    },
+    applyField:
+      o.applyField ??
+      (async (_page, m) => {
+        applyFieldCalls.push(m.fieldPath);
+        const resolvedSelector = m.spec?.selector ?? '';
+        return o.applyFieldFn
+          ? { usedFallback: false, selector: resolvedSelector, ...o.applyFieldFn(m) }
+          : {
+              filled: true,
+              outcome: 'verified' as VerificationOutcome,
+              alreadySet: false,
+              usedFallback: false,
+              selector: resolvedSelector,
+            };
+      }),
     readControl: async () => (o.readControlValue === undefined ? null : o.readControlValue),
     settle: async () => {},
     initialVerifiedCount: o.initialVerifiedCount,
@@ -827,5 +837,62 @@ describe('runLoop', () => {
     expect(stop).toEqual({ kind: 'review_ready' });
     const personal = progress.filter((p) => p.current_portal_state === 'PERSONAL');
     expect(personal.at(-1)).toMatchObject({ fields_verified: 0, fields_total: 1 });
+  });
+
+  // ---- Phase 8 Task 4: the loop consumes the timing profile -----------------------------
+
+  it('22. waits the profile navigation delay after each clickNext and passes timing to applyField', async () => {
+    const fieldMap: PortalFieldMap = {
+      'identity.surname': { selector: '#surname', control: 'text', selectorConfidence: 'stable' },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({
+            appliesTo: 'identity.surname',
+            sectionId: 'personal_particulars',
+            value: 'RANA',
+            verified: true,
+          }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      fieldMap,
+    );
+    const waits: number[] = [];
+    const applyField = vi.fn(
+      async (_p: Page, _m: MappedField, opts?: FieldActionOptions) => {
+        expect(opts?.timing?.name).toBe('careful');
+        expect(opts?.delay).toBeTypeOf('function');
+        return {
+          filled: true,
+          outcome: 'verified' as VerificationOutcome,
+          alreadySet: false,
+          usedFallback: false,
+          selector: '#surname',
+        };
+      },
+    );
+    const { ctx } = makeCtx({
+      adapter,
+      plan,
+      timing: TIMING_PROFILES.careful,
+      delay: async (ms: number) => {
+        waits.push(ms);
+      },
+      applyField,
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop.kind).toBe('review_ready');
+    expect(applyField).toHaveBeenCalledTimes(1);
+    expect(waits).toContain(TIMING_PROFILES.careful.navigationWaitMs);
   });
 });

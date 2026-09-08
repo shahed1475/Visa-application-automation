@@ -39,6 +39,8 @@ import {
   type EngineContext,
   type EngineStop,
 } from './engine/automationEngine.js';
+import { resolveTimingProfile } from './engine/timing.js';
+import type { TimingProfile } from './engine/timing.js';
 import { CheckpointManager } from './checkpoints/checkpointManager.js';
 import { BrowserManager } from './engine/browserManager.js';
 import { resolveAdapter as realResolveAdapter } from './adapters/registry.js';
@@ -154,6 +156,8 @@ export interface AutomationServiceDeps {
   getApplication?: (db: DatabaseSync, id: string) => LoadedApplication | null;
   evidence?: 'off' | 'screenshots';
   automationDir?: string;
+  /** Overrides the profile resolved from `env.AUTOMATION_TIMING_PROFILE` (default `normal`). */
+  timing?: TimingProfile;
 }
 
 export class AutomationService {
@@ -168,6 +172,8 @@ export class AutomationService {
   readonly evidence: 'off' | 'screenshots';
   /** Directory the screenshot files live under; defaults to `env.AUTOMATION_DIR` (under `data/`). */
   readonly automationDir: string;
+  /** Deterministic timing profile threaded into every `EngineContext` (Phase 8). */
+  readonly timing: TimingProfile;
 
   /** At most one runner process-wide. */
   activeRunner: AutomationRunner | null = null;
@@ -180,6 +186,7 @@ export class AutomationService {
     this.getApplication = deps.getApplication ?? realGetApplication;
     this.evidence = deps.evidence ?? env.AUTOMATION_EVIDENCE;
     this.automationDir = deps.automationDir ?? env.AUTOMATION_DIR;
+    this.timing = deps.timing ?? resolveTimingProfile(env.AUTOMATION_TIMING_PROFILE);
   }
 
   async startRun(db: DatabaseSync, applicationId: string): Promise<AutomationRunRow> {
@@ -521,9 +528,11 @@ export class AutomationRunner {
         this.mismatches.push(m);
       },
       now,
+      timing: this.svc.timing,
+      delay: (ms) => page.waitForTimeout(ms),
       inspect: this.svc.inspect,
       detectPage,
-      applyField,
+      applyField: (p, m, opts) => applyField(p, m, opts),
       readControl,
       classifyPreFill: (p, spec, exp) => classifyPreFill(p, spec, exp),
       // Task 11: the runner's live decision map — `resumeRun` mutates it, and

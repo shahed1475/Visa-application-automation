@@ -6,6 +6,7 @@ import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
 import { createPortal, setActivePortal } from '../../src/server/services/portalService.js';
 import { AutomationService } from '../../src/server/automation/automationService.js';
 import { BrowserManager } from '../../src/server/automation/engine/browserManager.js';
+import { BENCHMARK_TIMING } from '../../src/server/automation/engine/timing.js';
 import { startFixturePortal, type FixturePortal } from '../helpers/fixturePortal.js';
 import {
   makeFixtureIndiaAdapter,
@@ -163,6 +164,10 @@ function makeSvc(opts?: {
   const plan = opts?.plan ?? makeReadyPlan();
   return new AutomationService({
     browserManager: headlessBM(),
+    // These scenarios exercise engine behaviour, not wall-clock timing; run with
+    // the zero-delay benchmark profile so the real-chromium walk stays inside the
+    // pollers' budgets (Phase 8 Task 4 adds deterministic per-nav/per-field waits).
+    timing: BENCHMARK_TIMING,
     resolveAdapter: () => makeFixtureIndiaAdapter(portal.url, opts?.adapter),
     getApplication: () => ({
       application: { id: 'app1', applicantId: 'a1' },

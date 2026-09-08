@@ -4,6 +4,7 @@ import { openDatabase } from '../../src/server/db/connection.js';
 import { runMigrations } from '../../src/server/db/migrations.js';
 import { cleanupTempDb, makeTempDbPath } from '../helpers/tempDb.js';
 import {
+  abortStaleDiscoverySessions,
   appendDiscoveryPage,
   createDiscoverySession,
   findActiveDiscoverySession,
@@ -155,5 +156,21 @@ describe('discoverySessionStore', () => {
     createDiscoverySession(db, sessionInput('s1'));
     const ended = updateDiscoverySession(db, 's1', { status: 'aborted', ended_at: 'explicit' }, 'tNow');
     expect(ended.ended_at).toBe('explicit');
+  });
+
+  it('abortStaleDiscoverySessions aborts every active row and leaves terminal rows alone', () => {
+    createDiscoverySession(db, sessionInput('active1', 'india'));
+    createDiscoverySession(db, sessionInput('active2', 'generic'));
+    const done = createDiscoverySession(db, sessionInput('done1', 'other'));
+    updateDiscoverySession(db, done.id, { status: 'ended', ended_at: 'tEnd' }, 'tEnd');
+
+    const n = abortStaleDiscoverySessions(db, 'tBoot');
+    expect(n).toBe(2);
+    expect(getDiscoverySession(db, 'active1')).toMatchObject({ status: 'aborted', ended_at: 'tBoot' });
+    expect(getDiscoverySession(db, 'active2')).toMatchObject({ status: 'aborted', ended_at: 'tBoot' });
+    // an already-terminal row is untouched
+    expect(getDiscoverySession(db, 'done1')).toMatchObject({ status: 'ended', ended_at: 'tEnd' });
+    // idempotent — a second boot reconciles nothing
+    expect(abortStaleDiscoverySessions(db, 'tBoot2')).toBe(0);
   });
 });

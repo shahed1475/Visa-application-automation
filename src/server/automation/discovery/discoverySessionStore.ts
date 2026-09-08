@@ -177,3 +177,22 @@ export function updateDiscoverySession(
   }
   return getDiscoverySession(db, id)!;
 }
+
+/**
+ * Mark every `active` discovery session `aborted`. Called once at server
+ * startup: a discovery session's headed browser context lives only in the
+ * in-process {@link DiscoveryController} and cannot outlive the process, so any
+ * row still `active` after a (re)start is a zombie — it would otherwise block
+ * every new session for its adapter with `409 SESSION_ACTIVE` and offer no way
+ * back. Returns the number of sessions reconciled.
+ */
+export function abortStaleDiscoverySessions(db: DatabaseSync, now: string): number {
+  const res = db
+    .prepare(
+      `UPDATE portal_discovery_sessions
+         SET status = 'aborted', ended_at = COALESCE(ended_at, ?)
+       WHERE status = 'active'`,
+    )
+    .run(now);
+  return Number(res.changes ?? 0);
+}

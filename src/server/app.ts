@@ -24,6 +24,7 @@ import { MAX_DOCUMENT_BYTES } from './documents/fileType.js';
 import type { OcrEngine } from './documents/ocrEngine.js';
 import { AutomationService } from './automation/automationService.js';
 import { DiscoveryController } from './automation/discovery/discoveryController.js';
+import { abortStaleDiscoverySessions } from './automation/discovery/discoverySessionStore.js';
 
 export interface BuildServerOptions {
   dbPath: string;
@@ -95,6 +96,14 @@ export async function buildServer(
     await automation.dispose().catch(() => undefined);
   });
   await registerAutomationRoutes(app);
+
+  // A discovery session's headed browser lives only in the DiscoveryController
+  // instance, so any session still `active` at startup is a zombie from a prior
+  // process — reconcile it so it stops blocking new sessions with 409.
+  const reconciled = abortStaleDiscoverySessions(db, new Date().toISOString());
+  if (reconciled > 0) {
+    app.log.warn({ reconciled }, 'aborted stale active discovery session(s) at startup');
+  }
 
   const discovery = opts.discovery ?? new DiscoveryController();
   app.decorate('discovery', discovery);

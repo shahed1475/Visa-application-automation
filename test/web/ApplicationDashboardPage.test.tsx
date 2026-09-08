@@ -475,16 +475,16 @@ it('renders the verification rollup and per-field verify buttons for profile and
   expect(verifyBtns.length).toBeGreaterThanOrEqual(2);
 });
 
-it('the Start automation (Phase 5) button is present, disabled, inert, with verbatim helper text', async () => {
+it('the Start automation button is present, disabled, inert, with accurate helper text', async () => {
   renderAt();
   await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Ready for automation' })).toBeTruthy());
-  const btn = screen.getByRole('button', { name: /start automation \(phase 5\)/i }) as HTMLButtonElement;
+  const btn = screen.getByRole('button', { name: 'Start automation' }) as HTMLButtonElement;
   expect(btn.disabled).toBe(true);
   expect(btn.onclick).toBeNull();
   fireEvent.click(btn); // no-op
   expect(
     screen.getByText(
-      'Available in Phase 5. This does not submit anything, and does not mean the visa is approved.',
+      'This fills the portal form under your control. It never submits, pays, or books an appointment — you review every field in the portal and submit it yourself.',
     ),
   ).toBeTruthy();
 });

@@ -71,9 +71,15 @@ OTP/CAPTCHA, human-paced navigation (`automation-risks.md` R15).
 ## Track B runbook — progressive live discovery & real-portal validation
 
 **This procedure is operator-only and runs against the real authenticated portal.
-It is NEVER run in CI.** Every command that talks to the real portal is gated on
-the environment flag `INDIA_LIVE=1`; without it, no live integration check runs and
-CI exercises the fixture portal only. Before starting, the operator must have:
+It is NEVER run in CI.** There is no automated real-portal test harness: every
+step below is manual work the operator performs through the running app's UI /
+API against the live browser window. CI and `npm test` exercise the fixture
+portal only (`test/helpers/fixturePortal.ts`) and never open a network
+connection. The discovery/promote/validate/field-tables tooling that supports
+these steps is itself covered end-to-end against the fixture portal by
+`test/automation/phase9TrackBReadiness.test.ts` (+ the `discoveryRoutes` /
+`discoveryController` / `phase6Integration` suites) — synthetic-tested, not
+real-portal validation. Before starting, the operator must have:
 
 - a `PERMITTED` or (operator's-call) `UNCLEAR` verdict in the "ToS / robots.txt
   position" section above — and, for `ivacbd.com`, an authenticated review of the
@@ -352,6 +358,15 @@ authenticated operator review; the operator was not available for a live session
 When a session is run, record per test: date, session id, portal host, the result
 (`PASS` / `PARTIAL` / `BLOCKED — <reason>`), and the commit SHA of any
 `indiaPortalMap.ts` selector edits.
+
+**Tooling readiness (Phase 9, 2026-09-08):** the operator loop this runbook drives
+— start session → operator navigates → capture → promote → validate-adapter →
+field-tables → end — is verified to hold together end-to-end against the fixture
+portal + real Chromium by `test/automation/phase9TrackBReadiness.test.ts`,
+including the real `captureDiscoveryV2` → `promoteCandidate` candidate-shape
+handoff and the value-free surfaces. This is infrastructure proof only. **Real
+Indian-portal fields validated: 0.** The live session still requires the operator,
+the authenticated ToS review, and a real portal account.
 
 | Test | Date | Session id | Result | Notes |
 |------|------|------------|--------|-------|

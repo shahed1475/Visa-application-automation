@@ -40,6 +40,7 @@ export function DiscoverySessionPage() {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [promoted, setPromoted] = useState<Record<string, PromotedMappingEdit>>({});
   const [bundleText, setBundleText] = useState<string | null>(null);
+  const [fieldTablesText, setFieldTablesText] = useState<string | null>(null);
   const [report, setReport] = useState<AdapterValidationReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -150,6 +151,22 @@ export function DiscoverySessionPage() {
     }
   }, [sessionId, promoted]);
 
+  const handleCopyFieldTables = useCallback(async () => {
+    if (!sessionId) return;
+    setError(null);
+    try {
+      const { markdown } = await api.getFieldTables(sessionId);
+      setFieldTablesText(markdown);
+      try {
+        await navigator.clipboard.writeText(markdown);
+      } catch {
+        /* clipboard blocked — the textarea below is the fallback */
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not build the field tables.');
+    }
+  }, [sessionId]);
+
   const handleValidate = useCallback(async () => {
     if (!sessionId) return;
     setBusy(true);
@@ -220,6 +237,9 @@ export function DiscoverySessionPage() {
         >
           Copy all promoted ({Object.keys(promoted).length})
         </button>
+        <button type="button" onClick={handleCopyFieldTables}>
+          Copy field tables
+        </button>
         <button type="button" onClick={handleEnd} disabled={busy}>
           End Session
         </button>
@@ -232,6 +252,16 @@ export function DiscoverySessionPage() {
           rows={12}
           value={bundleText}
           aria-label="All promoted mappings — select and copy"
+        />
+      ) : null}
+
+      {fieldTablesText !== null ? (
+        <textarea
+          className="discovery-session__bundle mono"
+          readOnly
+          rows={12}
+          value={fieldTablesText}
+          aria-label="Field support tables — select and copy"
         />
       ) : null}
 

@@ -244,6 +244,8 @@ export const api = {
       `/discovery-sessions/${sessionId}/promote-bundle`,
       { method: 'POST', body: JSON.stringify({ picks }) },
     ),
+  getFieldTables: (sessionId: string) =>
+    request<{ markdown: string }>(`/discovery-sessions/${sessionId}/field-tables`),
   validateAdapter: (sessionId: string) =>
     request<{ report: AdapterValidationReport }>(
       `/discovery-sessions/${sessionId}/validate-adapter`,

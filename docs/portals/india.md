@@ -345,18 +345,14 @@ page, re-runs checkpoint detection, and only continues if the challenge is gone.
 
 ### Field support tables
 
-**Validated** — production-usable right now:
+The Validated / Discovered / Placeholder rows below are **generated** from the
+persisted discovery session and the live `indiaPortalMap.ts` — do not hand-write
+them. Use the **Copy field tables** button on the discovery session page and
+paste the output directly under the anchor.
 
-| Canonical path | Portal selector | Control | Session | Notes |
-|---|---|---|---|---|
-| _(none — every mapping is still `'TODO:discover'`; Track B not executed)_ | | | | |
+<!-- field-tables -->
 
-**Discovered but not validated** — a selector exists at `status: 'discovered'`,
-awaiting human validation + a revision stamp:
-
-| Canonical path | Portal selector | Control | Session | Blocker |
-|---|---|---|---|---|
-| _(none)_ | | | | |
+_(nothing pasted yet — every mapping is still `'TODO:discover'`; Track B not executed)_
 
 **Not supported** — no canonical model / KB backing, or portal behaviour the
 adapter deliberately does not automate:

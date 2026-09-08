@@ -22,6 +22,8 @@ import {
   renderPromotedBundle,
 } from '../automation/adapters/india/indiaMappingRegistry.js';
 import { getIndiaDiagnostics } from '../automation/adapters/india/diagnostics.js';
+import { renderFieldTablesMarkdown } from '../automation/adapters/india/fieldTablesMarkdown.js';
+import { indiaPortalMap } from '../automation/adapters/india/indiaPortalMap.js';
 import { PortalNotFoundError } from '../services/errors.js';
 import { getPortal } from '../services/portalService.js';
 import { validateIndiaAdapter } from '../automation/adapters/india/validateAdapter.js';
@@ -217,6 +219,31 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
         if (mapped) return mapped;
         throw e;
       }
+    },
+  );
+
+  // Render the docs/portals/india.md "Field support tables" from persisted
+  // discovery (`portal_discovery_pages`) + the live `indiaPortalMap` — the
+  // operator pastes the markdown instead of transcribing it (Phase 8 §11). The
+  // formatter is pure and value-free; the DB reads live here. Adapter-level
+  // result, but scoped to a session for its captured pages, so a 404 guard.
+  app.get<{ Params: { id: string } }>(
+    '/api/discovery-sessions/:id/field-tables',
+    async (req, reply) => {
+      const parsed = idParamSchema.safeParse(req.params);
+      if (!parsed.success) return reply.code(400).send(validationError(parsed.error));
+      if (!getDiscoverySession(app.db, parsed.data.id)) {
+        return reply.code(404).send(notFoundError('discovery session'));
+      }
+      const markdown = renderFieldTablesMarkdown({
+        mappings: getIndiaMappings(),
+        mappingRevision: indiaPortalMap.mappingRevision,
+        discoveryPages: listDiscoveryPages(app.db, parsed.data.id).map((p) => ({
+          state_guess: p.state_guess,
+          candidates_json: p.candidates_json,
+        })),
+      });
+      return { markdown };
     },
   );
 

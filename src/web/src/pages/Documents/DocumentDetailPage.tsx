@@ -109,7 +109,7 @@ export function DocumentDetailPage() {
           <button onClick={() => void reExtract()} disabled={busy !== 'idle' || unlinked}>
             {busy === 'extracting' ? 'Extracting…' : 'Re-extract'}
           </button>
-          <button onClick={() => void remove()} disabled={busy !== 'idle'}>
+          <button className="danger" onClick={() => void remove()} disabled={busy !== 'idle'}>
             Delete
           </button>
         </div>

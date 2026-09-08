@@ -124,7 +124,7 @@ export function ApplicantsPage() {
                 <td className="row-actions">
                   <Link className="button-link" to={`/applicants/${r.id}`}>View</Link>
                   <button onClick={() => duplicate(r)}>Duplicate</button>
-                  <button onClick={() => remove(r)}>Delete</button>
+                  <button className="danger" onClick={() => remove(r)}>Delete</button>
                 </td>
               </tr>
             ))}

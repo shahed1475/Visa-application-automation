@@ -161,7 +161,7 @@ export function ActionRequiredPanel({
         <button type="button" onClick={onResume} disabled={busy}>
           Resume automation
         </button>
-        <button type="button" onClick={onAbort}>
+        <button type="button" className="danger" onClick={onAbort}>
           Abort
         </button>
       </div>

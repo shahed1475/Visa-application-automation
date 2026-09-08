@@ -278,7 +278,7 @@ export function AutomationRunPage() {
       )}
 
       {nonTerminal && (
-        <button type="button" className="automation-run__abort" onClick={handleAbort}>
+        <button type="button" className="automation-run__abort danger" onClick={handleAbort}>
           Abort automation
         </button>
       )}

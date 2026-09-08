@@ -1,48 +1,206 @@
+/* =====================================================================
+   Visa Autofill — "consular dossier" design system
+   A calm, official instrument for preparing (never submitting) visa
+   applications. One accent (consular green). Hairlines, not gridlines.
+   Mono for every value a person would transcribe. Status is a grammar:
+   the same colour always means the same thing.
+   ===================================================================== */
+
 :root {
-  --fg: #1a1a1a;
-  --bg: #ffffff;
-  --muted: #666;
-  --border: #d0d0d0;
-  --accent: #2563eb;
+  color-scheme: light;
+
+  --paper: #faf9f6; /* page ground — warm near-white */
+  --surface: #ffffff; /* dockets / cards */
+  --surface-2: #f4f2ec; /* insets, code, table zebra */
+  --ink: #20222b; /* primary text */
+  --ink-2: #5b5f6b; /* secondary text */
+  --line: #e4e1d8; /* hairline */
+  --line-2: #d4d0c4; /* stronger hairline */
+
+  --seal: #17604a; /* accent — consular green */
+  --seal-ink: #124c3b; /* accent as text */
+  --seal-tint: #e8f1ed; /* accent wash */
+
+  /* semantic status — one saturation family */
+  --ok: #17604a;   --ok-tint: #e6f1ec;   --ok-line: #b7d7c9;
+  --wait: #8a5a00;  --wait-tint: #fbf1dc;  --wait-line: #ecd3a1;
+  --stop: #9d2b2b;  --stop-tint: #f7e5e2;  --stop-line: #e5b7b2;
+  --info: #33507d;  --info-tint: #e8edf5;  --info-line: #bdc9de;
+  --idle: #6b6c76;  --idle-tint: #eeede8;  --idle-line: #dbd8ce;
+
+  /* back-compat aliases — the rest of the sheet still reads these */
+  --fg: var(--ink);
+  --bg: var(--paper);
+  --muted: var(--ink-2);
+  --border: var(--line);
+  --accent: var(--seal);
+
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius: 8px;
+  --radius-sm: 5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #16171c;
+    --surface: #1d1f26;
+    --surface-2: #24262e;
+    --ink: #e9e7e0;
+    --ink-2: #a1a2ac;
+    --line: #33353f;
+    --line-2: #44454f;
+    --seal: #58b394;
+    --seal-ink: #7fcbb2;
+    --seal-tint: #182c27;
+    --ok: #58b394;   --ok-tint: #182c27;   --ok-line: #2e5045;
+    --wait: #d7a343;  --wait-tint: #2d2615;  --wait-line: #574722;
+    --stop: #e18a83;  --stop-tint: #321e1c;  --stop-line: #5c3835;
+    --info: #90abd6;  --info-tint: #1b2433;  --info-line: #37445e;
+    --idle: #9a9ba4;  --idle-tint: #23252c;  --idle-line: #3a3c46;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #16171c;
+  --surface: #1d1f26;
+  --surface-2: #24262e;
+  --ink: #e9e7e0;
+  --ink-2: #a1a2ac;
+  --line: #33353f;
+  --line-2: #44454f;
+  --seal: #58b394;
+  --seal-ink: #7fcbb2;
+  --seal-tint: #182c27;
+  --ok: #58b394;   --ok-tint: #182c27;   --ok-line: #2e5045;
+  --wait: #d7a343;  --wait-tint: #2d2615;  --wait-line: #574722;
+  --stop: #e18a83;  --stop-tint: #321e1c;  --stop-line: #5c3835;
+  --info: #90abd6;  --info-tint: #1b2433;  --info-line: #37445e;
+  --idle: #9a9ba4;  --idle-tint: #23252c;  --idle-line: #3a3c46;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: var(--fg);
-  background: var(--bg);
-  line-height: 1.5;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: -0.006em;
+  color: var(--ink);
+  background: var(--paper);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 560;
+  line-height: 1.16;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+h1 {
+  font-size: 1.7rem;
+  margin: 0 0 0.4rem;
+}
+h2 {
+  font-size: 1.3rem;
+  margin: 0 0 0.5rem;
+}
+h3 {
+  font-size: 1.08rem;
+  margin: 0 0 0.4rem;
+}
+h4 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+  margin: 0 0 0.3rem;
+}
+
+a {
+  color: var(--seal-ink);
+  text-underline-offset: 2px;
+}
+
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+::selection {
+  background: var(--seal-tint);
 }
 
 .app {
-  max-width: 900px;
+  max-width: 1060px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1.75rem 1.5rem 4.5rem;
 }
 
 .app__header {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.85rem;
 }
 
 .app__header h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.95rem;
+  font-size: 1.12rem;
+  font-weight: 500;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+.app__header h1::before {
+  content: "";
+  width: 0.66rem;
+  height: 0.66rem;
+  border-radius: 2px;
+  background: var(--seal);
+  transform: rotate(45deg);
+  flex: none;
+}
+
+.app__header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  border-bottom: 1px solid var(--line);
 }
 
 .app__header nav a {
-  color: var(--accent);
+  padding: 0.5rem 0.85rem;
+  margin-bottom: -1px;
+  color: var(--ink-2);
   text-decoration: none;
+  font-size: 0.875rem;
   font-weight: 500;
+  border-bottom: 2px solid transparent;
 }
-
+.app__header nav a:hover {
+  color: var(--ink);
+}
 .app__header nav a.active {
-  text-decoration: underline;
+  color: var(--seal-ink);
+  border-bottom-color: var(--seal);
 }
 
 .app__main {
@@ -52,44 +210,132 @@ body {
 table {
   border-collapse: collapse;
   width: 100%;
+  font-size: 0.9rem;
 }
 
 th,
 td {
-  border: 1px solid var(--border);
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
   text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  border-bottom-color: var(--line-2);
+  white-space: nowrap;
+}
+tbody tr:last-child > td {
+  border-bottom: none;
+}
+tbody tr:hover > td {
+  background: var(--surface-2);
 }
 
 label {
   display: block;
   margin: 0.5rem 0 0.25rem;
   font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--ink-2);
 }
 
 input,
-select {
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+select,
+textarea {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
   font: inherit;
+  font-size: 0.9rem;
   width: 100%;
-  max-width: 360px;
+  max-width: 380px;
+  background: var(--surface);
+  color: var(--ink);
+  accent-color: var(--seal);
+}
+input[type="radio"],
+input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--seal);
+}
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+
+:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 1px;
 }
 
 button {
-  padding: 0.45rem 0.9rem;
-  border: 1px solid var(--accent);
-  background: var(--accent);
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--seal);
+  background: var(--seal);
   color: #fff;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
 }
-
+button:hover:not(:disabled) {
+  background: var(--seal-ink);
+  border-color: var(--seal-ink);
+}
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* secondary — inline actions (Edit, Cancel, row actions, discovery/adapter) */
+.row-actions button,
+.section-card__head button,
+.dashboard-section__head button,
+.discovery-page button,
+.india-portal-card__actions button,
+.discovery-session__actions button,
+.form-actions button + button {
+  background: transparent;
+  color: var(--seal-ink);
+  border-color: var(--line-2);
+}
+.row-actions button:hover:not(:disabled),
+.section-card__head button:hover:not(:disabled),
+.dashboard-section__head button:hover:not(:disabled),
+.discovery-page button:hover:not(:disabled),
+.india-portal-card__actions button:hover:not(:disabled),
+.discovery-session__actions button:hover:not(:disabled),
+.form-actions button + button:hover:not(:disabled) {
+  background: var(--seal-tint);
+  border-color: var(--seal);
+  color: var(--seal-ink);
+}
+
+/* destructive — must out-specify the secondary-action groups above */
+button.danger,
+.row-actions button.danger,
+.section-card__head button.danger,
+.action-required__buttons button.danger,
+.dashboard-section__head button.danger {
+  background: transparent;
+  color: var(--stop);
+  border-color: var(--stop-line);
+}
+button.danger:hover:not(:disabled),
+.row-actions button.danger:hover:not(:disabled),
+.section-card__head button.danger:hover:not(:disabled),
+.action-required__buttons button.danger:hover:not(:disabled),
+.dashboard-section__head button.danger:hover:not(:disabled) {
+  background: var(--stop);
+  border-color: var(--stop);
+  color: #fff;
 }
 
 .section-head {
@@ -97,22 +343,10 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.15rem;
 }
-
 .section-head h2 {
   margin: 0;
-  font-size: 1.15rem;
-}
-
-table.portals {
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-}
-
-table.portals th {
-  background: #f5f5f5;
-  font-weight: 600;
 }
 
 .row-actions {
@@ -122,9 +356,10 @@ table.portals th {
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
   word-break: break-all;
+  color: var(--ink-2);
 }
 
 .error {
@@ -1047,3 +1282,391 @@ table.extracted-fields .row--dismissed {
 .visa-rules__detail dt { font-weight: 600; }
 .visa-rules__detail dd { margin: 0; }
 @media (max-width: 720px) { .visa-rules__body { grid-template-columns: 1fr; } }
+
+/* =====================================================================
+   REDESIGN LAYER — overrides the Phase 0–8 visuals with the design
+   system above. Same class names, later in the cascade = wins at equal
+   specificity. No markup depends on anything here.
+   ===================================================================== */
+
+/* ---- Dockets: every bordered container gets the same paper-card look -- */
+.completeness-header,
+.section-card,
+.dashboard-section,
+.india-portal-card,
+.discovery-session,
+.discovery-page,
+.adapter-diagnostics,
+.validation-report,
+.visa-rules__detail,
+.travel-card,
+.reference-card,
+.child-form,
+.eligibility-condition,
+.eligibility-warning,
+.field-row,
+.doc-row,
+.verify-row,
+.missing-item,
+.blocker,
+dl.result,
+.result {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 0 rgba(20, 22, 30, 0.03);
+}
+.section-card,
+.dashboard-section,
+.india-portal-card,
+.discovery-session,
+.completeness-header {
+  padding: 1.1rem 1.25rem;
+  margin: 1rem 0;
+}
+.section-card__head,
+.dashboard-section__head {
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.9rem;
+}
+.section-card__head h3,
+.dashboard-section__head h2 {
+  font-family: var(--font-display);
+  font-weight: 560;
+}
+
+/* ledger rows inside a section card */
+.section-card__view,
+.adapter-diagnostics__grid,
+.visa-rules__detail dl,
+dl.result {
+  gap: 0 1.25rem;
+}
+.section-card__view dt,
+.adapter-diagnostics__grid dt,
+.visa-rules__detail dt,
+dl.result dt {
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  padding: 0.32rem 0;
+  align-self: center;
+}
+.section-card__view dd,
+.adapter-diagnostics__grid dd,
+.visa-rules__detail dd,
+dl.result dd {
+  padding: 0.32rem 0;
+  color: var(--ink);
+}
+.section-card__row:hover dt,
+.section-card__row:hover dd {
+  background: var(--surface-2);
+}
+.provenance-hint,
+.source-line {
+  font-size: 0.76rem;
+  color: var(--idle);
+}
+
+/* ---- One status grammar: repoint every legacy vocabulary ------------- */
+.badge,
+.status-chip,
+.status-badge,
+.req-chip,
+.run-badge,
+.confidence-chip,
+.blocker__kind,
+.completeness-header__chips .chip,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--idle-line);
+  background: var(--idle-tint);
+  color: var(--idle);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+}
+.req-chip,
+.confidence-chip,
+.blocker__kind {
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+}
+
+/* verified / ready / applied / eligible / ok / reachable / review-ready */
+.badge--verified,
+.badge--applied,
+.status-chip--ok,
+.status-badge--eligible,
+.run-badge--review_ready,
+.req-chip--required {
+  background: var(--ok-tint);
+  color: var(--ok);
+  border-color: var(--ok-line);
+}
+/* attention / partial / held / conditional / waiting / paused */
+.badge--partial,
+.badge--held,
+.status-chip--attention,
+.status-badge--conditional,
+.run-badge--waiting_for_user,
+.run-badge--paused,
+.req-chip--conditional {
+  background: var(--wait-tint);
+  color: var(--wait);
+  border-color: var(--wait-line);
+}
+/* blocked / failed / ineligible / aborted */
+.badge--dismissed,
+.status-chip--blocked,
+.status-badge--ineligible,
+.status-badge--not_offered,
+.run-badge--failed,
+.run-badge--aborted {
+  background: var(--stop-tint);
+  color: var(--stop);
+  border-color: var(--stop-line);
+}
+/* informational / review / running / passport / discovered */
+.badge--passport,
+.badge--proposed,
+.status-chip--review,
+.run-badge--running,
+.run-badge--pending,
+.review-note {
+  background: var(--info-tint);
+  color: var(--info);
+  border-color: var(--info-line);
+}
+.review-note {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--info-line);
+  font-size: 0.78rem;
+}
+
+/* per-field verify toggle — reads as a chip-button */
+.verify {
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  padding: 0.18rem 0.6rem;
+}
+.verify:hover:not(:disabled) {
+  border-color: var(--seal);
+  color: var(--seal-ink);
+  background: var(--seal-tint);
+}
+.verify--on {
+  background: var(--ok-tint);
+  color: var(--ok);
+  border-color: var(--ok-line);
+}
+.field-row__flag--verified,
+.doc-row__flag--present {
+  color: var(--ok);
+}
+.field-row__flag--missing,
+.doc-row__flag--missing {
+  color: var(--wait);
+}
+
+/* ---- Readiness: the "stamp strip" ----------------------------------- */
+.bar,
+.progress__track {
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  height: 7px;
+}
+.bar__fill,
+.progress__fill {
+  background: var(--seal);
+}
+.completeness-header__overall,
+.progress {
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+.completeness-header__overall strong,
+.progress__text {
+  font-family: var(--font-display);
+  font-weight: 560;
+  font-size: 1.05rem;
+}
+
+/* the "prepared / not ready" verdict — a document stamp */
+.ready-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1.5px dashed;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.85rem;
+  background: transparent;
+  font-family: var(--font-display);
+  font-weight: 560;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+}
+.ready-line--ready {
+  color: var(--ok);
+  border-color: var(--ok-line);
+  background: var(--ok-tint);
+}
+.ready-line--blocked {
+  color: var(--stop);
+  border-color: var(--stop-line);
+  background: transparent;
+}
+
+/* ---- Callouts ------------------------------------------------------- */
+.action-required,
+.india-portal-card__ack,
+.value-conflict {
+  border: 1px solid var(--wait-line);
+  background: var(--wait-tint);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+}
+.action-required h2,
+.value-conflict h2 {
+  color: var(--wait);
+}
+.safe-stop {
+  border: 1px solid var(--ok-line);
+  background: var(--ok-tint);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+}
+.safe-stop h2 {
+  color: var(--ok);
+}
+.error {
+  color: var(--stop);
+  background: var(--stop-tint);
+  border: 1px solid var(--stop-line);
+  border-radius: var(--radius-sm);
+}
+.completeness-header__warnings .warning,
+.plan-warning {
+  color: var(--wait);
+  background: var(--wait-tint);
+  border: 1px solid var(--wait-line);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  padding: 0.4rem 0.65rem;
+}
+.plan-warning--blocker {
+  color: var(--stop);
+  background: var(--stop-tint);
+  border-color: var(--stop-line);
+}
+
+/* ---- Mono: every value a person transcribes ------------------------- */
+.mono,
+code,
+.event-log__field,
+.mismatch-list code,
+.candidate-table__literal,
+.doc-meta .mono {
+  font-family: var(--font-mono);
+}
+.candidate-table__literal {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+}
+.candidate-table th,
+.candidate-table td {
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.6rem;
+}
+.candidate-table__warnings {
+  color: var(--wait);
+}
+
+/* ---- Timelines: the run's paper trail ------------------------------ */
+.progress-timeline li,
+.event-log li {
+  border-left: 2px solid var(--seal-tint);
+  padding: 0.3rem 0.7rem;
+}
+.progress-timeline li:first-child {
+  border-left-color: var(--seal);
+}
+.progress-timeline__time,
+.event-log time,
+.event-log__state {
+  color: var(--idle);
+}
+
+/* ---- Buttons that act as list items (visa rules, discovery) -------- */
+.visa-rules__modes button,
+.visa-rules__list button {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  font-weight: 500;
+}
+.visa-rules__modes button:hover:not(:disabled),
+.visa-rules__list button:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+.visa-rules__modes button.active,
+.visa-rules__list button.active {
+  background: var(--seal-tint);
+  border-color: var(--seal);
+  color: var(--seal-ink);
+  font-weight: 600;
+}
+.visa-rules__list button strong {
+  font-family: var(--font-display);
+  font-weight: 560;
+}
+
+/* ---- The primary CTAs keep the filled seal + a touch more weight --- */
+.start-automation,
+.selection-form button[type="submit"],
+.selection-form > button {
+  font-size: 0.95rem;
+  padding: 0.6rem 1.3rem;
+}
+
+/* ---- Motion / a11y ------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 1.25rem 1rem 3rem;
+  }
+  .section-card__view,
+  .adapter-diagnostics__grid {
+    grid-template-columns: 1fr;
+  }
+  .section-card__view dt,
+  .adapter-diagnostics__grid dt {
+    padding-bottom: 0;
+  }
+}

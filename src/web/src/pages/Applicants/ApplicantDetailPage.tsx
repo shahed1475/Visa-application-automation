@@ -130,7 +130,7 @@ export function ApplicantDetailPage() {
         <h2>{detail.displayName}</h2>
         <div className="row-actions">
           <button onClick={duplicate}>Duplicate</button>
-          <button onClick={remove}>Delete</button>
+          <button className="danger" onClick={remove}>Delete</button>
         </div>
       </div>
 

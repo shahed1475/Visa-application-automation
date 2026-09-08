@@ -51,7 +51,7 @@ export function TravelSection({ applicantId, records, onChange }: Props) {
             </div>
             <div className="row-actions">
               <button onClick={() => setMode({ kind: 'edit', id: r.id })}>Edit</button>
-              <button onClick={() => remove(r.id)}>Delete</button>
+              <button className="danger" onClick={() => remove(r.id)}>Delete</button>
             </div>
           </div>
         ),

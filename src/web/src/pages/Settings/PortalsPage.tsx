@@ -114,7 +114,7 @@ export function PortalsPage() {
                   <button onClick={() => setEditing({ mode: 'edit', portal: p })}>
                     Edit
                   </button>
-                  <button onClick={() => remove(p)}>Delete</button>
+                  <button className="danger" onClick={() => remove(p)}>Delete</button>
                 </td>
               </tr>
             ))}

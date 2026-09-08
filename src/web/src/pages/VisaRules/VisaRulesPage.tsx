@@ -6,6 +6,12 @@ import {
 
 const NATIONALITY = 'BGD';
 
+/** "1 year", "5 years" — the KB stores the unit plural; singularise for amount 1. */
+function formatValidity(amount: number, unit: string): string {
+  const u = amount === 1 && unit.endsWith('s') ? unit.slice(0, -1) : unit;
+  return `${amount} ${u}`;
+}
+
 function formatCondition(c: EligibilityCondition): string {
   switch (c.type) {
     case 'custom': return c.text;
@@ -89,7 +95,7 @@ export function VisaRulesPage() {
               >
                 <strong>{c.displayName}</strong>
                 <span className="muted">
-                  {c.validity.amount} {c.validity.unit} · {c.entries} entry · {c.officialCode ?? '—'}
+                  {formatValidity(c.validity.amount, c.validity.unit)} · {c.entries} entry · {c.officialCode ?? '—'}
                 </span>
               </button>
             </li>
@@ -113,7 +119,7 @@ function VisaCategoryDetail({ category, mode }: { category: VisaCategory; mode: 
       <dl>
         <dt>Purpose</dt><dd>{category.purpose.join(', ')}</dd>
         <dt>Validity</dt>
-        <dd>{category.validity.amount} {category.validity.unit} from {category.validity.from.replace(/_/g, ' ')}
+        <dd>{formatValidity(category.validity.amount, category.validity.unit)} from {category.validity.from.replace(/_/g, ' ')}
           {category.validity.notes ? ` — ${category.validity.notes}` : ''}</dd>
         <dt>Entries</dt><dd>{category.entries}</dd>
         <dt>Stay</dt>

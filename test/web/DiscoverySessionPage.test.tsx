@@ -22,6 +22,7 @@ vi.mock('../../src/web/src/api/client', () => ({
     captureDiscoveryPage: vi.fn(),
     endDiscoverySession: vi.fn(),
     promoteCandidate: vi.fn(),
+    getFieldTables: vi.fn(),
     validateAdapter: vi.fn(),
     getAdapterMappings: vi.fn(),
     getAdapterDiagnostics: vi.fn(),
@@ -35,6 +36,7 @@ async function client() {
     | 'captureDiscoveryPage'
     | 'endDiscoverySession'
     | 'promoteCandidate'
+    | 'getFieldTables'
     | 'validateAdapter'
     | 'getAdapterMappings'
     | 'getAdapterDiagnostics',
@@ -208,6 +210,17 @@ it('expands a page to a candidate table with no value column, and promotes a can
   );
   expect(await screen.findByText(/'identity.surname': \{/)).toBeTruthy();
   expect(container.querySelector('pre')?.textContent).toContain('#surname');
+});
+
+it('Copy field tables fetches the generated markdown and shows it in a textarea', async () => {
+  const api = await client();
+  api.getFieldTables.mockResolvedValue({ markdown: '### Validated\n\n| _(none)_ | | | | |\n' });
+  renderPage();
+  await screen.findByText('PERSONAL_DETAILS');
+  fireEvent.click(screen.getByRole('button', { name: /copy field tables/i }));
+  await waitFor(() => expect(api.getFieldTables).toHaveBeenCalledWith('sess-1'));
+  const textarea = await screen.findByLabelText(/field support tables/i);
+  expect((textarea as HTMLTextAreaElement).value).toContain('### Validated');
 });
 
 it('End Session ends and navigates back to the portals page', async () => {

@@ -28,8 +28,8 @@ const SRC = {
   confidence: 'official_derived' as const,
 };
 
-const SAFE_STOP =
-  'Available in Phase 5. This does not submit anything, and does not mean the visa is approved.';
+const AUTOMATION_HELPER =
+  'This fills the portal form under your control. It never submits, pays, or books an appointment — you review every field in the portal and submit it yourself.';
 const READINESS_HINT =
   'Readiness reflects only the local preparation data against the current knowledge base. It is not a submission and not an approval.';
 
@@ -77,8 +77,20 @@ it('when not ready: the button is disabled, inert, and the blockers render', asy
 
 it('keeps both verbatim helper hint lines', async () => {
   renderSection({ ready: true, blockers: [] });
-  expect(screen.getByText(SAFE_STOP)).toBeTruthy();
+  expect(screen.getByText(AUTOMATION_HELPER)).toBeTruthy();
   expect(screen.getByText(READINESS_HINT)).toBeTruthy();
+});
+
+it('labels the button "Start automation" even when blocked, with an accurate hint', () => {
+  render(
+    <MemoryRouter>
+      <ReadyForAutomationSection readyForAutomation={{ ready: false, blockers: [] }} applicationId="a1" />
+    </MemoryRouter>,
+  );
+  const btn = screen.getByRole('button', { name: 'Start automation' }) as HTMLButtonElement;
+  expect(btn.disabled).toBe(true);
+  expect(screen.queryByText(/phase 5/i)).toBeNull();
+  expect(screen.getByText(/never submits, pays, or books an appointment/i)).toBeTruthy();
 });
 
 it('adds no submit affordance', async () => {

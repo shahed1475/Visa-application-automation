@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Travel dates</title></head><body>
+<h1>Travel dates</h1>
+<p class="validation-error" hidden>Please correct the errors.</p>
+<script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
+<label for="arrival-date">Intended date of arrival</label>
+<input id="arrival-date" type="date">
+<label for="passport-expiry">Passport expiry date</label>
+<input id="passport-expiry" name="passport-expiry" type="text" placeholder="DD/MM/YYYY">
+<a class="next" href="/final-review">Save &amp; Continue</a>
+</body></html>

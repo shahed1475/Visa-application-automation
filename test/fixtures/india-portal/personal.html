@@ -2,7 +2,7 @@
 <h1>Personal details</h1>
 <p class="validation-error" hidden>Please correct the errors.</p>
 <script>if (new URLSearchParams(location.search).get('invalid')) document.querySelector('.validation-error').hidden = false;</script>
-<label for="surname">Surname</label><input id="surname" type="text">
+<label for="surname">Surname</label><input id="surname" name="surname" type="text">
 <!-- Task 15 scenario 6: a self-mutating control. Any typed value reads back with a
      trailing "X" appended, so a fill can never verify. Not wired unless a test
      points a field at it via makeFixtureIndiaAdapter({ fieldMapOverride }). -->

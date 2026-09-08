@@ -65,6 +65,10 @@ export interface MappingStatusCounts {
   placeholder: number;
   discovered: number;
   validated: number;
+  /** `validated` but not against the current `mappingRevision` — needs re-validation. */
+  stale: number;
+  /** `validated` AND current-revision — the only mappings that reach the engine. */
+  productionUsable: number;
   total: number;
   requiredRemaining: number;
 }
@@ -85,7 +89,14 @@ export interface IndiaDiagnostics {
   pagesDiscovered: number;
   fieldsDiscovered: number;
   mappings: MappingStatusCounts;
+  /** `mappings.stale` hoisted for the UI. */
+  staleMappings: number;
+  /** `mappings.productionUsable` hoisted — mappings that may drive a real run. */
+  productionUsableMappings: number;
   unknownPagesEncountered: number;
+  /** `count(*)` of `SELECTOR_STALE` events — a primary selector missed and its
+   *  configured fallback carried the run. */
+  selectorStaleEvents: number;
   lastValidation: { ranAt: string; ok: boolean } | null;
 }
 

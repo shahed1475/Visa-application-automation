@@ -7,11 +7,16 @@ import type {
   AutomationRunRow,
   AutomationEventRow,
 } from '../../../../shared/automation/types';
+import type { IndiaDiagnostics } from '../../../../shared/discovery/types';
 import {
   ActionRequiredPanel,
+  AdapterProvenance,
   EventLog,
   ProgressBar,
+  ProgressTimeline,
+  RunTiming,
   SafeStopBanner,
+  StaleMappingWarning,
   StatusBadge,
   ValueConflictPanel,
 } from './runChrome';
@@ -36,6 +41,7 @@ export function AutomationRunPage() {
   const [headerNames, setHeaderNames] = useState<{ applicant?: string; category?: string }>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mismatches, setMismatches] = useState<Mismatch[] | null>(null);
+  const [diagnostics, setDiagnostics] = useState<IndiaDiagnostics | null>(null);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -55,6 +61,19 @@ export function AutomationRunPage() {
         setEvents(sorted);
         lastSeq.current = maxSeq(sorted, 0);
         setLoadError(null);
+        // Value-free adapter provenance for an India run. Best-effort — the
+        // provenance line and stale-mapping warning just stay hidden on failure.
+        if (r.adapter_id === 'india' && r.portal_id) {
+          const portalId = r.portal_id;
+          void (async () => {
+            try {
+              const { diagnostics: d } = await api.getAdapterDiagnostics(portalId);
+              if (!cancelled) setDiagnostics(d);
+            } catch {
+              /* best-effort */
+            }
+          })();
+        }
         try {
           const { application, plan } = await api.getApplication(r.application_id);
           if (cancelled) return;
@@ -201,6 +220,9 @@ export function AutomationRunPage() {
         adapter: {run.adapter_id}
       </p>
 
+      <AdapterProvenance diagnostics={diagnostics} />
+      {nonTerminal && <StaleMappingWarning diagnostics={diagnostics} />}
+
       {loadError && (
         <p className="error" role="alert">
           {loadError}
@@ -209,13 +231,20 @@ export function AutomationRunPage() {
 
       <StatusBadge status={run.status} waitingReason={run.waiting_reason} />
 
+      <RunTiming run={run} />
+
       <ProgressBar label="Fields verified" value={run.fields_verified} max={run.fields_total} />
       <p className="ready-line automation-run__docs">
         Documents ready: {run.documents_ready} / {run.documents_total}
       </p>
-      <p className="muted">Current page: {run.current_portal_state ?? '—'}</p>
+      <p className="muted">
+        Current page: {run.current_portal_state ?? '—'} · Section:{' '}
+        {run.current_section_id ?? run.current_portal_state ?? '—'}
+      </p>
 
       <EventLog events={events} />
+
+      <ProgressTimeline events={events} />
 
       {run.status === 'waiting_for_user' && run.waiting_reason === 'value_conflict' && (
         <ValueConflictPanel

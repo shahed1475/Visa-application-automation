@@ -34,12 +34,13 @@ describe('indiaAdapter — scaffold', () => {
     expect(indiaPortalMap.submitSelector).toBeNull();
   });
 
-  it('every field selector is the literal placeholder, confidence fragile', () => {
-    const fields = Object.values(indiaAdapter.getFieldMap());
-    expect(fields.length).toBeGreaterThan(0);
-    expect(fields.every((f) => f.selector === 'TODO:discover')).toBe(true);
-    expect(fields.every((f) => f.selectorConfidence === 'fragile')).toBe(true);
+  it('getFieldMap() is empty — no mapping is production-usable yet', () => {
+    // Phase 7: the engine only ever receives `validated` + current-revision
+    // mappings. Every real mapping is still a `'TODO:discover'` placeholder, so
+    // the production field map is empty.
+    expect(Object.keys(indiaAdapter.getFieldMap())).toHaveLength(0);
     expect(Object.values(indiaPortalMap.fields).every((f) => f.selector === 'TODO:discover')).toBe(true);
+    expect(Object.values(indiaPortalMap.fields).every((f) => f.selectorConfidence === 'fragile')).toBe(true);
   });
 
   it('isFinalReview true only for FINAL_REVIEW', () => {
@@ -87,8 +88,8 @@ describe('indiaAdapter — scaffold', () => {
     expect(resolveAdapter('https://myivac.com/x').id).toBe('generic');
   });
 
-  it('clickNext rejects while selectors are not yet discovered', async () => {
-    await expect(indiaAdapter.clickNext(fakePage)).rejects.toThrow(/not yet discovered/i);
+  it('clickNext rejects while the next-page selector is not production-ready', async () => {
+    await expect(indiaAdapter.clickNext(fakePage)).rejects.toThrow(/not production-ready/i);
   });
 
   it('getPageIdentity on a fake page yields UNKNOWN / 0', async () => {
@@ -100,6 +101,73 @@ describe('indiaAdapter — scaffold', () => {
   it('exposes the adapter/map contract version', () => {
     expect(INDIA_ADAPTER_VERSION).toBe(indiaPortalMap.adapterVersion);
     expect(INDIA_ADAPTER_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});
+
+describe('indiaAdapter — production field map + mappingReadiness (Phase 7)', () => {
+  it('mappingReadiness reports unvalidated for a known placeholder path, unmapped for a nonsense path', () => {
+    expect(indiaAdapter.mappingReadiness!('identity.surname')).toBe('unvalidated');
+    expect(indiaAdapter.mappingReadiness!('not.a.real.path')).toBe('unmapped');
+  });
+
+  it('nextSelectorReadiness is unmapped while every state nextSelector is a TODO:discover / null placeholder', () => {
+    expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('unmapped');
+    expect(indiaAdapter.nextSelectorReadiness!('REGISTRATION')).toBe('unmapped'); // nextSelector: null
+    expect(indiaAdapter.nextSelectorReadiness!('not-a-real-state')).toBe('unmapped');
+  });
+
+  it('nextSelectorReadiness classifies a promoted nextSelector by revision parity', () => {
+    const original = indiaPortalMap.states.PERSONAL_DETAILS;
+    indiaPortalMap.states.PERSONAL_DETAILS = {
+      ...original,
+      nextSelector: 'a.next',
+      nextSelectorStatus: 'validated',
+      nextSelectorValidatedAgainstRevision: indiaPortalMap.mappingRevision,
+    };
+    try {
+      expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('production');
+      indiaPortalMap.states.PERSONAL_DETAILS = {
+        ...indiaPortalMap.states.PERSONAL_DETAILS,
+        nextSelectorValidatedAgainstRevision: 'an-old-revision',
+      };
+      expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('stale');
+      indiaPortalMap.states.PERSONAL_DETAILS = {
+        ...indiaPortalMap.states.PERSONAL_DETAILS,
+        nextSelectorStatus: 'discovered',
+        nextSelectorValidatedAgainstRevision: undefined,
+      };
+      expect(indiaAdapter.nextSelectorReadiness!('PERSONAL_DETAILS')).toBe('unvalidated');
+    } finally {
+      indiaPortalMap.states.PERSONAL_DETAILS = original;
+    }
+  });
+
+  it('getFieldMap() exposes a mapping ONLY when it is validated against the current revision', () => {
+    const path = 'identity.surname';
+    const original = indiaPortalMap.fields[path];
+    indiaPortalMap.fields[path] = {
+      selector: '#surname',
+      control: 'text',
+      selectorConfidence: 'stable',
+      status: 'validated',
+      discoverySessionRef: 's',
+      validatedAt: 't',
+      validatedAgainstRevision: indiaPortalMap.mappingRevision,
+    };
+    try {
+      expect(indiaAdapter.getFieldMap()[path]?.selector).toBe('#surname');
+      expect(indiaAdapter.mappingReadiness!(path)).toBe('production');
+
+      // Make it stale — it must drop out of the production map.
+      indiaPortalMap.fields[path] = {
+        ...indiaPortalMap.fields[path]!,
+        validatedAgainstRevision: 'an-old-revision',
+      };
+      expect(indiaAdapter.getFieldMap()[path]).toBeUndefined();
+      expect(indiaAdapter.mappingReadiness!(path)).toBe('stale');
+    } finally {
+      indiaPortalMap.fields[path] = original!;
+    }
   });
 });
 

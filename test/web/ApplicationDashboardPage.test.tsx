@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Real, JSON-backed visa-kb (nothing to mock) — mirrors ApplicationsSubsection.test.tsx.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ApplicationDashboardPage } from '../../src/web/src/pages/Applications/ApplicationDashboardPage';
 import type { ApplicationPlan, VisaApplication } from '../../src/shared/application/types';
@@ -247,8 +247,14 @@ it('an application-scoped field input calls setApplicationFieldValue', async () 
   const api = await client();
   renderAt();
   await waitFor(() => expect(screen.getByLabelText('India company name')).toBeTruthy());
-  fireEvent.change(screen.getByLabelText('India company name'), { target: { value: 'Acme India Pvt Ltd' } });
-  fireEvent.click(screen.getByRole('button', { name: /save field/i }));
+  const input = screen.getByLabelText('India company name') as HTMLInputElement;
+  await act(async () => {
+    fireEvent.change(input, { target: { value: 'Acme India Pvt Ltd' } });
+  });
+  await waitFor(() => expect(input.value).toBe('Acme India Pvt Ltd'));
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /save field/i }));
+  });
   await waitFor(() =>
     expect(api.setApplicationFieldValue).toHaveBeenCalledWith('app1', {
       fieldPath: 'application.indiaCompanyName',
@@ -469,16 +475,16 @@ it('renders the verification rollup and per-field verify buttons for profile and
   expect(verifyBtns.length).toBeGreaterThanOrEqual(2);
 });
 
-it('the Start automation (Phase 5) button is present, disabled, inert, with verbatim helper text', async () => {
+it('the Start automation button is present, disabled, inert, with accurate helper text', async () => {
   renderAt();
   await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Ready for automation' })).toBeTruthy());
-  const btn = screen.getByRole('button', { name: /start automation \(phase 5\)/i }) as HTMLButtonElement;
+  const btn = screen.getByRole('button', { name: 'Start automation' }) as HTMLButtonElement;
   expect(btn.disabled).toBe(true);
   expect(btn.onclick).toBeNull();
   fireEvent.click(btn); // no-op
   expect(
     screen.getByText(
-      'Available in Phase 5. This does not submit anything, and does not mean the visa is approved.',
+      'This fills the portal form under your control. It never submits, pays, or books an appointment — you review every field in the portal and submit it yourself.',
     ),
   ).toBeTruthy();
 });

@@ -6,6 +6,24 @@ import {
 } from 'playwright';
 import { env } from '../../env.js';
 
+/**
+ * Raw-string init script that defines a no-op `__name` in every page context.
+ *
+ * The dev runtime (`tsx` → esbuild with `keepNames: true`, not configurable)
+ * rewrites named functions to `__name(fn, "name")`. When Playwright serialises a
+ * `page.evaluate` callback that contains a named helper, `__name` is undefined in
+ * the browser and the call throws `ReferenceError: __name is not defined`. The
+ * production build (`tsc`) and the test runner (vitest) don't inject it, so this
+ * shim is inert there. It MUST stay a plain string — a transpiled arrow would
+ * itself be wrapped in `__name(...)` before `__name` exists.
+ */
+export const EVAL_NAME_SHIM = 'globalThis.__name = globalThis.__name || function (f) { return f; };';
+
+/** Apply {@link EVAL_NAME_SHIM} to a context so every page it opens is safe. */
+export async function applyEvalNameShim(context: BrowserContext): Promise<void> {
+  await context.addInitScript({ content: EVAL_NAME_SHIM });
+}
+
 export class BrowserManager {
   private browser: Browser | null = null;
   private discoveryContext: BrowserContext | null = null;
@@ -32,6 +50,7 @@ export class BrowserManager {
   async newPage(): Promise<{ page: Page; context: BrowserContext }> {
     const browser = await this.launch();
     const context = await browser.newContext();
+    await applyEvalNameShim(context);
     const page = await context.newPage();
     return { page, context };
   }
@@ -69,6 +88,7 @@ export class BrowserManager {
       opts.userDataDir,
       { headless: false, viewport: null },
     );
+    await applyEvalNameShim(this.discoveryContext);
     return this.discoveryContext;
   }
 

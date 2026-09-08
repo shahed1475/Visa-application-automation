@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { ConnectionTestResult } from '../../../shared/types.js';
-import { BrowserManager } from '../engine/browserManager.js';
+import { BrowserManager, applyEvalNameShim } from '../engine/browserManager.js';
 import { inspectPage } from '../engine/pageInspector.js';
 import { env } from '../../env.js';
 
@@ -44,6 +44,7 @@ export async function runConnectionTest(
     const browser = await manager.launch();
     const context = await browser.newContext();
     try {
+      await applyEvalNameShim(context);
       const page = await context.newPage();
       const response = await page.goto(url, {
         waitUntil: 'domcontentloaded',

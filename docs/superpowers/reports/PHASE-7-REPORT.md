@@ -1,7 +1,10 @@
 # Phase 7 — Real Indian Visa Portal Validation + Controlled Autofill — end-of-phase report
 
-> **Status:** implementation complete (Tasks 1–13). Whole-branch opus review +
-> fix wave (Task 14) — **PENDING**. Final gate counts filled at phase end.
+> **Status:** implementation complete (Tasks 1–13). Phase 7 was **not merged**;
+> it was carried on the `phase-8-real-portal-readiness` branch and reviewed
+> jointly with Phase 8 over the combined range `74fc162..bcb40af`. See
+> `docs/superpowers/reports/PHASE-8-REPORT.md` for the combined security +
+> whole-branch review and the final gate.
 > **Branch:** `phase-7-portal-validation-autofill` (cut from Phase 6 HEAD `74fc162`).
 
 ```
@@ -56,7 +59,7 @@ files** · build exit 0. `LATEST_SCHEMA_VERSION === 6`. Phase 6 acceptance 27 PA
 | 11 | `phase7Matrix.test.ts` (10 E2E scenarios); `classifyPreFill` resolve-and-never-throw fix | `202ee55` |
 | 12 | `phase7Safety.test.ts` (8 cases, fresh PII markers) + `noAutoSubmit` Phase-7 coverage assertion | `8817468` |
 | 13 | this report skeleton + `docs/ARCHITECTURE.md` §3 + `docs/portals/india.md` Phase 7 procedures & field tables | _this commit_ |
-| 14 | whole-branch opus review + fix wave + fill this report | **PENDING** |
+| 14 | Whole-branch review folded into the Phase 8 branch review (`74fc162..bcb40af`) — see PHASE-8-REPORT.md §§ on review + security | done |
 
 ## 5. India portal mappings validated
 
@@ -172,24 +175,87 @@ and a `status`.
 
 ## 17. Security review
 
-_(Task 14 — `security-review` skill over `74fc162..HEAD`.)_
+The Phase 8 security review (opus, focused on the Phase 7 + Phase 8 delta over
+`74fc162..bcb40af`) found **no HIGH or MEDIUM findings** (confidence ≥ 8).
+Verified clean:
+
+- The `quote()` TypeScript-string escaper (`indiaMappingRegistry.ts`) escapes `\`
+  then `'` — the complete escape set for its only output context, a single-quoted
+  TS string literal in an object-literal value position. A discovery-derived
+  selector carrying a raw newline yields a `tsc` syntax error the operator sees,
+  never executable code. Neither `promoteCandidate` nor `renderPromotedBundle`
+  performs any filesystem write.
+- The two new discovery routes (`POST /promote-bundle`, `GET /field-tables`) are
+  Zod-validated and parameterised — `sessionId` is a bound `?` parameter,
+  `pageSeq` / `candidateIndex` are in-memory array lookups with explicit miss
+  guards, and error mapping strips internal detail.
+- The value-free surfaces hold: `renderFieldTablesMarkdown` emits only canonical
+  field paths, control kinds, portal-state names, confidence labels, lifecycle
+  statuses and counts (a selector is used only as a `Map` key, never rendered);
+  `ProgressTimeline` renders only fixed milestone labels + a relative duration;
+  the new route responses carry no applicant value.
+- The `document_upload_required` state-machine change reaches no forbidden state —
+  both branches of the documents block return `waiting` / `document_upload_required`
+  (a legal `running → waiting_for_user` transition), `error_code` stays `NULL`,
+  and a resume re-arms the same check rather than bypassing it.
+- No timing knob gates a safety check — every profile value is consumed as a
+  `delay()` / `waitFor` timeout argument; no branch is conditional on the profile
+  name or on any duration, so no profile can skip a read-back, checkpoint or
+  safe-stop.
+
+One sub-threshold note, closed in the fix wave (not raised as a finding):
+`promote-bundle`'s `picks` array now carries a `.max()` cap.
 
 ## 18. Whole-branch review
 
-_(Task 14 — opus whole-branch review over `74fc162..HEAD` against §12 boundaries
-+ the Phase 5 rails + the Phase 7 additions; fix wave; outcome recorded here.)_
+The whole-branch review (opus, `74fc162..bcb40af`, Phase 7 + Phase 8 together)
+returned **READY TO MERGE WITH FIXES** — **0 Critical, 5 Important, 19 Minor**.
+All 8 binding invariants were verified holding:
+
+1. Terminal state `review_ready`; no submit / pay / book-appointment / register;
+   no CAPTCHA/OTP/MFA solver; `submitSelector` readonly `null`.
+2. A production mapping is used only when `status === 'validated'` **and**
+   `validatedAgainstRevision === indiaPortalMap.mappingRevision`.
+3. No selector guessing; dropdowns match by exact string equality; dates are
+   explicit transforms.
+4. Timing is reliability-only — fixed constants, no jitter / stealth, env enum
+   defaulting to `normal`.
+5. No PII in any persistent surface (`automation_events` / `automation_runs` /
+   `portal_discovery_*` / logs); `{expected, actual}` stays on the in-memory
+   `/live` surface.
+6. No migration (`LATEST_SCHEMA_VERSION` 6); no new runtime dependency.
+7. Discovery stays read-only (one `page.goto`, zero mutations); the app never
+   writes adapter source.
+8. Resume re-detects the current page **and** re-checks mapping readiness every
+   loop iteration.
+
+The 5 Important findings were **all fixed in commit `bcb40af`** (+10 tests):
+
+| # | Finding | Shape | Fix |
+|---|---|---|---|
+| I1 | `custom_select` used a Playwright substring `hasText` match — a wrong-but-plausible option could be left selected in the portal | Phase-7-shaped | `selectCustom` now compares option text by exact `===` (mirrors `assertNativeOptionAvailable`); a miss throws `OptionNotFoundError` with nothing clicked. Docs narrowed: the untouched-control guarantee is `native_select`-only |
+| I2 | the `careful` / `fast` profile's `pageStabilizeTimeoutMs` reached only one scroll call — every selector wait that decides a slow-portal outcome was still hardcoded | Phase-8-introduced | threaded `pageStabilizeTimeoutMs` into `requireSelector`, `waitForPageSettled` (+ `EngineContext.settle`) and the listbox waits; `selectNative`'s 2 s option-set wait left as-is (sanctioned) |
+| I3 | a non-production page `nextSelector` threw a bare `Error` → terminal `failed` / `engine_error` (not resumable) instead of a safe-stop | Phase-7-shaped (branch edited this in Phase 8) | `nextSelectorReadiness(state)` + `classifyNextSelector`; the engine emits `MAPPING_NOT_PRODUCTION_READY` and pauses `stale_mapping` — parity with the field path |
+| I4 | the `document_upload_required` copy promised "add the document to this applicant" but the in-memory resume path never reloads the plan | Phase-8-introduced | copy corrected — upload in the portal + advance + resume; a document added to the applicant needs a fresh run |
+| I5 | `session_expired` was documented as a shipped safe-stop, but `getIndiaPageIdentity` has no real 401 / login fingerprint | Phase-7-shaped | docs corrected (ARCHITECTURE §3 and §§9, 11, 21 here): engine-implemented + fixture-tested; a real timeout is handled as `unknown_page` (still a safe stop) until a signal is added — Track B |
+
+Every Important is a *fail-safe* degradation (a wrong-but-caught value, a
+terminal-instead-of-pause stop, a pause whose copy over-promised a remedy) — not
+a safety hole, and none blocked the merge on its own. The 19 Minors are logged as
+deferred in the SDD ledger
+(`.superpowers/sdd/2026-09-08-phase-8-real-portal-readiness/progress.md`); none
+blocks merge.
 
 ## 19. Tests
 
-_(Task 14 — final `npm run typecheck` / `npm run lint` / `npm test` /
-`npm run build` counts.)_
-
-Interim (end of Task 13): 1206 tests / 115 files, all four green.
+Final at `bcb40af` (Phase 7 + Phase 8): `npm run typecheck` exit 0 ·
+`npm run lint` exit 0 · `npm test` **1265 passed / 120 files**.
 
 ## 20. Build
 
-_(Task 14 — final bundle sizes.)_ Interim: web bundle 460.13 kB JS / 117.62 kB
-gzip.
+`npm run build` exit 0 · web bundle **463.88 kB JS / 118.82 kB gzip** at
+`bcb40af` (Phase 7 HEAD `74fc162` was 460.13 kB / 117.62 kB gzip — the delta is
+Phase 8's run-page timeline, timing wiring and promotion-ergonomics UI).
 
 ## 21. Known limitations
 

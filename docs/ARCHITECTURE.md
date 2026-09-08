@@ -273,6 +273,24 @@ the "no submit / no payment / no appointment / terminal state = `review_ready`"
 rails are unchanged. Track B still not executed; **no real portal field is
 validated.** See `docs/superpowers/reports/PHASE-7-REPORT.md`.
 
+**Phase 8 (real-portal readiness):** the delta that makes the Phase 5–7 engine
+genuinely usable — **no new subsystem, no migration, no dependency.**
+`AUTOMATION_TIMING_PROFILE` (`fast` / `normal` / `careful`, default `normal`,
+`src/server/automation/engine/timing.ts`) drives realistic scroll + inter-field /
+navigation / verification waits and the selector-stabilisation timeout, tuned so
+a prepared application **models under two minutes** to `review_ready` (proven by
+a deterministic fixture benchmark that never touches a network); timing is
+reliability-only — fixed constants, no jitter or evasion. The run page surfaces
+elapsed / ETA / current section / a value-free milestone timeline
+(`src/shared/automation/progress.ts` + `ProgressTimeline`). A missing required
+document is now a **resumable `document_upload_required` pause**, not a terminal
+failure. Discovery promotion emits the validation-stamp TODOs, a "Copy all
+promoted" bundle and auto-generated `india.md` field-support tables. A
+non-production page-navigation `nextSelector` now safe-stops `stale_mapping`
+(parity with field mappings) rather than crashing the run. Track B is still not
+executed; **no real Indian portal field is validated.** See
+`docs/superpowers/reports/PHASE-8-REPORT.md`.
+
 ---
 
 ## 4. The thirteen foundation requirements → where they live

@@ -162,6 +162,55 @@ it('(d) review_ready shows the SAFE STOP banner verbatim and no submit control',
   expect(container.querySelector('button[type="submit"]')).toBeNull();
 });
 
+it('(f) shows an elapsed timer and hides the ETA until a field is verified', async () => {
+  const api = await client();
+  api.getAutomationRun.mockResolvedValue({
+    run: makeRun({
+      status: 'running',
+      started_at: new Date(Date.now() - 42_000).toISOString(),
+      fields_verified: 0,
+      fields_total: 30,
+    }),
+    events: [],
+  });
+  renderPage();
+  expect(await screen.findByText(/elapsed 00:4[0-5]/i)).toBeTruthy();
+  expect(screen.queryByText(/est\. remaining/i)).toBeNull();
+});
+
+it('(g) shows an ETA once progress exists', async () => {
+  const api = await client();
+  api.getAutomationRun.mockResolvedValue({
+    run: makeRun({
+      status: 'running',
+      started_at: new Date(Date.now() - 40_000).toISOString(),
+      fields_verified: 10,
+      fields_total: 30,
+    }),
+    events: [],
+  });
+  renderPage();
+  expect(await screen.findByText(/est\. remaining ~01:2\d/i)).toBeTruthy();
+});
+
+it('(h) renders a value-free milestone timeline from the event stream', async () => {
+  const api = await client();
+  api.getAutomationRun.mockResolvedValue({
+    run: makeRun({ status: 'waiting_for_user', waiting_reason: 'otp' }),
+    events: [
+      makeEvent({ id: 'e1', seq: 1, type: 'RUN_STARTED' }),
+      makeEvent({ id: 'e2', seq: 2, type: 'PAGE_DETECTED', portal_state: 'PASSPORT-1234567' }),
+      makeEvent({ id: 'e3', seq: 3, type: 'OTP_REQUIRED', field_path: 'identity.surname' }),
+    ],
+  });
+  renderPage();
+  const tl = await screen.findByRole('list', { name: /progress timeline/i });
+  expect(within(tl).getByText(/portal opened/i)).toBeTruthy();
+  expect(within(tl).getByText(/human action required/i)).toBeTruthy();
+  // no portal value / field path / applicant value anywhere in the timeline
+  expect(tl.textContent).not.toMatch(/PASSPORT-|@|\d{7}/);
+});
+
 it('(e) polling halts once the run reaches a terminal status', async () => {
   vi.useFakeTimers();
   const api = await client();

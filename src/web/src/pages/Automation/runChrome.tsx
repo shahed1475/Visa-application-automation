@@ -1,5 +1,12 @@
+import { useEffect, useState } from 'react';
 import { EVENT_MESSAGES } from '../../../../shared/automation/events';
-import type { AutomationEventRow } from '../../../../shared/automation/types';
+import { isTerminal } from '../../../../shared/automation/states';
+import {
+  elapsedMs,
+  estimateRemainingMs,
+  formatDuration,
+} from '../../../../shared/automation/progress';
+import type { AutomationEventRow, AutomationRunRow } from '../../../../shared/automation/types';
 import type { IndiaDiagnostics } from '../../../../shared/discovery/types';
 
 type Mismatch = { fieldPath: string; expected: string; actual: string };
@@ -250,5 +257,88 @@ export function StaleMappingWarning({ diagnostics }: { diagnostics: IndiaDiagnos
       Some required portal mappings are stale or not yet validated. Automation cannot safely continue
       until they are re-validated.
     </p>
+  );
+}
+
+/**
+ * Live elapsed timer + ETA for a run. Ticks once a second while the run is
+ * non-terminal (interval cleared on unmount and once terminal); freezes at
+ * `ended_at - started_at` once terminal. The ETA is appended only while the
+ * run is progressing and a per-field rate can be observed. Value-free.
+ */
+export function RunTiming({ run }: { run: AutomationRunRow }): JSX.Element {
+  const terminal = isTerminal(run.status);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (terminal) return;
+    const timer = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [terminal]);
+
+  const elapsed = terminal
+    ? Math.max(0, Date.parse(run.ended_at ?? run.updated_at) - Date.parse(run.started_at))
+    : elapsedMs(run.started_at);
+
+  const est = terminal
+    ? null
+    : estimateRemainingMs({
+        fieldsVerified: run.fields_verified,
+        fieldsTotal: run.fields_total,
+        elapsedMs: elapsed,
+      });
+
+  const text =
+    `Elapsed ${formatDuration(elapsed)}` +
+    (est !== null ? ` · Est. remaining ~${formatDuration(est)}` : '');
+
+  return <p className="muted run-timing">{text}</p>;
+}
+
+/**
+ * A value-free milestone timeline built from the event stream: each entry is a
+ * fixed milestone label plus a timestamp relative to the first event. Event
+ * types not in the table are skipped and consecutive identical labels collapse.
+ * NEVER renders a portal state, field path, message, or applicant value.
+ */
+const MILESTONE_LABELS: Record<string, string> = {
+  RUN_STARTED: 'Portal opened',
+  PAGE_DETECTED: 'Page detected',
+  NAVIGATION_COMPLETED: 'Moved to the next page',
+  OTP_REQUIRED: 'Human action required',
+  CAPTCHA_REQUIRED: 'Human action required',
+  MFA_REQUIRED: 'Human action required',
+  ANTI_BOT_DETECTED: 'Human action required',
+  USER_ACTION_REQUIRED: 'Waiting for you',
+  RUN_RESUMED: 'Resumed',
+  SESSION_EXPIRED: 'Session expired — sign in again',
+  REVIEW_READY: 'Review page reached — nothing submitted',
+};
+
+export function ProgressTimeline({ events }: { events: AutomationEventRow[] }): JSX.Element {
+  const first = events[0];
+  const base = first?.created_at ? Date.parse(first.created_at) : Number.NaN;
+
+  const items: { key: string; label: string; time: string }[] = [];
+  events.forEach((e, i) => {
+    const label = MILESTONE_LABELS[e.type];
+    if (!label) return;
+    if (items[items.length - 1]?.label === label) return;
+    const time =
+      e.created_at && !Number.isNaN(base)
+        ? `+${formatDuration(Date.parse(e.created_at) - base)}`
+        : `#${i + 1}`;
+    items.push({ key: e.id ?? String(e.seq ?? i), label, time });
+  });
+
+  return (
+    <ol className="progress-timeline" aria-label="Progress timeline">
+      {items.map((it) => (
+        <li key={it.key}>
+          <span className="progress-timeline__label">{it.label}</span>
+          <span className="progress-timeline__time">{it.time}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

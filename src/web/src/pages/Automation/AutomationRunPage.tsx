@@ -13,6 +13,8 @@ import {
   AdapterProvenance,
   EventLog,
   ProgressBar,
+  ProgressTimeline,
+  RunTiming,
   SafeStopBanner,
   StaleMappingWarning,
   StatusBadge,
@@ -229,13 +231,20 @@ export function AutomationRunPage() {
 
       <StatusBadge status={run.status} waitingReason={run.waiting_reason} />
 
+      <RunTiming run={run} />
+
       <ProgressBar label="Fields verified" value={run.fields_verified} max={run.fields_total} />
       <p className="ready-line automation-run__docs">
         Documents ready: {run.documents_ready} / {run.documents_total}
       </p>
-      <p className="muted">Current page: {run.current_portal_state ?? '—'}</p>
+      <p className="muted">
+        Current page: {run.current_portal_state ?? '—'} · Section:{' '}
+        {run.current_section_id ?? run.current_portal_state ?? '—'}
+      </p>
 
       <EventLog events={events} />
+
+      <ProgressTimeline events={events} />
 
       {run.status === 'waiting_for_user' && run.waiting_reason === 'value_conflict' && (
         <ValueConflictPanel

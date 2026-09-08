@@ -337,7 +337,7 @@ describe('fixture-portal integration (real engine + real headless chromium)', ()
     expect(portal.submitCount).toBe(0);
   });
 
-  it('4. missing required document: BLOCKED_MISSING_DOCUMENT → status failed / missing_document', async () => {
+  it('4. missing required document: BLOCKED_MISSING_DOCUMENT → waiting_for_user / document_upload_required (resumable, not terminal)', async () => {
     await build({
       adapter: { documentIds: { DOCUMENTS: ['invitation_letter_indian_company'] } },
       plan: makeReadyPlan({
@@ -360,9 +360,9 @@ describe('fixture-portal integration (real engine + real headless chromium)', ()
 
     await runSettles(id);
     const run = await getRun(id);
-    expect(run.status).toBe('failed');
-    expect(run.error_code).toBe('missing_document');
-    expect(run.waiting_reason).toBeNull();
+    expect(run.status).toBe('waiting_for_user');
+    expect(run.waiting_reason).toBe('document_upload_required');
+    expect(run.error_code).toBeNull();
 
     const events = await getEvents(id);
     const blocked = events.find((e) => e.type === 'BLOCKED_MISSING_DOCUMENT');

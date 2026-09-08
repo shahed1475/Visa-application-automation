@@ -372,6 +372,11 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     const pageRequiredDocs = reqDocs.filter((d) => docIds.includes(d.id));
     const notUploaded = pageRequiredDocs.filter((d) => !d.uploaded);
     if (notUploaded.length > 0) {
+      // A required document is not uploaded to the applicant profile. This is a
+      // RESUMABLE pause, not a terminal failure: the per-doc
+      // `BLOCKED_MISSING_DOCUMENT` events tell the operator which documents are
+      // missing so they can add them to the applicant and/or attach them in the
+      // portal by hand, then Resume — the engine never drives the file chooser.
       for (const d of notUploaded) {
         await ctx.emit({
           type: 'BLOCKED_MISSING_DOCUMENT',
@@ -380,7 +385,7 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
           portalState: state,
         });
       }
-      return { kind: 'failed', errorCode: 'missing_document' };
+      return { kind: 'waiting', reason: 'document_upload_required' };
     }
     if (pageRequiredDocs.length > 0) {
       for (const d of pageRequiredDocs) {

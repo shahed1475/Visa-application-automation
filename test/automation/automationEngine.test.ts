@@ -424,7 +424,7 @@ describe('runLoop', () => {
     expect(types(events)).toContain('VALIDATION_ERROR');
   });
 
-  it('7. missing document: fails with error code missing_document', async () => {
+  it('7. missing document: pauses document_upload_required, not a terminal failure', async () => {
     const plan = makePlan({
       documents: [doc({ id: 'invitation', uploaded: false })],
     });
@@ -436,7 +436,7 @@ describe('runLoop', () => {
 
     const stop = await runLoop(ctx);
 
-    expect(stop).toEqual({ kind: 'failed', errorCode: 'missing_document' });
+    expect(stop).toEqual({ kind: 'waiting', reason: 'document_upload_required' });
     const blocked = events.find((e) => e.type === 'BLOCKED_MISSING_DOCUMENT');
     expect(blocked).toMatchObject({ fieldPath: 'invitation', status: 'blocked' });
   });

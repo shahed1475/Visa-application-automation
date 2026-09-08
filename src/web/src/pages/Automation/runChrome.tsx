@@ -32,7 +32,7 @@ const WAITING_REASON_TEXT: Record<string, string> = {
   option_unavailable: 'Dropdown option unavailable',
   value_mismatch: 'Value needs review',
   value_conflict: 'Value conflict — decision needed',
-  document_upload_required: 'Attach documents',
+  document_upload_required: 'Documents not ready',
   session_expired: 'Session expired',
   validation_error: 'Portal validation error',
   user_paused: 'Paused',
@@ -47,7 +47,8 @@ const REASON_INSTRUCTION: Record<string, string> = {
     'Review the values below, fix them in the portal or the applicant profile, then resume.',
   value_conflict:
     'The portal already holds a different value for this field. Choose which value to keep, or edit the application.',
-  document_upload_required: 'Attach the required documents in the browser, then resume.',
+  document_upload_required:
+    'One or more required documents for this page are not ready. Add any missing document to this applicant if needed, upload the required document(s) in the portal yourself, advance the portal to the next page, then resume.',
   missing_field_mapping:
     'A field has no portal mapping. Enter it in the browser, then resume or abort.',
   stale_mapping:

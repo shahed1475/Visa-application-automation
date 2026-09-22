@@ -20,6 +20,7 @@ import {
   listDiscoveryPages,
 } from '../../discovery/discoverySessionStore.js';
 import { indiaPortalMap, type MappingStatus } from './indiaPortalMap.js';
+import { classifyMapping } from './mappingLifecycle.js';
 
 /** One value-free row per canonical field mapping, for the adapter-mappings UI. */
 export interface MappingView {
@@ -55,29 +56,43 @@ export function getIndiaMappings(): MappingView[] {
 }
 
 export interface MappingStatusCounts {
+  /** Raw `status` field counts (a `validated` mapping stamped against an old
+   *  revision is still counted here as `validated`). */
   placeholder: number;
   discovered: number;
   validated: number;
+  /** `validated` mappings whose `validatedAgainstRevision` !== the current
+   *  `mappingRevision` (or is absent) — need re-validation before use. */
+  stale: number;
+  /** `validated` AND current-revision — the only mappings that reach the engine. */
+  productionUsable: number;
   total: number;
   requiredRemaining: number;
 }
 
 export function getIndiaMappingStatus(): MappingStatusCounts {
   const specs = Object.values(indiaPortalMap.fields);
+  const revision = indiaPortalMap.mappingRevision;
   const counts: MappingStatusCounts = {
     placeholder: 0,
     discovered: 0,
     validated: 0,
+    stale: 0,
+    productionUsable: 0,
     total: specs.length,
-    // requiredRemaining = mappings whose status !== 'validated'. Only a validated
-    // selector can drive a real autofill run, so "remaining work" is everything
-    // not yet validated. (indiaPortalMap carries no static "required" flag —
-    // required-ness is per-application, owned by the Phase 4 ApplicationPlan.)
+    // requiredRemaining = mappings not production-usable (placeholder, discovered,
+    // OR a validated mapping gone stale). Only a validated + current mapping can
+    // drive a real autofill run, so "remaining work" is everything else.
+    // (indiaPortalMap carries no static "required" flag — required-ness is
+    // per-application, owned by the Phase 4 ApplicationPlan.)
     requiredRemaining: 0,
   };
   for (const spec of specs) {
     counts[spec.status] += 1;
-    if (spec.status !== 'validated') counts.requiredRemaining += 1;
+    const life = classifyMapping(spec, revision);
+    if (life === 'stale') counts.stale += 1;
+    if (life === 'validated') counts.productionUsable += 1;
+    else counts.requiredRemaining += 1;
   }
   return counts;
 }
@@ -163,10 +178,39 @@ export function promoteCandidate(
   body.push(`  status: 'discovered',`);
   body.push(`  discoveredAt: ${quote(discoveredAt)},`);
   body.push(`  discoverySessionRef: ${quote(sessionId)},`);
+  // The two validation stamps are HAND-APPLIED after read-back validation
+  // (§13.12) — the app never writes them. Emit them as line comments so the
+  // literal pastes into `indiaPortalMap.fields` without breaking `tsc`
+  // (`// ...` inside an object literal is valid TS; comments need no comma).
+  body.push(`  // TODO: after read-back validation set status: 'validated',`);
+  body.push(
+    `  // TODO: validatedAgainstRevision: '${indiaPortalMap.mappingRevision}' (current mappingRevision),`,
+  );
+  body.push(`  // TODO: validatedAt: '<ISO you filled at validation time>',`);
 
   const literal = [`${quote(input.canonicalFieldPath)}: {`, ...body, '},'].join('\n');
 
   return { canonicalFieldPath: input.canonicalFieldPath, literal, warnings };
+}
+
+/**
+ * Render one paste block covering several promoted candidates at once — each
+ * pick run through {@link promoteCandidate}, the literals joined under a single
+ * block, warnings de-duplicated. Writes nothing. An empty `picks` yields an
+ * empty bundle; a bad pick propagates its
+ * `DiscoveryCandidateNotFoundError` / `DiscoverySessionNotFoundError`.
+ */
+export function renderPromotedBundle(
+  db: DatabaseSync,
+  sessionId: string,
+  picks: PromoteInput[],
+): { literal: string; warnings: string[] } {
+  if (picks.length === 0) return { literal: '', warnings: [] };
+  const edits = picks.map((pick) => promoteCandidate(db, sessionId, pick));
+  return {
+    literal: edits.map((e) => e.literal).join('\n\n'),
+    warnings: [...new Set(edits.flatMap((e) => e.warnings))],
+  };
 }
 
 function quote(s: string): string {

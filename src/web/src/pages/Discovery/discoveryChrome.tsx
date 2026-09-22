@@ -45,11 +45,14 @@ export function DiagnosticsPanel({ diagnostics }: { diagnostics: IndiaDiagnostic
         <dd>{diagnostics.fieldsDiscovered}</dd>
         <dt>Mappings</dt>
         <dd>
-          {m.validated} validated · {m.discovered} discovered · {m.placeholder} placeholder /{' '}
-          {m.total} total · {m.requiredRemaining} remaining
+          {m.productionUsable} production-ready · {m.stale} stale · {m.validated} validated ·{' '}
+          {m.discovered} discovered · {m.placeholder} placeholder / {m.total} total ·{' '}
+          {m.requiredRemaining} remaining
         </dd>
         <dt>Unknown pages encountered</dt>
         <dd>{diagnostics.unknownPagesEncountered}</dd>
+        <dt>Selector fallbacks used</dt>
+        <dd>{diagnostics.selectorStaleEvents}</dd>
         <dt>Last validation</dt>
         <dd>
           {diagnostics.lastValidation

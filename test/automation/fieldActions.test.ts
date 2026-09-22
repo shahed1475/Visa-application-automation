@@ -5,7 +5,15 @@ import {
   classifyPreFill,
   verifyControl,
 } from '../../src/server/automation/engine/fieldActions.js';
-import { SelectorNotFoundError } from '../../src/server/automation/engine/pageActions.js';
+import {
+  OptionNotFoundError,
+  SelectorNotFoundError,
+} from '../../src/server/automation/engine/pageActions.js';
+import { TIMING_PROFILES } from '../../src/server/automation/engine/timing.js';
+import {
+  parseDMY,
+  parseIso,
+} from '../../src/server/automation/adapters/india/transforms.js';
 import type { ControlKind, MappedField } from '../../src/shared/automation/types.js';
 import { startFixtureServer, type FixtureServer } from '../helpers/fixtureServer.js';
 
@@ -14,9 +22,35 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Fi
   <input id="tblur" type="text" oninput="this.value = this.value + 'X'">
   <select id="ns"><option value="a">Alpha</option><option value="b">Bravo</option></select>
   <select id="nsp"><option value="">-- Select --</option><option value="in">India</option><option value="fr">France</option></select>
+  <select id="nsd"><option value="x">Ex</option><option value="y" disabled>Why</option></select>
   <input type="radio" name="r" id="r1" value="a">
   <input type="radio" name="r" id="r2" value="b">
   <input id="cb" type="checkbox">
+  <input id="d" type="date">
+  <input id="dtext" type="text">
+
+  <div id="lazy" role="combobox" tabindex="0"><span id="lazy-label">Choose</span></div>
+  <ul id="lazy-list" role="listbox" hidden>
+    <li role="option">Yes</li>
+    <li role="option">No</li>
+  </ul>
+  <script>
+    (function () {
+      var trigger = document.getElementById('lazy');
+      var list = document.getElementById('lazy-list');
+      var label = document.getElementById('lazy-label');
+      trigger.addEventListener('click', function () {
+        // the listbox only renders 700ms after the trigger is clicked
+        setTimeout(function () { list.hidden = false; }, 700);
+      });
+      Array.prototype.forEach.call(list.querySelectorAll('li'), function (li) {
+        li.addEventListener('click', function () {
+          label.textContent = li.textContent;
+          list.hidden = true;
+        });
+      });
+    })();
+  </script>
 </body></html>`;
 
 function mf(
@@ -71,6 +105,8 @@ describe('fieldActions', () => {
       filled: true,
       outcome: 'verified',
       alreadySet: false,
+      usedFallback: false,
+      selector: '#t',
     });
   });
 
@@ -80,7 +116,24 @@ describe('fieldActions', () => {
       filled: false,
       alreadySet: true,
       outcome: 'verified',
+      usedFallback: false,
+      selector: '#t',
     });
+  });
+
+  it('reports usedFallback when the primary selector is gone but the configured fallback resolves', async () => {
+    const m = mf('#gone', 'text', 'RANA');
+    m.spec = {
+      selector: '#gone',
+      fallbackSelector: '#t',
+      control: 'text',
+      selectorConfidence: 'stable',
+    };
+    const r = await applyField(page, m);
+    expect(r.usedFallback).toBe(true);
+    expect(r.selector).toBe('#t'); // the RESOLVED selector, for the engine's read-back
+    expect(r.outcome).toBe('verified');
+    expect(await page.locator('#t').inputValue()).toBe('RANA');
   });
 
   it('retries once then reports mismatch when read-back never matches', async () => {
@@ -88,6 +141,40 @@ describe('fieldActions', () => {
     expect(result.filled).toBe(true);
     expect(result.alreadySet).toBe(false);
     expect(result.outcome).toBe('mismatch');
+  });
+
+  it('applyField scrolls the target into view and waits the configured interaction + verify delays', async () => {
+    const spy: number[] = [];
+    const delay = async (ms: number) => {
+      spy.push(ms);
+    };
+    const timing = { ...TIMING_PROFILES.careful };
+    await page.locator('#t').evaluate((el) => {
+      (el as unknown as { style: { marginTop: string } }).style.marginTop = '3000px';
+    });
+    const r = await applyField(page, mf('#t', 'text', 'RANA'), { timing, delay });
+    expect(r.outcome).toBe('verified');
+    expect(spy).toContain(timing.scrollDelayMs);
+    expect(spy).toContain(timing.fieldInteractionDelayMs);
+    expect(spy).toContain(timing.postFillVerifyDelayMs);
+    // the element was actually brought into the viewport before the fill
+    expect(await page.locator('#t').isVisible()).toBe(true);
+  });
+
+  // I2 — the active timing profile actually changes how patient the writers are.
+  it('applyField: the timing profile widens the control writer wait a fast profile would miss', async () => {
+    // #lazy renders its listbox 700ms after the trigger click.
+    // A 150ms stabilize window gives up before it appears …
+    await expect(
+      applyField(page, mf('#lazy', 'custom_select', 'Yes'), {
+        timing: { ...TIMING_PROFILES.fast, pageStabilizeTimeoutMs: 150 },
+      }),
+    ).rejects.toThrow();
+    // … the careful profile's 15s window tolerates it and the field verifies.
+    const r = await applyField(page, mf('#lazy', 'custom_select', 'Yes'), {
+      timing: { ...TIMING_PROFILES.careful },
+    });
+    expect(r.outcome).toBe('verified');
   });
 
   it('selects a native option by label and verifies', async () => {
@@ -100,6 +187,22 @@ describe('fieldActions', () => {
     await expect(applyField(page, mf('#nope', 'text', 'x'))).rejects.toBeInstanceOf(
       SelectorNotFoundError,
     );
+  });
+
+  it('applyField throws OptionNotFoundError for an absent select option without touching the control', async () => {
+    const before = await page.locator('#ns').inputValue();
+    await expect(
+      applyField(page, mf('#ns', 'native_select', 'zzz', 'value')),
+    ).rejects.toBeInstanceOf(OptionNotFoundError);
+    expect(await page.locator('#ns').inputValue()).toBe(before);
+  });
+
+  it('applyField throws OptionNotFoundError for a DISABLED select option without touching the control', async () => {
+    const before = await page.locator('#nsd').inputValue();
+    await expect(
+      applyField(page, mf('#nsd', 'native_select', 'y', 'value')),
+    ).rejects.toBeInstanceOf(OptionNotFoundError);
+    expect(await page.locator('#nsd').inputValue()).toBe(before);
   });
 
   it('classifyPreFill: a blank control reads as empty', async () => {
@@ -197,6 +300,44 @@ describe('fieldActions', () => {
     ).toBe('conflict');
   });
 
+  it('classifyPreFill: reads the configured fallback when the primary selector is gone', async () => {
+    await page.locator('#t').fill('RANA');
+    expect(
+      await classifyPreFill(
+        page,
+        { selector: '#gone', fallbackSelector: '#t', control: 'text', selectorConfidence: 'stable' },
+        'RANA',
+      ),
+    ).toBe('match');
+  });
+
+  it('classifyPreFill: neither primary nor fallback resolves → empty (never throws)', async () => {
+    await expect(
+      classifyPreFill(
+        page,
+        { selector: '#gone-a', fallbackSelector: '#gone-b', control: 'text', selectorConfidence: 'stable' },
+        'RANA',
+      ),
+    ).resolves.toBe('empty');
+  });
+
+  // M1 — classifyPreFill honours the caller-supplied probe window (the active
+  // timing profile's resolveProbeMs), not a hardcoded TIMING_PROFILES.normal.
+  it('classifyPreFill: honours the supplied probeMs when resolving the selector', async () => {
+    const t0 = Date.now();
+    const r = await classifyPreFill(
+      page,
+      { selector: '#gone-a', fallbackSelector: '#gone-b', control: 'text', selectorConfidence: 'stable' },
+      'RANA',
+      200,
+    );
+    const elapsed = Date.now() - t0;
+    expect(r).toBe('empty');
+    // primary + fallback each probed for ~200ms — well under the ~4s that two
+    // probes at the default normal.resolveProbeMs (2000ms) would take.
+    expect(elapsed).toBeLessThan(1_500);
+  });
+
   it('classifyPreFill: an unreadable control (readControl → null) defers to applyField as empty', async () => {
     expect(
       await classifyPreFill(
@@ -224,5 +365,52 @@ describe('fieldActions', () => {
         'RANA',
       ),
     ).toBe('mismatch');
+  });
+
+  it('verifyControl: a date control with readBackParse compares in ISO (format-independent)', async () => {
+    await page.locator('#dtext').fill('15/10/2026'); // portal shows DD/MM/YYYY
+    const spec = {
+      selector: '#dtext',
+      control: 'date' as const,
+      selectorConfidence: 'stable' as const,
+      readBackParse: parseDMY,
+    };
+    // `expected` is already the portal-format string (mapFields applied transform)
+    expect(await verifyControl(page, spec, '15/10/2026')).toBe('verified');
+    expect(await verifyControl(page, spec, '01/01/2020')).toBe('mismatch');
+  });
+
+  it('verifyControl: a native date input with parseIso readBackParse verifies an ISO match', async () => {
+    await page.locator('#d').fill('2026-10-15');
+    const spec = {
+      selector: '#d',
+      control: 'date' as const,
+      selectorConfidence: 'stable' as const,
+      readBackParse: parseIso,
+    };
+    expect(await verifyControl(page, spec, '2026-10-15')).toBe('verified');
+    expect(await verifyControl(page, spec, '2020-01-01')).toBe('mismatch');
+  });
+
+  it('verifyControl: date read-back that readBackParse cannot parse → unreadable (never a silent pass)', async () => {
+    await page.locator('#d').fill('2026-10-15'); // native input reads back ISO
+    const spec = {
+      selector: '#d',
+      control: 'date' as const,
+      selectorConfidence: 'stable' as const,
+      readBackParse: parseDMY, // wrong parser for this control's format
+    };
+    expect(await verifyControl(page, spec, '15/10/2026')).toBe('unreadable');
+  });
+
+  it('verifyControl: a date control WITHOUT readBackParse falls back to raw trim-equality (unchanged)', async () => {
+    await page.locator('#d').fill('2026-10-15');
+    expect(
+      await verifyControl(
+        page,
+        { selector: '#d', control: 'date', selectorConfidence: 'stable' },
+        '2026-10-15',
+      ),
+    ).toBe('verified');
   });
 });

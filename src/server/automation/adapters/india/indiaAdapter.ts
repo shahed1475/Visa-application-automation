@@ -8,6 +8,12 @@ import {
   type SignalMatch,
 } from '../../../../shared/automation/types.js';
 import { INDIA_PORTAL_STATES, indiaPortalMap, type IndiaPortalState } from './indiaPortalMap.js';
+import {
+  classifyMapping,
+  classifyNextSelector,
+  isNextSelectorProductionUsable,
+  isProductionUsable,
+} from './mappingLifecycle.js';
 
 /**
  * India portal adapter — config-driven over {@link indiaPortalMap}.
@@ -93,23 +99,28 @@ async function getIndiaPageIdentity(page: Page): Promise<PageIdentity> {
 }
 
 /**
- * `getFieldMap` must hand the engine a plain {@link PortalFieldMap}. Project the
- * lifecycle/provenance keys away so nothing downstream depends on India-only
- * fields.
+ * `getFieldMap` must hand the engine a plain {@link PortalFieldMap} containing
+ * ONLY production-usable mappings (`status: 'validated'` AND
+ * `validatedAgainstRevision === currentRevision`). Placeholder, discovered, and
+ * stale mappings never reach the engine. The lifecycle/provenance keys are
+ * projected away so nothing downstream depends on India-only fields.
  */
-function toPortalFieldMap(): PortalFieldMap {
+function toPortalFieldMap(currentRevision: string): PortalFieldMap {
   return Object.fromEntries(
-    Object.entries(indiaPortalMap.fields).map(([k, v]) => [
-      k,
-      {
-        selector: v.selector,
-        control: v.control,
-        selectorConfidence: v.selectorConfidence,
-        ...(v.fallbackSelector ? { fallbackSelector: v.fallbackSelector } : {}),
-        ...(v.transform ? { transform: v.transform } : {}),
-        ...(v.optionMatch ? { optionMatch: v.optionMatch } : {}),
-      },
-    ]),
+    Object.entries(indiaPortalMap.fields)
+      .filter(([, v]) => isProductionUsable(v, currentRevision))
+      .map(([k, v]) => [
+        k,
+        {
+          selector: v.selector,
+          control: v.control,
+          selectorConfidence: v.selectorConfidence,
+          ...(v.fallbackSelector ? { fallbackSelector: v.fallbackSelector } : {}),
+          ...(v.transform ? { transform: v.transform } : {}),
+          ...(v.readBackParse ? { readBackParse: v.readBackParse } : {}),
+          ...(v.optionMatch ? { optionMatch: v.optionMatch } : {}),
+        },
+      ]),
   );
 }
 
@@ -138,7 +149,27 @@ export const indiaAdapter: PortalAdapter = {
   // document via the `!ready` refusal path.
   documentIdsForState: () => [],
 
-  getFieldMap: () => toPortalFieldMap(),
+  getFieldMap: () => toPortalFieldMap(indiaPortalMap.mappingRevision),
+
+  // Why a plan field is absent from `getFieldMap()` — lets the engine pause with
+  // a precise reason (`stale_mapping` vs `missing_field_mapping`).
+  mappingReadiness: (fieldPath: string) => {
+    const m = indiaPortalMap.fields[fieldPath];
+    if (!m) return 'unmapped';
+    const life = classifyMapping(m, indiaPortalMap.mappingRevision);
+    if (life === 'validated') return 'production';
+    if (life === 'stale') return 'stale';
+    return 'unvalidated'; // 'placeholder' | 'discovered'
+  },
+
+  // Why a state's next-page selector is not production-ready — lets the engine
+  // pause `stale_mapping` (recoverable) instead of terminating the run when
+  // `clickNext` would refuse.
+  nextSelectorReadiness: (state: string) =>
+    classifyNextSelector(
+      indiaPortalMap.states[state as IndiaPortalState],
+      indiaPortalMap.mappingRevision,
+    ),
 
   canContinue: async (page) => {
     const errs = await page
@@ -152,11 +183,11 @@ export const indiaAdapter: PortalAdapter = {
 
   clickNext: async (page) => {
     const id = await getIndiaPageIdentity(page);
-    const sel = indiaPortalMap.states[id.state as IndiaPortalState]?.nextSelector;
-    if (!sel || sel === 'TODO:discover') {
-      throw new Error(`india adapter: next-page selector not yet discovered for ${id.state}`);
+    const cfg = indiaPortalMap.states[id.state as IndiaPortalState];
+    if (!cfg || !isNextSelectorProductionUsable(cfg, indiaPortalMap.mappingRevision)) {
+      throw new Error(`india adapter: next-page selector not production-ready for ${id.state}`);
     }
-    await page.locator(sel).first().click();
+    await page.locator(cfg.nextSelector as string).first().click();
   },
 
   isFinalReview: (state: PortalState) =>

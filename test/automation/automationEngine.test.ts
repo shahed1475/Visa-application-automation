@@ -9,6 +9,9 @@ import {
   type EngineEvent,
   type EngineProgress,
 } from '../../src/server/automation/engine/automationEngine.js';
+import { OptionNotFoundError } from '../../src/server/automation/engine/pageActions.js';
+import type { FieldActionOptions } from '../../src/server/automation/engine/fieldActions.js';
+import { TIMING_PROFILES } from '../../src/server/automation/engine/timing.js';
 import type {
   ConflictDecision,
   MappedField,
@@ -168,13 +171,21 @@ interface CtxOpts {
   plan: ApplicationPlan;
   page?: Page;
   flags?: Record<string, boolean>;
-  applyFieldFn?: (
-    m: MappedField,
-  ) => { filled: boolean; outcome: VerificationOutcome; alreadySet: boolean };
+  applyFieldFn?: (m: MappedField) => {
+    filled: boolean;
+    outcome: VerificationOutcome;
+    alreadySet: boolean;
+    usedFallback?: boolean;
+    selector?: string;
+  };
   readControlValue?: string | null;
   initialVerifiedCount?: number;
   classifyPreFill?: EngineContext['classifyPreFill'];
   conflictDecisions?: ReadonlyMap<string, ConflictDecision>;
+  timing?: EngineContext['timing'];
+  delay?: EngineContext['delay'];
+  /** Full override of the context's `applyField` (bypasses `applyFieldFn`). */
+  applyField?: EngineContext['applyField'];
 }
 
 function makeCtx(o: CtxOpts) {
@@ -199,18 +210,29 @@ function makeCtx(o: CtxOpts) {
       mismatches.push(m);
     },
     now: () => '2026-01-01T00:00:00.000Z',
+    timing: o.timing ?? TIMING_PROFILES.normal,
+    delay: o.delay ?? (async () => {}),
     inspect: async () => ({
       pageTitle: null,
       elementCounts: {},
       securityChallengeFlags: o.flags ?? {},
     }),
     detectPage: detectPageReal,
-    applyField: async (_page, m) => {
-      applyFieldCalls.push(m.fieldPath);
-      return o.applyFieldFn
-        ? o.applyFieldFn(m)
-        : { filled: true, outcome: 'verified' as VerificationOutcome, alreadySet: false };
-    },
+    applyField:
+      o.applyField ??
+      (async (_page, m) => {
+        applyFieldCalls.push(m.fieldPath);
+        const resolvedSelector = m.spec?.selector ?? '';
+        return o.applyFieldFn
+          ? { usedFallback: false, selector: resolvedSelector, ...o.applyFieldFn(m) }
+          : {
+              filled: true,
+              outcome: 'verified' as VerificationOutcome,
+              alreadySet: false,
+              usedFallback: false,
+              selector: resolvedSelector,
+            };
+      }),
     readControl: async () => (o.readControlValue === undefined ? null : o.readControlValue),
     settle: async () => {},
     initialVerifiedCount: o.initialVerifiedCount,
@@ -402,7 +424,7 @@ describe('runLoop', () => {
     expect(types(events)).toContain('VALIDATION_ERROR');
   });
 
-  it('7. missing document: fails with error code missing_document', async () => {
+  it('7. missing document: pauses document_upload_required, not a terminal failure', async () => {
     const plan = makePlan({
       documents: [doc({ id: 'invitation', uploaded: false })],
     });
@@ -414,7 +436,7 @@ describe('runLoop', () => {
 
     const stop = await runLoop(ctx);
 
-    expect(stop).toEqual({ kind: 'failed', errorCode: 'missing_document' });
+    expect(stop).toEqual({ kind: 'waiting', reason: 'document_upload_required' });
     const blocked = events.find((e) => e.type === 'BLOCKED_MISSING_DOCUMENT');
     expect(blocked).toMatchObject({ fieldPath: 'invitation', status: 'blocked' });
   });
@@ -644,6 +666,216 @@ describe('runLoop', () => {
     expect(types(events)).not.toContain('FIELD_CONFLICT_OVERWRITTEN');
   });
 
+  // ---- stale_mapping branch (Phase 7 Task 3) --------------------------------------------
+
+  const stalePlan = () =>
+    makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({ appliesTo: 'identity.surname', sectionId: 'personal_particulars', present: true }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+
+  it('17. required field with a STALE mapping → pauses stale_mapping, never fills', async () => {
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'PERSONAL', sectionIds: ['personal_particulars'] }],
+      {}, // filtered out of the production map
+    );
+    const { ctx, events, applyFieldCalls } = makeCtx({
+      adapter: {
+        ...adapter,
+        mappingReadiness: (p: string) => (p === 'identity.surname' ? 'stale' : 'unmapped'),
+      },
+      plan: stalePlan(),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    const evt = events.find((e) => e.type === 'MAPPING_NOT_PRODUCTION_READY');
+    expect(evt).toMatchObject({ fieldPath: 'identity.surname', status: 'blocked' });
+    expect(types(events)).not.toContain('FIELD_FILL_STARTED');
+    expect(applyFieldCalls).toEqual([]);
+  });
+
+  it('18. required field with an UNVALIDATED mapping → also pauses stale_mapping', async () => {
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'PERSONAL', sectionIds: ['personal_particulars'] }],
+      {},
+    );
+    const { ctx, events } = makeCtx({
+      adapter: {
+        ...adapter,
+        mappingReadiness: () => 'unvalidated',
+      },
+      plan: stalePlan(),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    expect(types(events)).toContain('MAPPING_NOT_PRODUCTION_READY');
+  });
+
+  it('19. required field truly unmapped (no mappingReadiness) still pauses missing_field_mapping', async () => {
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'PERSONAL', sectionIds: ['personal_particulars'] }],
+      {},
+    );
+    const { ctx, events } = makeCtx({ adapter, plan: stalePlan() });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'missing_field_mapping' });
+    expect(types(events)).toContain('FIELD_UNMAPPED');
+    expect(types(events)).not.toContain('MAPPING_NOT_PRODUCTION_READY');
+  });
+
+  // ---- non-production nextSelector safe-stop (Phase 8 review I3) ------------------------
+
+  it('I3. a non-production nextSelector → pauses stale_mapping (recoverable), never clicks Next', async () => {
+    const { adapter } = makeFakeAdapter([{ state: 'PERSONAL', sectionIds: [] }], {});
+    let clicked = 0;
+    const { ctx, events } = makeCtx({
+      adapter: {
+        ...adapter,
+        clickNext: async () => {
+          clicked += 1;
+        },
+        nextSelectorReadiness: () => 'stale',
+      },
+      plan: makePlan({}),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    const evt = events.find((e) => e.type === 'MAPPING_NOT_PRODUCTION_READY');
+    expect(evt).toMatchObject({ portalState: 'PERSONAL', status: 'blocked' });
+    expect(clicked).toBe(0);
+    expect(types(events)).not.toContain('NAVIGATION_STARTED');
+  });
+
+  it('I3. clickNext throwing its own "not production-ready" Error still degrades to stale_mapping, not engine_error', async () => {
+    const { adapter } = makeFakeAdapter([{ state: 'PERSONAL', sectionIds: [] }], {});
+    const { ctx, events } = makeCtx({
+      adapter: {
+        ...adapter,
+        // no nextSelectorReadiness → engine assumes 'production' and calls clickNext
+        clickNext: async () => {
+          throw new Error('india adapter: next-page selector not production-ready for PERSONAL');
+        },
+      },
+      plan: makePlan({}),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'stale_mapping' });
+    expect(types(events)).toContain('MAPPING_NOT_PRODUCTION_READY');
+  });
+
+  it('I3. an unrelated clickNext error is NOT swallowed — it still propagates', async () => {
+    const { adapter } = makeFakeAdapter([{ state: 'PERSONAL', sectionIds: [] }], {});
+    const { ctx } = makeCtx({
+      adapter: {
+        ...adapter,
+        clickNext: async () => {
+          throw new Error('network blip');
+        },
+      },
+      plan: makePlan({}),
+    });
+
+    await expect(runLoop(ctx)).rejects.toThrow(/network blip/);
+  });
+
+  // ---- option_unavailable branch (Phase 7 Task 4) --------------------------------------
+
+  it('20. a mapped select missing the expected option → pauses option_unavailable, does not fail', async () => {
+    const fieldMap: PortalFieldMap = {
+      'application.purpose': { selector: '#purpose', control: 'native_select', selectorConfidence: 'stable' },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('visa_details', [
+          fld({ appliesTo: 'application.purpose', sectionId: 'visa_details', value: 'BUSINESS' }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+    const { adapter } = makeFakeAdapter(
+      [{ state: 'VISA', sectionIds: ['visa_details'] }],
+      fieldMap,
+    );
+    const { ctx, events } = makeCtx({
+      adapter,
+      plan,
+      applyFieldFn: () => {
+        throw new OptionNotFoundError('#purpose', 'BUSINESS');
+      },
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'waiting', reason: 'option_unavailable' });
+    const evt = events.find((e) => e.type === 'DROPDOWN_OPTION_MISSING');
+    expect(evt).toMatchObject({ fieldPath: 'application.purpose', status: 'blocked' });
+    // it reached the fill stage, then paused cleanly rather than throwing.
+    expect(types(events)).toContain('FIELD_FILL_STARTED');
+  });
+
+  it('21. applyField used the configured fallback → emits SELECTOR_STALE, run continues (no pause)', async () => {
+    const fieldMap: PortalFieldMap = {
+      'identity.surname': {
+        selector: '#surname',
+        fallbackSelector: '[name="surname"]',
+        control: 'text',
+        selectorConfidence: 'stable',
+      },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({
+            appliesTo: 'identity.surname',
+            sectionId: 'personal_particulars',
+            value: 'RANA',
+            verified: true,
+          }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      fieldMap,
+    );
+    const { ctx, events } = makeCtx({
+      adapter,
+      plan,
+      applyFieldFn: () => ({
+        filled: true,
+        outcome: 'verified',
+        alreadySet: false,
+        usedFallback: true,
+      }),
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop).toEqual({ kind: 'review_ready' });
+    const stale = events.find((e) => e.type === 'SELECTOR_STALE');
+    expect(stale).toMatchObject({ fieldPath: 'identity.surname' });
+    expect(stale?.status ?? null).not.toBe('blocked'); // informational, not a block
+    expect(types(events)).toContain('FIELD_VERIFIED');
+  });
+
   it('16. a required field kept as a portal-value conflict is not counted toward fields_verified', async () => {
     const { adapter } = makeFakeAdapter(
       [
@@ -664,5 +896,62 @@ describe('runLoop', () => {
     expect(stop).toEqual({ kind: 'review_ready' });
     const personal = progress.filter((p) => p.current_portal_state === 'PERSONAL');
     expect(personal.at(-1)).toMatchObject({ fields_verified: 0, fields_total: 1 });
+  });
+
+  // ---- Phase 8 Task 4: the loop consumes the timing profile -----------------------------
+
+  it('22. waits the profile navigation delay after each clickNext and passes timing to applyField', async () => {
+    const fieldMap: PortalFieldMap = {
+      'identity.surname': { selector: '#surname', control: 'text', selectorConfidence: 'stable' },
+    };
+    const plan = makePlan({
+      sections: [
+        sec('personal_particulars', [
+          fld({
+            appliesTo: 'identity.surname',
+            sectionId: 'personal_particulars',
+            value: 'RANA',
+            verified: true,
+          }),
+        ]),
+      ],
+      requiredTotal: 1,
+    });
+    const { adapter } = makeFakeAdapter(
+      [
+        { state: 'PERSONAL', sectionIds: ['personal_particulars'] },
+        { state: 'REVIEW', isFinalReview: true, sectionIds: [] },
+      ],
+      fieldMap,
+    );
+    const waits: number[] = [];
+    const applyField = vi.fn(
+      async (_p: Page, _m: MappedField, opts?: FieldActionOptions) => {
+        expect(opts?.timing?.name).toBe('careful');
+        expect(opts?.delay).toBeTypeOf('function');
+        return {
+          filled: true,
+          outcome: 'verified' as VerificationOutcome,
+          alreadySet: false,
+          usedFallback: false,
+          selector: '#surname',
+        };
+      },
+    );
+    const { ctx } = makeCtx({
+      adapter,
+      plan,
+      timing: TIMING_PROFILES.careful,
+      delay: async (ms: number) => {
+        waits.push(ms);
+      },
+      applyField,
+    });
+
+    const stop = await runLoop(ctx);
+
+    expect(stop.kind).toBe('review_ready');
+    expect(applyField).toHaveBeenCalledTimes(1);
+    expect(waits).toContain(TIMING_PROFILES.careful.navigationWaitMs);
   });
 });

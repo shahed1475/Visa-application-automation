@@ -1,9 +1,12 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import {
+  assertNativeOptionAvailable,
   fillText,
   OptionNotFoundError,
   readControl,
+  resolveSelector,
+  scrollIntoViewAndSettle,
   selectCustom,
   selectNative,
   setCheckbox,
@@ -13,6 +16,7 @@ import {
   typeAutocomplete,
   waitForPageSettled,
 } from '../../src/server/automation/engine/pageActions.js';
+import { TIMING_PROFILES } from '../../src/server/automation/engine/timing.js';
 import { startFixtureServer, type FixtureServer } from '../helpers/fixtureServer.js';
 
 const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Controls</title>
@@ -21,6 +25,10 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Co
   <input id="t" type="text">
   <textarea id="ta"></textarea>
   <select id="ns"><option value="a">Alpha</option><option value="b">Bravo</option></select>
+  <select id="nsd">
+    <option value="x">Ex</option>
+    <option value="y" disabled>Why</option>
+  </select>
 
   <div id="cd" role="combobox" tabindex="0"><span id="cd-label">Choose</span></div>
   <ul id="cd-list" role="listbox" hidden>
@@ -36,6 +44,12 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Co
     <li role="option">Three</li>
   </ul>
 
+  <div id="bd" role="combobox" tabindex="0"><span id="bd-label">Choose</span></div>
+  <ul id="bd-list" role="listbox" hidden>
+    <li role="option">Business Visa</li>
+    <li role="option">Business</li>
+  </ul>
+
   <label><input type="radio" name="r" value="x">X</label>
   <label><input type="radio" name="r" value="y">Y</label>
 
@@ -48,7 +62,7 @@ const FIXTURE_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Co
 
   <script>
     (function () {
-      ['cd', 'ss'].forEach(function (id) {
+      ['cd', 'ss', 'bd'].forEach(function (id) {
         var trigger = document.getElementById(id);
         var list = document.getElementById(id + '-list');
         var label = document.getElementById(id + '-label');
@@ -172,6 +186,29 @@ describe('pageActions', () => {
     await expect(fillText(page, '#nope', 'x')).rejects.toBeInstanceOf(SelectorNotFoundError);
   });
 
+  // I1 — custom dropdown option match is EXACT, never a substring.
+  it('selectCustom picks the option whose text EXACTLY equals the value (not a substring prefix)', async () => {
+    // #bd lists "Business Visa" BEFORE "Business" — a substring match on
+    // "Business" would grab "Business Visa" (the first hit).
+    await selectCustom(page, '#bd', 'Business');
+    expect(await readControl(page, '#bd', 'custom_select')).toBe('Business');
+  });
+
+  it('selectCustom throws OptionNotFoundError for a near-miss value (typo, no fuzzy match)', async () => {
+    await expect(selectCustom(page, '#bd', 'Busines')).rejects.toBeInstanceOf(OptionNotFoundError);
+    // nothing was chosen — the trigger still shows its placeholder label
+    expect(await readControl(page, '#bd', 'custom_select')).toBe('Choose');
+  });
+
+  // I2 — requireSelector's wait is caller-configurable (threaded from the timing profile).
+  it('a control writer honours the supplied timeoutMs when the selector is absent', async () => {
+    const t0 = Date.now();
+    await expect(fillText(page, '#nope', 'x', 300)).rejects.toBeInstanceOf(SelectorNotFoundError);
+    const elapsed = Date.now() - t0;
+    expect(elapsed).toBeGreaterThanOrEqual(250); // it actually waited the window
+    expect(elapsed).toBeLessThan(3_000); // …but far less than the 10s default
+  });
+
   it('rejects with OptionNotFoundError for a missing dropdown option', async () => {
     await expect(selectCustom(page, '#cd', 'NoSuchOption')).rejects.toBeInstanceOf(
       OptionNotFoundError,
@@ -180,5 +217,83 @@ describe('pageActions', () => {
 
   it('waitForPageSettled resolves once the anchor is visible', async () => {
     await expect(waitForPageSettled(page, '#t')).resolves.toBeUndefined();
+  });
+
+  describe('scrollIntoViewAndSettle', () => {
+    it('scrolls an off-screen element into view and waits the profile scrollDelayMs', async () => {
+      const spy: number[] = [];
+      await page.locator('#num').evaluate((el) => {
+        (el as unknown as { style: { marginTop: string } }).style.marginTop = '4000px';
+      });
+      await scrollIntoViewAndSettle(page, '#num', TIMING_PROFILES.careful, async (ms) => {
+        spy.push(ms);
+      });
+      expect(spy).toEqual([TIMING_PROFILES.careful.scrollDelayMs]);
+      expect(await page.locator('#num').isVisible()).toBe(true);
+    });
+
+    it('is a no-op (does not throw) for an already-visible element', async () => {
+      await expect(
+        scrollIntoViewAndSettle(page, '#t', TIMING_PROFILES.fast),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws SelectorNotFoundError when the element is absent', async () => {
+      await expect(
+        scrollIntoViewAndSettle(page, '#nope', TIMING_PROFILES.fast),
+      ).rejects.toBeInstanceOf(SelectorNotFoundError);
+    });
+  });
+
+  describe('resolveSelector (Phase 7 fallback resolution)', () => {
+    it('returns the primary selector when it is attached', async () => {
+      expect(await resolveSelector(page, { selector: '#t' })).toEqual({
+        selector: '#t',
+        usedFallback: false,
+      });
+    });
+
+    it('falls back to an explicitly configured fallbackSelector and flags it', async () => {
+      expect(await resolveSelector(page, { selector: '#missing', fallbackSelector: '#t' })).toEqual({
+        selector: '#t',
+        usedFallback: true,
+      });
+    });
+
+    it('throws SelectorNotFoundError when neither the primary nor the fallback matches', async () => {
+      await expect(
+        resolveSelector(page, { selector: '#nope-a', fallbackSelector: '#nope-b' }),
+      ).rejects.toBeInstanceOf(SelectorNotFoundError);
+    });
+
+    it('never invents a fallback — a missing primary with no fallbackSelector throws', async () => {
+      await expect(resolveSelector(page, { selector: '#nope-c' })).rejects.toBeInstanceOf(
+        SelectorNotFoundError,
+      );
+    });
+  });
+
+  describe('assertNativeOptionAvailable (Phase 7 pre-fill check)', () => {
+    it('is silent for a present option, by value or by label', async () => {
+      await expect(assertNativeOptionAvailable(page, '#ns', 'a', 'value')).resolves.toBeUndefined();
+      await expect(assertNativeOptionAvailable(page, '#ns', 'Alpha', 'label')).resolves.toBeUndefined();
+      await expect(assertNativeOptionAvailable(page, '#ns', 'Alpha', 'exact')).resolves.toBeUndefined();
+    });
+
+    it('throws OptionNotFoundError for an absent option (no fuzzy match)', async () => {
+      await expect(assertNativeOptionAvailable(page, '#ns', 'zzz', 'value')).rejects.toBeInstanceOf(
+        OptionNotFoundError,
+      );
+      await expect(assertNativeOptionAvailable(page, '#ns', 'Alp', 'label')).rejects.toBeInstanceOf(
+        OptionNotFoundError,
+      );
+    });
+
+    it('treats a disabled option as unavailable', async () => {
+      await expect(assertNativeOptionAvailable(page, '#nsd', 'x', 'value')).resolves.toBeUndefined();
+      await expect(assertNativeOptionAvailable(page, '#nsd', 'y', 'value')).rejects.toBeInstanceOf(
+        OptionNotFoundError,
+      );
+    });
   });
 });

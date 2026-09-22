@@ -133,6 +133,23 @@ it('the no-submit / no-solver grep visibly covers the discovery tree, non-vacuou
   expect(SUBMIT_LOCATOR_PATTERN.test("page.locator('#discovery-heading').textContent()")).toBe(false);
 });
 
+it('the no-submit / no-solver grep visibly covers the Phase 7 additions, non-vacuously', () => {
+  const mustCover = [
+    ['adapters', 'india', 'mappingLifecycle.ts'],
+    ['adapters', 'india', 'transforms.ts'],
+    ['adapters', 'india', 'indiaAdapter.ts'],
+    ['engine', 'fieldActions.ts'],
+    ['engine', 'pageActions.ts'],
+    ['engine', 'automationEngine.ts'],
+  ].map((parts) => path.join('src', 'server', 'automation', ...parts));
+  for (const file of mustCover) {
+    expect(SCAN, `${file} is not in the no-submit scan set\n${scanned}`).toContain(file);
+  }
+  // still bites a real match
+  expect(SUBMIT_LOCATOR_PATTERN.test("page.locator('#confirm-submission').click()")).toBe(true);
+  expect(SOLVER_PATTERN.test("import x from 'otplib'")).toBe(true);
+});
+
 it('the PortalAdapter interface pins submitSelector to null', () => {
   const src = readFileSync(
     path.join('src', 'server', 'automation', 'adapters', 'baseAdapter.ts'),

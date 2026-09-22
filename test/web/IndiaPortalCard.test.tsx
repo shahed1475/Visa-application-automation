@@ -51,7 +51,16 @@ const PORTAL: VisaPortal = {
 };
 
 function counts(o: Partial<MappingStatusCounts> = {}): MappingStatusCounts {
-  return { placeholder: 10, discovered: 0, validated: 0, total: 10, requiredRemaining: 10, ...o };
+  return {
+    placeholder: 10,
+    discovered: 0,
+    validated: 0,
+    stale: 0,
+    productionUsable: 0,
+    total: 10,
+    requiredRemaining: 10,
+    ...o,
+  };
 }
 
 function diag(o: Partial<IndiaDiagnostics> = {}): IndiaDiagnostics {
@@ -63,7 +72,10 @@ function diag(o: Partial<IndiaDiagnostics> = {}): IndiaDiagnostics {
     pagesDiscovered: 0,
     fieldsDiscovered: 0,
     mappings: counts(),
+    staleMappings: 0,
+    productionUsableMappings: 0,
     unknownPagesEncountered: 0,
+    selectorStaleEvents: 0,
     lastValidation: null,
     ...o,
   };

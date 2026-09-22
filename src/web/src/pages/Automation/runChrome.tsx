@@ -1,5 +1,13 @@
+import { useEffect, useState } from 'react';
 import { EVENT_MESSAGES } from '../../../../shared/automation/events';
-import type { AutomationEventRow } from '../../../../shared/automation/types';
+import { isTerminal } from '../../../../shared/automation/states';
+import {
+  elapsedMs,
+  estimateRemainingMs,
+  formatDuration,
+} from '../../../../shared/automation/progress';
+import type { AutomationEventRow, AutomationRunRow } from '../../../../shared/automation/types';
+import type { IndiaDiagnostics } from '../../../../shared/discovery/types';
 
 type Mismatch = { fieldPath: string; expected: string; actual: string };
 
@@ -20,9 +28,11 @@ const WAITING_REASON_TEXT: Record<string, string> = {
   anti_bot: 'Anti-bot challenge',
   unknown_page: 'Unrecognised page',
   missing_field_mapping: 'Missing field mapping',
+  stale_mapping: 'Mapping needs re-validation',
+  option_unavailable: 'Dropdown option unavailable',
   value_mismatch: 'Value needs review',
   value_conflict: 'Value conflict — decision needed',
-  document_upload_required: 'Attach documents',
+  document_upload_required: 'Documents not ready',
   session_expired: 'Session expired',
   validation_error: 'Portal validation error',
   user_paused: 'Paused',
@@ -37,9 +47,14 @@ const REASON_INSTRUCTION: Record<string, string> = {
     'Review the values below, fix them in the portal or the applicant profile, then resume.',
   value_conflict:
     'The portal already holds a different value for this field. Choose which value to keep, or edit the application.',
-  document_upload_required: 'Attach the required documents in the browser, then resume.',
+  document_upload_required:
+    'One or more required documents for this page are not ready. Upload the required document(s) in the portal yourself, then advance the portal to the next page and resume. If a document is missing from this applicant, add it and start a fresh run — a resume keeps the documents this run started with.',
   missing_field_mapping:
     'A field has no portal mapping. Enter it in the browser, then resume or abort.',
+  stale_mapping:
+    'A required portal mapping is stale or not yet validated. Re-validate it (run discovery, then Validate Adapter) before resuming.',
+  option_unavailable:
+    'The portal dropdown does not offer the expected option. Fix the value in the portal or the application, then resume.',
   unknown_page:
     'The portal is not where the automation expected. Check the browser, then resume or abort.',
   session_expired:
@@ -213,9 +228,118 @@ export function SafeStopBanner() {
     <section className="safe-stop">
       <h2>Preparation complete</h2>
       <p>
-        Automation completed the preparation. Final submission requires your review and action in the
-        browser.
+        <strong>Prepared — NOT submitted.</strong> Submission is your responsibility in the portal:
+        review every field there, then submit the application yourself.
       </p>
     </section>
+  );
+}
+
+/** Value-free run provenance: adapter version, mapping revision, how many
+ *  mappings are production-ready. Never renders applicant data. */
+export function AdapterProvenance({ diagnostics }: { diagnostics: IndiaDiagnostics | null }) {
+  if (!diagnostics) return null;
+  const d = diagnostics;
+  return (
+    <p className="muted adapter-provenance" role="status">
+      India adapter v{d.adapterVersion} · mapping rev {d.mappingRevision} ·{' '}
+      {d.productionUsableMappings} / {d.mappings.total} production-ready
+    </p>
+  );
+}
+
+/** Shown when the India adapter has stale mappings, or no production-usable
+ *  mapping at all — a real run would pause on `stale_mapping`. */
+export function StaleMappingWarning({ diagnostics }: { diagnostics: IndiaDiagnostics | null }) {
+  if (!diagnostics) return null;
+  if (diagnostics.staleMappings === 0 && diagnostics.productionUsableMappings > 0) return null;
+  return (
+    <p className="warning" role="alert">
+      Some required portal mappings are stale or not yet validated. Automation cannot safely continue
+      until they are re-validated.
+    </p>
+  );
+}
+
+/**
+ * Live elapsed timer + ETA for a run. Ticks once a second while the run is
+ * non-terminal (interval cleared on unmount and once terminal); freezes at
+ * `ended_at - started_at` once terminal. The ETA is appended only while the
+ * run is progressing and a per-field rate can be observed. Value-free.
+ */
+export function RunTiming({ run }: { run: AutomationRunRow }): JSX.Element {
+  const terminal = isTerminal(run.status);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (terminal) return;
+    const timer = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [terminal]);
+
+  const elapsed = terminal
+    ? Math.max(0, Date.parse(run.ended_at ?? run.updated_at) - Date.parse(run.started_at))
+    : elapsedMs(run.started_at);
+
+  const est = terminal
+    ? null
+    : estimateRemainingMs({
+        fieldsVerified: run.fields_verified,
+        fieldsTotal: run.fields_total,
+        elapsedMs: elapsed,
+      });
+
+  const text =
+    `Elapsed ${formatDuration(elapsed)}` +
+    (est !== null ? ` · Est. remaining ~${formatDuration(est)}` : '');
+
+  return <p className="muted run-timing">{text}</p>;
+}
+
+/**
+ * A value-free milestone timeline built from the event stream: each entry is a
+ * fixed milestone label plus a timestamp relative to the first event. Event
+ * types not in the table are skipped and consecutive identical labels collapse.
+ * NEVER renders a portal state, field path, message, or applicant value.
+ */
+const MILESTONE_LABELS: Record<string, string> = {
+  RUN_STARTED: 'Portal opened',
+  PAGE_DETECTED: 'Page detected',
+  NAVIGATION_COMPLETED: 'Moved to the next page',
+  OTP_REQUIRED: 'Human action required',
+  CAPTCHA_REQUIRED: 'Human action required',
+  MFA_REQUIRED: 'Human action required',
+  ANTI_BOT_DETECTED: 'Human action required',
+  USER_ACTION_REQUIRED: 'Waiting for you',
+  RUN_RESUMED: 'Resumed',
+  SESSION_EXPIRED: 'Session expired — sign in again',
+  REVIEW_READY: 'Review page reached — nothing submitted',
+};
+
+export function ProgressTimeline({ events }: { events: AutomationEventRow[] }): JSX.Element {
+  const first = events[0];
+  const base = first?.created_at ? Date.parse(first.created_at) : Number.NaN;
+
+  const items: { key: string; label: string; time: string }[] = [];
+  events.forEach((e, i) => {
+    const label = MILESTONE_LABELS[e.type];
+    if (!label) return;
+    if (items[items.length - 1]?.label === label) return;
+    const time =
+      e.created_at && !Number.isNaN(base)
+        ? `+${formatDuration(Date.parse(e.created_at) - base)}`
+        : `#${i + 1}`;
+    items.push({ key: e.id ?? String(e.seq ?? i), label, time });
+  });
+
+  return (
+    <ol className="progress-timeline" aria-label="Progress timeline">
+      {items.map((it) => (
+        <li key={it.key}>
+          <span className="progress-timeline__label">{it.label}</span>
+          <span className="progress-timeline__time">{it.time}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

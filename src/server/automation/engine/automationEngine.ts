@@ -13,9 +13,11 @@ import type { Page } from 'playwright';
 import type { PortalAdapter } from '../adapters/baseAdapter.js';
 import type { PageInspection } from './pageInspector.js';
 import { detectCheckpoint, type CheckpointKind } from './checkpointDetector.js';
-import { SelectorNotFoundError } from './pageActions.js';
+import { OptionNotFoundError, SelectorNotFoundError } from './pageActions.js';
+import type { FieldActionOptions } from './fieldActions.js';
+import type { TimingProfile } from './timing.js';
 import { mapFields } from '../../../shared/automation/fieldMapping.js';
-import { UNKNOWN_STATE } from '../../../shared/automation/types.js';
+import { SESSION_EXPIRED_STATE, UNKNOWN_STATE } from '../../../shared/automation/types.js';
 import type {
   AutomationRunRow,
   ConflictDecision,
@@ -61,6 +63,14 @@ export interface EngineContext {
   /** In-memory mismatch surface for `GET /live` — the ONLY place raw values go. */
   recordMismatch: (m: { fieldPath: string; expected: string; actual: string }) => void;
   now: () => string;
+  /**
+   * Deterministic timing profile (Phase 8 Task 2) resolved from
+   * `env.AUTOMATION_TIMING_PROFILE` by the service. The loop uses only
+   * `navigationWaitMs`; the rest is threaded into `applyField` via `opts`.
+   */
+  timing: TimingProfile;
+  /** Deterministic pause primitive — the service binds this to `page.waitForTimeout`. */
+  delay: (ms: number) => Promise<void>;
   // Injectable so the loop is unit-testable without a real browser. Task 12
   // defaults these to the real modules.
   inspect: (page: Page) => Promise<PageInspection>;
@@ -72,7 +82,15 @@ export interface EngineContext {
   applyField: (
     page: Page,
     m: MappedField,
-  ) => Promise<{ filled: boolean; outcome: VerificationOutcome; alreadySet: boolean }>;
+    opts?: FieldActionOptions,
+  ) => Promise<{
+    filled: boolean;
+    outcome: VerificationOutcome;
+    alreadySet: boolean;
+    usedFallback: boolean;
+    /** The selector `applyField` acted on — used for the post-fill read-back. */
+    selector: string;
+  }>;
   readControl: (page: Page, selector: string, control: ControlKind) => Promise<string | null>;
   /**
    * Read-only pre-fill triage of the portal's current value for a field.
@@ -83,6 +101,7 @@ export interface EngineContext {
     page: Page,
     spec: PortalFieldSpec,
     expected: string,
+    probeMs?: number,
   ) => Promise<'empty' | 'match' | 'conflict'>;
   /**
    * Per-field user rulings on value conflicts, keyed by `fieldPath`. Task 11
@@ -97,7 +116,7 @@ export interface EngineContext {
    * paused or what the portal now holds — so it must never blind-overwrite.
    */
   defaultConflictDecision?: ConflictDecision;
-  settle: (page: Page) => Promise<void>;
+  settle: (page: Page, timeoutMs?: number) => Promise<void>;
   /**
    * Required-field verified count carried in from an earlier `runLoop` call on
    * the same run (a resume re-enters the loop from scratch). Defaults to 0 for a
@@ -161,7 +180,7 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     }
 
     // ---- top of page: settle + inspect + detect -------------------------------
-    await ctx.settle(ctx.page);
+    await ctx.settle(ctx.page, ctx.timing.pageStabilizeTimeoutMs);
     const inspection = await ctx.inspect(ctx.page);
     const identity = await ctx.detectPage(ctx.page, ctx.adapter, inspection);
     const state = identity.state;
@@ -170,6 +189,13 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     if (leftState !== null && state === leftState) {
       await ctx.emit({ type: 'NAVIGATION_STALLED', portalState: state });
       return { kind: 'waiting', reason: 'unknown_page' };
+    }
+
+    // A session-expired / login-redirect page → its own safe stop, so the
+    // operator is told to sign in again rather than just "unrecognised page".
+    if (state === SESSION_EXPIRED_STATE) {
+      await ctx.emit({ type: 'SESSION_EXPIRED', portalState: state });
+      return { kind: 'waiting', reason: 'session_expired' };
     }
 
     // §5.1 — unknown / low-confidence page → pause.
@@ -204,6 +230,19 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     for (const m of mapped) {
       if (m.spec === null) {
         if (m.required && m.present) {
+          // A required field is absent from the production field map. The adapter
+          // (optionally) explains why: a mapping that exists but is stale /
+          // unvalidated must NOT be treated as "just unmapped" — it pauses with
+          // its own reason so the operator knows to re-validate, not to hand-fill.
+          const readiness = ctx.adapter.mappingReadiness?.(m.fieldPath) ?? 'unmapped';
+          if (readiness === 'stale' || readiness === 'unvalidated') {
+            await ctx.emit({
+              type: 'MAPPING_NOT_PRODUCTION_READY',
+              fieldPath: m.fieldPath,
+              status: 'blocked',
+            });
+            return { kind: 'waiting', reason: 'stale_mapping' };
+          }
           await ctx.emit({ type: 'FIELD_UNMAPPED', fieldPath: m.fieldPath, status: 'blocked' });
           return { kind: 'waiting', reason: 'missing_field_mapping' };
         }
@@ -214,11 +253,24 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
 
       // §6 — the portal already holds a *different* value: never blind-overwrite.
       // Pause for a decision unless the user already ruled on this field.
-      const pre = await ctx.classifyPreFill(ctx.page, m.spec, m.expected ?? '');
+      const pre = await ctx.classifyPreFill(
+        ctx.page,
+        m.spec,
+        m.expected ?? '',
+        ctx.timing.resolveProbeMs,
+      );
       if (pre === 'conflict') {
         const decision = ctx.conflictDecisions.get(m.fieldPath) ?? ctx.defaultConflictDecision;
         if (decision === undefined) {
-          const actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
+          // Best-effort read for the in-memory /live pair; a detached primary
+          // (fallback was used at classify time) must not turn the pause into a
+          // hard error.
+          let actual: string | null = null;
+          try {
+            actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
+          } catch {
+            actual = '(unreadable)';
+          }
           ctx.recordMismatch({
             fieldPath: m.fieldPath,
             expected: m.expected ?? '',
@@ -237,16 +289,38 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
 
       await ctx.emit({ type: 'FIELD_FILL_STARTED', fieldPath: m.fieldPath });
 
-      let r: { filled: boolean; outcome: VerificationOutcome; alreadySet: boolean };
+      let r: {
+        filled: boolean;
+        outcome: VerificationOutcome;
+        alreadySet: boolean;
+        usedFallback: boolean;
+        selector: string;
+      };
       try {
-        r = await ctx.applyField(ctx.page, m);
+        r = await ctx.applyField(ctx.page, m, { timing: ctx.timing, delay: ctx.delay });
       } catch (e) {
         if (e instanceof SelectorNotFoundError) {
           await ctx.emit({ type: 'FIELD_NOT_FOUND', fieldPath: m.fieldPath, status: 'blocked' });
           if (m.required) return { kind: 'waiting', reason: 'missing_field_mapping' };
           continue;
         }
+        if (e instanceof OptionNotFoundError) {
+          // The dropdown does not offer the expected option (missing, disabled,
+          // or removed). Never pick a "closest" one — pause for a human.
+          await ctx.emit({
+            type: 'DROPDOWN_OPTION_MISSING',
+            fieldPath: m.fieldPath,
+            status: 'blocked',
+          });
+          return { kind: 'waiting', reason: 'option_unavailable' };
+        }
         throw e;
+      }
+
+      if (r.usedFallback) {
+        // The primary selector no longer matched; the configured fallback did.
+        // Informational — the run continues; diagnostics count these.
+        await ctx.emit({ type: 'SELECTOR_STALE', fieldPath: m.fieldPath });
       }
 
       if (r.alreadySet) {
@@ -265,7 +339,15 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
         continue;
       }
       if (r.outcome === 'mismatch') {
-        const actual = await ctx.readControl(ctx.page, m.spec.selector, m.spec.control);
+        // Read back through the selector `applyField` actually used — a stale
+        // primary + a configured fallback would otherwise miss here and turn a
+        // review-pause into a terminal engine error.
+        let actual: string | null = null;
+        try {
+          actual = await ctx.readControl(ctx.page, r.selector, m.spec.control);
+        } catch {
+          actual = '(unreadable)';
+        }
         ctx.recordMismatch({
           fieldPath: m.fieldPath,
           expected: m.expected ?? '',
@@ -296,6 +378,11 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
     const pageRequiredDocs = reqDocs.filter((d) => docIds.includes(d.id));
     const notUploaded = pageRequiredDocs.filter((d) => !d.uploaded);
     if (notUploaded.length > 0) {
+      // A required document is not uploaded to the applicant profile. This is a
+      // RESUMABLE pause, not a terminal failure: the per-doc
+      // `BLOCKED_MISSING_DOCUMENT` events tell the operator which documents are
+      // missing so they can add them to the applicant and/or attach them in the
+      // portal by hand, then Resume — the engine never drives the file chooser.
       for (const d of notUploaded) {
         await ctx.emit({
           type: 'BLOCKED_MISSING_DOCUMENT',
@@ -304,7 +391,7 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
           portalState: state,
         });
       }
-      return { kind: 'failed', errorCode: 'missing_document' };
+      return { kind: 'waiting', reason: 'document_upload_required' };
     }
     if (pageRequiredDocs.length > 0) {
       for (const d of pageRequiredDocs) {
@@ -326,10 +413,43 @@ export async function runLoop(ctx: EngineContext): Promise<EngineStop> {
       return { kind: 'review_ready' };
     }
 
-    // §5.7 — advance to the next page.
+    // §5.7 — advance to the next page. A state whose `nextSelector` is not
+    // production-ready is a RECOVERABLE configuration gap, not a terminal
+    // failure: pause `stale_mapping` (mirroring the field `mappingReadiness`
+    // path) so the operator can re-validate and resume — never crash the run.
+    const nextReadiness = ctx.adapter.nextSelectorReadiness?.(state) ?? 'production';
+    if (nextReadiness !== 'production') {
+      await ctx.emit({
+        type: 'MAPPING_NOT_PRODUCTION_READY',
+        portalState: state,
+        status: 'blocked',
+      });
+      return { kind: 'waiting', reason: 'stale_mapping' };
+    }
+
     await ctx.emit({ type: 'NAVIGATION_STARTED', portalState: state });
-    await ctx.adapter.clickNext(ctx.page);
-    await ctx.settle(ctx.page);
+    try {
+      await ctx.adapter.clickNext(ctx.page);
+    } catch (e) {
+      // Belt-and-braces: an adapter that still throws its own "not
+      // production-ready" refusal (rather than reporting it via
+      // `nextSelectorReadiness`) must degrade to the same safe-stop, not a
+      // terminal `engine_error`. Any other fault rethrows as before.
+      if (e instanceof Error && /not production-ready/i.test(e.message)) {
+        await ctx.emit({
+          type: 'MAPPING_NOT_PRODUCTION_READY',
+          portalState: state,
+          status: 'blocked',
+        });
+        return { kind: 'waiting', reason: 'stale_mapping' };
+      }
+      throw e;
+    }
+    // Phase 8 Task 4: the ONLY per-loop timing the engine adds — a deterministic
+    // pause for the new page to begin loading before the settle checks. Per-field
+    // pauses live in `fieldActions` (Task 3), never here.
+    await ctx.delay(ctx.timing.navigationWaitMs);
+    await ctx.settle(ctx.page, ctx.timing.pageStabilizeTimeoutMs);
     await ctx.emit({ type: 'NAVIGATION_COMPLETED', portalState: state });
     leftState = state;
   }

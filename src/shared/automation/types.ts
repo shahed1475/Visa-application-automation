@@ -1,9 +1,13 @@
 export type RunStatus = 'pending' | 'running' | 'waiting_for_user' | 'paused' | 'review_ready' | 'failed' | 'aborted';
-export type WaitingReason = 'otp' | 'captcha' | 'mfa' | 'anti_bot' | 'unknown_page' | 'missing_field_mapping' | 'value_mismatch' | 'value_conflict' | 'document_upload_required' | 'session_expired' | 'validation_error' | 'user_paused';
+export type WaitingReason = 'otp' | 'captcha' | 'mfa' | 'anti_bot' | 'unknown_page' | 'missing_field_mapping' | 'stale_mapping' | 'option_unavailable' | 'value_mismatch' | 'value_conflict' | 'document_upload_required' | 'session_expired' | 'validation_error' | 'user_paused';
 /** A user's ruling on a pre-fill value conflict (spec §6). */
 export type ConflictDecision = 'use_application' | 'keep_portal';
-export type PortalState = string; // adapter-defined; 'UNKNOWN' is reserved
+export type PortalState = string; // adapter-defined; 'UNKNOWN' and 'SESSION_EXPIRED' are reserved
 export const UNKNOWN_STATE = 'UNKNOWN';
+/** Reserved: an adapter returns this from `getPageIdentity` when the page is a
+ *  session-expired / login-redirect screen — the engine pauses `session_expired`
+ *  (distinct from `unknown_page` so the operator is told to sign in again). */
+export const SESSION_EXPIRED_STATE = 'SESSION_EXPIRED';
 export type ControlKind = 'text' | 'textarea' | 'native_select' | 'custom_select' | 'radio' | 'checkbox' | 'date' | 'number' | 'autocomplete' | 'searchable_select';
 export type SelectorConfidence = 'stable' | 'moderate' | 'fragile';
 export interface PortalFieldSpec {
@@ -12,6 +16,13 @@ export interface PortalFieldSpec {
   control: ControlKind;
   selectorConfidence: SelectorConfidence;
   transform?: (canonical: string) => string;
+  /**
+   * Portal-value → ISO (`YYYY-MM-DD`) normaliser used for read-back comparison of
+   * `date` controls. Set by the adapter alongside `transform` for a date field
+   * whose portal format is known; when absent, read-back compares the raw string
+   * (unchanged behaviour for every non-date field). See Phase 7 spec §8.
+   */
+  readBackParse?: (portalValue: string) => string;
   optionMatch?: 'exact' | 'label' | 'value';
 }
 export type PortalFieldMap = Record<string, PortalFieldSpec>; // key = FieldPlan.appliesTo

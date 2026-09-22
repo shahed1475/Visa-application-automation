@@ -22,6 +22,7 @@ const schema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
   AUTOMATION_EVIDENCE: z.enum(['off', 'screenshots']).default('off'),
+  AUTOMATION_TIMING_PROFILE: z.enum(['fast', 'normal', 'careful']).default('normal'),
 });
 
 const parsed = schema.parse(process.env);

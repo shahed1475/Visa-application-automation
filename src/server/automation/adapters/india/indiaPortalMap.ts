@@ -41,6 +41,14 @@ export interface IndiaFieldMapping extends PortalFieldSpec {
   status: MappingStatus;
   discoveredAt?: string;
   validatedAt?: string;
+  /**
+   * The `mappingRevision` this mapping was validated against. A validated mapping
+   * whose stamp !== the current `mappingRevision` is STALE and NOT
+   * production-usable — it must be re-validated before it can drive autofill.
+   * A validated mapping with NO stamp is also treated as stale (never silently
+   * trusted). Enforced by `indiaMappingProvenance.test.ts`.
+   */
+  validatedAgainstRevision?: string;
   discoverySessionRef?: string;
   notes?: string;
 }
@@ -64,6 +72,13 @@ export interface IndiaPortalStateConfig {
    */
   nextSelectorDiscoverySessionRef?: string;
   nextSelectorValidatedAt?: string;
+  /**
+   * Revision parity for a promoted `nextSelector` — same rule as
+   * `IndiaFieldMapping.validatedAgainstRevision`: a `'validated'` `nextSelector`
+   * whose stamp !== the current `mappingRevision` (or has no stamp) is stale and
+   * not production-usable.
+   */
+  nextSelectorValidatedAgainstRevision?: string;
   isFinalReview: boolean;
 }
 

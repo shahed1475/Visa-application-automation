@@ -829,6 +829,31 @@ table.extracted-fields .row--dismissed {
   padding: 0;
   font-weight: 400;
 }
+.run-timing {
+  font-variant-numeric: tabular-nums;
+}
+.progress-timeline {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+.progress-timeline li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  border-left: 3px solid var(--border);
+  padding: 0.25rem 0.6rem;
+}
+.progress-timeline__time {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
 .event-log {
   list-style: none;
   margin: 0.75rem 0;

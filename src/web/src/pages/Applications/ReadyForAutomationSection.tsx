@@ -4,8 +4,8 @@ import type { Blocker } from '../../../../shared/application/types';
 import { api } from '../../api/client';
 import { SourceLine } from './provenance';
 
-const PHASE_5_HELPER =
-  'Available in Phase 5. This does not submit anything, and does not mean the visa is approved.';
+const AUTOMATION_HELPER =
+  'This fills the portal form under your control. It never submits, pays, or books an appointment — you review every field in the portal and submit it yourself.';
 
 interface Props {
   readyForAutomation: { ready: boolean; blockers: Blocker[] };
@@ -59,14 +59,14 @@ export function ReadyForAutomationSection({ readyForAutomation, applicationId }:
         disabled={!ready || starting}
         onClick={ready ? () => void start() : undefined}
       >
-        {ready ? (starting ? 'Starting…' : 'Start automation') : 'Start automation (Phase 5)'}
+        {starting ? 'Starting…' : 'Start automation'}
       </button>
       {startError && (
         <p className="error" role="alert">
           {startError}
         </p>
       )}
-      <p className="hint">{PHASE_5_HELPER}</p>
+      <p className="hint">{AUTOMATION_HELPER}</p>
       <p className="hint">
         Readiness reflects only the local preparation data against the current knowledge base. It is
         not a submission and not an approval.

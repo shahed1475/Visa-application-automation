@@ -95,6 +95,117 @@ does not require Test G to pass on the real portal — it requires G to pass on
 fixture v2 (it does, see `docs/PHASE-6-REPORT.md` §"Fixture-v2 E2E") and this
 runbook plus whatever live progress was made to be documented.
 
+### Track B execution checklist (numbered)
+
+The consolidated, ordered procedure. It ties together the `Test A`–`Test G`
+detail below, the "### Field-validation procedure" and "### Mapping-promotion
+checklist" under "## Phase 7 — production-controlled autofill procedures", and the
+per-field report `docs/portals/india-validation-report-TEMPLATE.md`. Do the steps
+in order; never skip a read-back. The safety rules are absolute: **no submission,
+payment, appointment booking, or account registration — ever**; OTP / CAPTCHA are
+**operator-only** (the tool detects and pauses, it never solves or bypasses one);
+a `<select>` value must map to an **exact** option label — never a "close" one;
+**never guess a selector** — if discovery did not observe it, it stays a
+placeholder; a mapping that is not `validated` against the **current**
+`indiaPortalMap.mappingRevision` is rejected by the engine (`stale_mapping` /
+`MAPPING_NOT_PRODUCTION_READY`).
+
+1. **Confirm the URL + record the ToS acknowledgement.** Operator opens Settings →
+   the "India Visa Portal" card, confirms the stored portal URL, and records the
+   Terms-of-Service acknowledgement (the card's inline ToS prompt, i.e.
+   `POST /api/portals/:id/policy-ack`, which writes `app_settings` key
+   `portal_policy_ack:<portalId>`). Without it, discovery and any run refuse with
+   `409 TOS_NOT_ACKNOWLEDGED`. For `ivacbd.com` this requires the authenticated
+   Terms review that clears it from its default `PROHIBITED`.
+2. **Start a discovery session.** Settings → "India Visa Portal" card → **Start
+   Discovery**. `POST /api/portals/:id/discovery-sessions` returns
+   `201 { session }` (`status: 'active'`); a **headed** Chromium window opens and
+   makes the single permitted `page.goto` to the stored URL; the app navigates to
+   `/discovery/:sessionId`. (**= Test A.** A second active session is correctly
+   refused `409 SESSION_ACTIVE`.)
+3. **Authenticate by hand.** The operator logs in to the portal in the browser
+   window. The tool never fills, clicks, types, or navigates during discovery.
+4. **Handle OTP by hand.** The operator completes any one-time-passcode challenge
+   directly in the browser. Nothing is retrieved or auto-entered.
+5. **Handle CAPTCHA by hand.** The operator completes any CAPTCHA / anti-bot
+   challenge directly in the browser.
+6. **Capture each real page.** On every meaningful page, in `/discovery/:sessionId`
+   click **Capture this page** (`POST /api/discovery-sessions/:id/capture` →
+   `201 { page }`). Discovery observes **structure only** — control kinds,
+   candidate selectors, option *counts* — via the §5.3 sanitizer; no applicant
+   values are ever read or persisted. (**= Test B.**)
+7. **Review the candidate tables.** The captured page's candidate field mappings
+   appear in the session page's per-page candidate table (expand "Show
+   candidates").
+8. **Confirm each mapping against the live DOM, then Promote.** For each field,
+   the operator verifies the selector actually resolves to the intended control
+   on the live page and that the control kind is right — **no fuzzy guess, no
+   nth-child chain** — then clicks **Promote** and picks the canonical field path
+   (`POST /api/discovery-sessions/:id/promote`). Prefer a stable id / `name` /
+   `data-*` hook; add a second stable locator as `fallbackSelector` if the portal
+   offers one. (**= Test C.** See also "### Mapping-promotion checklist".)
+9. **Promoted output is `status: 'discovered'`.** The rendered literal carries
+   `status: 'discovered'`, `discoveredAt`, `discoverySessionRef: '<sessionId>'`,
+   and three `// TODO:` comment lines marking where the validation stamps go. The
+   app writes **no** adapter source.
+10. **Paste into the adapter.** Click **Copy all promoted** (or **Promote** each,
+    then copy) and paste the block into
+    `src/server/automation/adapters/india/indiaPortalMap.ts` by hand. Never
+    hand-edit a selector the promote output did not produce — the provenance
+    guard fails the build on a non-placeholder selector with no
+    `discoverySessionRef`. Re-run the gate
+    (`npm run typecheck && npm run lint && npm test && npm run build`).
+11. **Controlled autofill of ONE safe field (or small safe group).** From
+    `/applications/:id` → **Start automation** (`AUTOMATION_HEADLESS=false`), let
+    the run fill just that field / group and **verify-and-pause** — it reads each
+    field back, emits `FIELD_VERIFIED`, and pauses on the first still-placeholder
+    page (`unknown_page`). It never submits. (**= Test D.** If the portal already
+    holds a different non-empty value, the run pauses `value_conflict` and shows
+    the 3-way panel — **= Test E**; the two values live only in the in-memory
+    `/live` surface.)
+12. **Read the value back on the portal.** The operator looks at the field in the
+    browser and confirms the portal shows exactly what was written (date fields:
+    confirm the echoed format round-trips).
+13. **Run "Validate Adapter".** In `/discovery/:sessionId` click **Validate
+    Adapter** with the live page on the relevant portal page
+    (`POST /api/discovery-sessions/:id/validate-adapter` → `200 { report }`).
+    Every non-placeholder selector must resolve to exactly one node of the
+    declared control kind (`resolvable === true && controlMatches === true`); the
+    report is value-free and persisted to
+    `portal_discovery_sessions.last_validation_json`.
+14. **Only after read-back + validation: stamp the field.** Hand-edit that field's
+    entry in `indiaPortalMap.ts` — replace the three `// TODO:` comment lines with
+    `status: 'validated'`, `validatedAt: '<ISO now>'`, and
+    `validatedAgainstRevision: '<current indiaPortalMap.mappingRevision>'`. For a
+    date field also assign the matching `transform` / `readBackParse` pair from
+    `adapters/india/transforms.ts` (never guess the format — if the field
+    reformats itself on blur, mark it **Not supported** and leave it for manual
+    entry). This is the only state (`validated` + current revision) the engine's
+    `getFieldMap()` will use. (See "### Field-validation procedure" step 5 and
+    "### Mapping-promotion checklist".)
+15. **Continue field-by-field / safe-group-by-safe-group.** Repeat steps 11–14
+    for the next safe field or group until every section the application plan
+    needs is `validated`. A full controlled walk to the portal's final review
+    page — which sets `status = review_ready` and **STOPS without ever calling a
+    submit control** — is **Test G**, run once everything is mapped.
+16. **Record the session in the log.** Add a row per test to "### Live discovery
+    session log" in this file: date, session id, portal host, result
+    (`PASS` / `PARTIAL` / `BLOCKED — <reason>`), and the commit SHA of any
+    `indiaPortalMap.ts` selector edits.
+17. **Update the field support tables.** Click **Copy field tables**
+    (`GET /api/discovery-sessions/:id/field-tables`) and paste the generated
+    markdown directly under the `<!-- field-tables -->` anchor in "### Field
+    support tables" (replacing the "nothing pasted yet" line). Do not hand-write
+    those rows.
+18. **Fill and commit the validation report.** Copy
+    `docs/portals/india-validation-report-TEMPLATE.md` to
+    `india-validation-report-<sessionId>.md`, fill every section (front-matter,
+    pages walked, per-field table, checkpoints, totals, attestation, operator
+    signature), and commit it **in the same commit** as the `indiaPortalMap.ts`
+    edits it documents. **NEVER auto-promote an observed selector straight to
+    `validated`** — every production selector goes through a controlled read-back
+    (step 12) and a git-reviewed commit (this step).
+
 ### Test A — Start Discovery opens the real portal (headed)
 
 1. Settings → the "India Visa Portal" card → **Start Discovery**.
@@ -251,6 +362,117 @@ When a session is run, record per test: date, session id, portal host, the resul
 | E | — | — | NOT ATTEMPTED | deferred |
 | F | — | — | NOT ATTEMPTED | deferred |
 | G | — | — | NOT ATTEMPTED | deferred |
+
+---
+
+## Phase 7 — production-controlled autofill procedures
+
+Phase 7 makes the adapter refuse to autofill any mapping that is not
+**production-usable**: `status: 'validated'` **and**
+`validatedAgainstRevision === indiaPortalMap.mappingRevision`. Everything below is
+the operator workflow that gets a mapping to that state and keeps it there.
+
+### Mapping lifecycle
+
+```
+placeholder ──discovery──▶ discovered ──human validation──▶ validated ──(revision bump)──▶ stale
+                                                               │                              │
+                                                       production-usable          NOT usable — re-validate
+```
+
+- A `validated` mapping with **no** `validatedAgainstRevision`, or one stamped
+  against an **older** `mappingRevision`, is `stale` — it never reaches the engine.
+- `getFieldMap()` exposes only the production-usable subset. Today that is the
+  **empty set** — every real mapping is still `'TODO:discover'`.
+
+### Field-validation procedure (one field / safe group at a time)
+
+1. **Discover.** Run a Track B session (Tests A–B). `POST
+   /api/discovery-sessions/:id/capture` on each page.
+2. **Promote.** `POST /api/discovery-sessions/:id/promote` with
+   `{ pageSeq, candidateIndex, canonicalFieldPath }`. The response `literal` is a
+   paste-ready `indiaPortalMap.fields['<path>']` entry at `status: 'discovered'`.
+   The app never writes adapter source — a human pastes and reviews it.
+3. **Review the selector** against the live DOM. Confirm it is stable
+   (id / `name` / a `data-*` hook — not an nth-child chain). If the portal offers
+   a second stable locator, add it as `fallbackSelector`.
+4. **Validate.** `POST /api/discovery-sessions/:id/validate-adapter` — the selector
+   must resolve to one control of the declared kind (a `radio`/`checkbox` group
+   resolves to ≥1 `<input>` of that type), `<select>` option labels dump clean.
+5. **Stamp.** Hand-edit `indiaPortalMap.ts`:
+   ```ts
+   status: 'validated',
+   validatedAt: '<ISO now>',
+   validatedAgainstRevision: '<current indiaPortalMap.mappingRevision>',
+   discoverySessionRef: '<session id>',
+   ```
+   For a **date** field also assign `transform` + `readBackParse` from
+   `adapters/india/transforms.ts` matching the observed portal format (e.g.
+   `transform: isoToDMY, readBackParse: parseDMY` for a `DD/MM/YYYY` field). Never
+   guess the format — if the field reformats its own value on blur, mark it **Not
+   supported** and leave it for manual entry.
+6. **Commit** the selector edits separately:
+   `feat(phase-7): india <section> selectors from discovery session <id>`.
+
+### Mapping-promotion checklist (what a human confirms before stamping)
+
+- selector came from an actual discovery capture (`discoverySessionRef` set);
+- selector resolves to exactly the intended control on the live page;
+- `control` kind matches (`validate-adapter` `controlMatches: true`);
+- for a `<select>`: the plan's canonical values map to real option
+  labels/values (`optionMatch` set correctly);
+- for a date: an explicit `transform`/`readBackParse` pair, round-trip-checked;
+- `validatedAgainstRevision` equals the **current** `mappingRevision`.
+
+### Recovery procedures
+
+| The run paused with… | What happened | Do this |
+|---|---|---|
+| `stale_mapping` (`MAPPING_NOT_PRODUCTION_READY`) | a required field's mapping is `placeholder` / `discovered`, or `validated` against an old revision | run discovery + `validate-adapter` for that field, then re-stamp `validatedAgainstRevision` to the current `mappingRevision`. If a `mappingRevision` bump staled everything, re-validate every field before the next run. |
+| `option_unavailable` (`DROPDOWN_OPTION_MISSING`) | the portal `<select>` no longer offers the exact option the plan asked for (renamed / removed / disabled) | re-discover the option set; fix the plan value or the mapping's `optionMatch`. Never hand-edit the mapping to point at a "close" option. |
+| `SELECTOR_STALE` in the diagnostics count (run continued) | the primary selector missed; the configured `fallbackSelector` carried the run | re-discover the primary selector, update `selector`, keep the fallback, re-stamp. |
+| `missing_field_mapping` (`FIELD_UNMAPPED` / `FIELD_NOT_FOUND`) | the field has no mapping at all, or **both** primary and fallback selectors are gone | discover + promote + validate the field; or enter it by hand in the browser and Resume. |
+| `unknown_page` (`UNKNOWN_PORTAL_STATE`) | the portal is not on a page the adapter recognises (incl. a session-expired / login-redirect page) | check the browser: sign in again if the session expired, then Resume; if the portal changed, re-run discovery for the new page identity. |
+| `otp` / `captcha` / `mfa` / `anti_bot` | a human challenge is on the page | complete it in the browser window, then Resume. The run re-detects and re-validates the page before continuing; a still-present challenge returns `409 CHECKPOINT_STILL_PRESENT`. |
+| `value_conflict` | the portal already holds a different value for a field | choose **Use application value** / **Keep portal value** / **Edit application** on the run page. The two values live only in the in-memory `/live` surface. |
+| `document_upload_required` | a required document is not attached | attach it in the browser, then Resume. Phase 7 does not drive the file chooser. |
+
+### OTP / CAPTCHA pause–resume
+
+The automation **detects** a challenge and pauses — it never solves, retrieves,
+or bypasses one. Sequence: pause → `page.bringToFront()` → operator completes the
+challenge in the real browser → operator clicks **Resume** → the run reloads the
+page, re-runs checkpoint detection, and only continues if the challenge is gone.
+
+### Troubleshooting
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| Run refuses to start, `409 TOS_NOT_ACKNOWLEDGED` | no `portal_policy_ack` for this portal id | acknowledge the portal Terms in Settings → India Visa Portal (records `app_settings` key `portal_policy_ack:<portalId>`) |
+| Run pauses `stale_mapping` immediately | nothing is production-usable (0 validated + current mappings) | run Track B and validate the fields the plan needs |
+| Provenance line shows `0 / 26 production-ready` + stale-mapping warning | expected until Track B validates real selectors | — |
+| A date field pauses `value_mismatch` on read-back | the portal echoes a different date format than it accepts | that field needs a custom transform, or is **Not supported** — enter it by hand |
+| `clickNext` throws "next-page selector not production-ready" | the state's `nextSelector` is a placeholder / stale | discover + validate the state's `nextSelector`, stamp `nextSelectorValidatedAgainstRevision` |
+
+### Field support tables
+
+The Validated / Discovered / Placeholder rows below are **generated** from the
+persisted discovery session and the live `indiaPortalMap.ts` — do not hand-write
+them. Use the **Copy field tables** button on the discovery session page and
+paste the output directly under the anchor.
+
+<!-- field-tables -->
+
+_(nothing pasted yet — every mapping is still `'TODO:discover'`; Track B not executed)_
+
+**Not supported** — no canonical model / KB backing, or portal behaviour the
+adapter deliberately does not automate:
+
+| Canonical path in `indiaPortalMap.ts` | Reason |
+|---|---|
+| `application.indiaCompanyName` / `application.indiaCompanyAddress` / `application.natureOfBusiness` | conditional business-visa fields; present in the map for completeness, filled only when the Phase 4 plan marks them applicable |
+| document uploads | detect-and-pause only; the operator attaches files in the browser |
+| account registration, payment, appointment booking, final submission | out of scope by design — human actions only |
 
 ## Fingerprint
 

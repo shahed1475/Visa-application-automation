@@ -48,3 +48,14 @@ it('throws (Zod) on an invalid AUTOMATION_EVIDENCE value', async () => {
   vi.resetModules();
   await expect(import('../../src/server/env.js')).rejects.toThrow();
 });
+
+it('defaults AUTOMATION_TIMING_PROFILE to normal when unset', async () => {
+  const env = await importEnv();
+  expect(env.AUTOMATION_TIMING_PROFILE).toBe('normal');
+});
+
+it('passes AUTOMATION_TIMING_PROFILE="careful" through unchanged', async () => {
+  vi.stubEnv('AUTOMATION_TIMING_PROFILE', 'careful');
+  const env = await importEnv();
+  expect(env.AUTOMATION_TIMING_PROFILE).toBe('careful');
+});

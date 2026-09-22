@@ -19,8 +19,11 @@ import {
   getIndiaMappingStatus,
   getIndiaMappings,
   promoteCandidate,
+  renderPromotedBundle,
 } from '../automation/adapters/india/indiaMappingRegistry.js';
 import { getIndiaDiagnostics } from '../automation/adapters/india/diagnostics.js';
+import { renderFieldTablesMarkdown } from '../automation/adapters/india/fieldTablesMarkdown.js';
+import { indiaPortalMap } from '../automation/adapters/india/indiaPortalMap.js';
 import { PortalNotFoundError } from '../services/errors.js';
 import { getPortal } from '../services/portalService.js';
 import { validateIndiaAdapter } from '../automation/adapters/india/validateAdapter.js';
@@ -38,6 +41,10 @@ const promoteBodySchema = z.object({
   pageSeq: z.number().int().positive(),
   candidateIndex: z.number().int().nonnegative(),
   canonicalFieldPath: z.string().min(1),
+});
+
+const promoteBundleBodySchema = z.object({
+  picks: z.array(promoteBodySchema).min(1),
 });
 
 function mapDiscoveryError(e: unknown, reply: FastifyReply): FastifyReply | undefined {
@@ -191,6 +198,52 @@ export async function registerDiscoveryRoutes(app: FastifyInstance): Promise<voi
         if (mapped) return mapped;
         throw e;
       }
+    },
+  );
+
+  // Promote several discovered candidates in one shot — the operator's "copy all
+  // promoted" action. Same rules as `/promote`: returns a TS string to review and
+  // paste, writes no source. (§13.12)
+  app.post<{ Params: { id: string } }>(
+    '/api/discovery-sessions/:id/promote-bundle',
+    async (req, reply) => {
+      const parsedParams = idParamSchema.safeParse(req.params);
+      if (!parsedParams.success) return reply.code(400).send(validationError(parsedParams.error));
+      const parsedBody = promoteBundleBodySchema.safeParse(req.body);
+      if (!parsedBody.success) return reply.code(400).send(validationError(parsedBody.error));
+      try {
+        const bundle = renderPromotedBundle(app.db, parsedParams.data.id, parsedBody.data.picks);
+        return reply.send({ bundle });
+      } catch (e) {
+        const mapped = mapDiscoveryError(e, reply);
+        if (mapped) return mapped;
+        throw e;
+      }
+    },
+  );
+
+  // Render the docs/portals/india.md "Field support tables" from persisted
+  // discovery (`portal_discovery_pages`) + the live `indiaPortalMap` — the
+  // operator pastes the markdown instead of transcribing it (Phase 8 §11). The
+  // formatter is pure and value-free; the DB reads live here. Adapter-level
+  // result, but scoped to a session for its captured pages, so a 404 guard.
+  app.get<{ Params: { id: string } }>(
+    '/api/discovery-sessions/:id/field-tables',
+    async (req, reply) => {
+      const parsed = idParamSchema.safeParse(req.params);
+      if (!parsed.success) return reply.code(400).send(validationError(parsed.error));
+      if (!getDiscoverySession(app.db, parsed.data.id)) {
+        return reply.code(404).send(notFoundError('discovery session'));
+      }
+      const markdown = renderFieldTablesMarkdown({
+        mappings: getIndiaMappings(),
+        mappingRevision: indiaPortalMap.mappingRevision,
+        discoveryPages: listDiscoveryPages(app.db, parsed.data.id).map((p) => ({
+          state_guess: p.state_guess,
+          candidates_json: p.candidates_json,
+        })),
+      });
+      return { markdown };
     },
   );
 

@@ -164,7 +164,7 @@ describe('fixture portal v2 — prefill / WebForms / extra sections / unknown pa
   it('injects the canonical match prefill values on /personal', async () => {
     portal.setPrefill('match');
     const body = await (await fetch(portal.url + '/personal')).text();
-    expect(body).toContain('<input id="surname" type="text" value="RANA">');
+    expect(body).toContain('<input id="surname" name="surname" type="text" value="RANA">');
     expect(body).toContain('<input id="given-names" type="text" value="KUMAR">');
     portal.setPrefill('none');
   });
@@ -172,14 +172,14 @@ describe('fixture portal v2 — prefill / WebForms / extra sections / unknown pa
   it('injects the conflict prefill values on /personal', async () => {
     portal.setPrefill('conflict');
     const body = await (await fetch(portal.url + '/personal')).text();
-    expect(body).toContain('<input id="surname" type="text" value="SOMEONE-ELSE">');
+    expect(body).toContain('<input id="surname" name="surname" type="text" value="SOMEONE-ELSE">');
     expect(body).toContain('<input id="given-names" type="text" value="DIFFERENT">');
     portal.setPrefill('none');
   });
 
   it('serves /personal with empty controls when prefill is none (default)', async () => {
     const body = await (await fetch(portal.url + '/personal')).text();
-    expect(body).toContain('<input id="surname" type="text">');
+    expect(body).toContain('<input id="surname" name="surname" type="text">');
     expect(body).not.toContain('value="RANA"');
   });
 
